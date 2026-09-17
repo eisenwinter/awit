@@ -82,6 +82,11 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	release, err := s.Lock(5 * time.Second)
+	if err != nil {
+		return err
+	}
+	defer release()
 	itemID := cmd.String("id")
 	if itemID == "" {
 		itemID, err = s.Mint(time.Now())

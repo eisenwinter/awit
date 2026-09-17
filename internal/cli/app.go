@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/graph"
@@ -19,6 +20,13 @@ import (
 
 // Version is set via -ldflags "-X github.com/eisenwinter/awit/internal/cli.Version=v1.2.3".
 var Version = "dev"
+
+// mainMu serializes Main: newRoot reuses the package-level subcommand tree
+// (createCmd, ...) and urfave/cli v3 Run mutates it (flag parse state,
+// setupDefaults), so concurrent Main calls race. Production makes one call
+// per process; the mutex only matters to in-process concurrent test drivers.
+// Cross-process exclusion is the .awit/.lock file lock, not this mutex.
+var mainMu sync.Mutex
 
 // report writes err to w using the awit convention and returns the process
 // exit code. A cli.ExitCoder carries its own code and its message is printed
@@ -53,6 +61,8 @@ func printVersion(cmd *cli.Command) {
 // Main runs the CLI with the given args (program name excluded) and streams,
 // and returns the exit code: 0 success, 1 expected non-success, 2 usage error.
 func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	mainMu.Lock()
+	defer mainMu.Unlock()
 	root := newRoot(stdin, stdout, stderr)
 	setUsageHandler(root, usageError)
 	return report(stderr, root.Run(context.Background(), append([]string{"awit"}, args...)))

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/item"
@@ -45,6 +46,11 @@ func depAdd(cmd *cli.Command, id, dep string) error {
 	if err != nil {
 		return err
 	}
+	release, err := s.Lock(5 * time.Second)
+	if err != nil {
+		return err
+	}
+	defer release()
 	g, err := loadGraph(s)
 	if err != nil {
 		return err
@@ -78,6 +84,11 @@ func depRm(cmd *cli.Command, id, dep string) error {
 	if err != nil {
 		return err
 	}
+	release, err := s.Lock(5 * time.Second)
+	if err != nil {
+		return err
+	}
+	defer release()
 	g, err := loadGraph(s)
 	if err != nil {
 		return err

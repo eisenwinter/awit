@@ -27,6 +27,11 @@ func closeAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	release, err := s.Lock(5 * time.Second)
+	if err != nil {
+		return err
+	}
+	defer release()
 	it, err := loadItem(s, id)
 	if err != nil {
 		return err

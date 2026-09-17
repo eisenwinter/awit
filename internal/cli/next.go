@@ -73,6 +73,13 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	if cmd.Bool("claim") {
+		release, err := s.Lock(5 * time.Second)
+		if err != nil {
+			return err
+		}
+		defer release()
+	}
 	g, err := loadGraph(s)
 	if err != nil {
 		return err

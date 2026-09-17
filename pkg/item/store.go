@@ -12,6 +12,7 @@ import (
 	"github.com/eisenwinter/awit/internal/gitx"
 	"github.com/eisenwinter/awit/pkg/config"
 	"github.com/eisenwinter/awit/pkg/id"
+	"github.com/eisenwinter/awit/pkg/lock"
 )
 
 const DirName = ".awit"
@@ -248,4 +249,18 @@ func (s *Store) Save(it *Item) error {
 
 func (s *Store) Mint(now time.Time) (string, error) {
 	return id.Mint(s.Config.Prefix, now, id.Worker(s.Root, gitx.Branch(s.Root)), s.Exists)
+}
+
+// Lock takes an exclusive advisory lock on Dir/.lock, creating the file.
+// On lock.ErrTimeout the returned error is
+// "another awit process holds .awit/.lock (waited <timeout>)".
+func (s *Store) Lock(timeout time.Duration) (func() error, error) {
+	rel, err := lock.Acquire(filepath.Join(s.Dir, ".lock"), timeout)
+	if err == nil {
+		return rel, nil
+	}
+	if errors.Is(err, lock.ErrTimeout) {
+		return nil, fmt.Errorf("another awit process holds .awit/.lock (waited %s)", timeout)
+	}
+	return nil, err
 }
