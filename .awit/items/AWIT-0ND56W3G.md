@@ -7,7 +7,7 @@ brief: >-
   `--max-tokens` truncation, plus the `awit prime` command with
   `--max-tokens` and `-l`. READY lines reuse `format.Line`; prime never
   imports `internal/cli`.
-status: open
+status: closed
 deps: [AWIT-0ND56V3G, AWIT-0ND56S3G]
 labels: [phase3, p0]
 refs:
