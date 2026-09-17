@@ -5,7 +5,7 @@ brief: >-
   Add pkg/lock.Acquire (50ms poll via tryLock; unix Flock, Windows LockFileEx)
   and Store.Lock on .awit/.lock. Mutating commands lock for 5s after openStore.
   Timeout prints Error: another awit process holds .awit/.lock (waited 5s).
-status: open
+status: closed
 deps: [AWIT-0ND56E3G]
 labels: [phase5, p2]
 refs:

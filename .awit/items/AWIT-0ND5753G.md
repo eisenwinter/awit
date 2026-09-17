@@ -6,7 +6,7 @@ brief: >-
   preserves external: gitlab#42, confirm validate ignores unknown keys, and
   land docs/schema.md covering config.yaml, item frontmatter, comments,
   filenames, and the reserved external: <provider>#<number> key.
-status: open
+status: closed
 deps: [AWIT-0ND56D3G]
 labels: [phase5, p2]
 refs:

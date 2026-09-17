@@ -5,7 +5,7 @@ brief: >-
   Add internal/cli/e2e_test.go that drives the five-step agent loop against
   the loop fixture inside a real git repo: prime, next --claim, show --full,
   comment, close, then drain 0002 and 0003 until next exits 1.
-status: open
+status: closed
 deps: [AWIT-0ND56W3G, AWIT-0ND56X3G, AWIT-0ND56Y3G, AWIT-0ND5703G, AWIT-0ND56M3G]
 labels: [phase4, p0]
 refs:
