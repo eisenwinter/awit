@@ -65,8 +65,6 @@ type Graph struct {
 // detectCycles, classify, and countUnblocks are seams. Build always calls
 // them in this order. Later tickets replace the bodies; do not change the
 // call site.
-func (g *Graph) classify()      {}
-func (g *Graph) countUnblocks() {}
 
 func reasonFix(b item.Broken) string {
 	switch b.Reason {
