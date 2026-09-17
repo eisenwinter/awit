@@ -6,7 +6,7 @@ brief: >-
   CGO_ENABLED=0 and Version ldflags, a tag-triggered release.yml, a two-line
   pre-commit hook, and a README covering install, commands (including label),
   the agent loop, status, pre-commit, and docs/schema.md.
-status: open
+status: closed
 deps: [AWIT-0ND56B3G, AWIT-0ND5713G]
 labels: [phase5, p1]
 refs:
