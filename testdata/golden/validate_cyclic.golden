@@ -1,0 +1,5 @@
+FAIL  5 items, 4 quarantined
+[CYCLE] AWIT-TEST0001 -> AWIT-TEST0002 -> AWIT-TEST0003 -> AWIT-TEST0001
+  fix: awit dep rm AWIT-TEST0001 AWIT-TEST0002 (break the cycle)
+[CYCLE] AWIT-TEST0004 -> AWIT-TEST0004
+  fix: awit dep rm AWIT-TEST0004 AWIT-TEST0004 (break the cycle)
