@@ -5,7 +5,7 @@ brief: >-
   Add `awit comment <id> [text...]` with `--file` (attach verbatim) and
   `--author`, stdin fallback when no text is given, and the shared author
   precedence. Prints the new forward-slash ref; JSON prints {"id","ref"}.
-status: open
+status: closed
 deps: [AWIT-0ND56E3G, AWIT-0ND56G3G]
 labels: [phase4, p1]
 refs:
