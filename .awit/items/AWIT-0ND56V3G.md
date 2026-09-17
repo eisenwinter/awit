@@ -6,7 +6,7 @@ brief: >-
   non-quarantined nodes, following Unblocks edges in Kahn topological order
   with smaller-ID tie-breaks at the ready queue, the predecessor choice, and
   the end node. Returns an empty non-nil slice when no candidates exist.
-status: open
+status: closed
 deps: [AWIT-0ND56Q3G]
 labels: [phase3, p1]
 refs:

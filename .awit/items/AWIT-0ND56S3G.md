@@ -5,7 +5,7 @@ brief: >-
   Add `awit validate`, which prints PASS or FAIL lines from g.Faults, WARNs
   on missing or over-long briefs, and exits 1 if and only if any FAIL exists.
   Do not register --stale-claims.
-status: open
+status: closed
 deps: [AWIT-0ND56Q3G, AWIT-0ND56G3G]
 labels: [phase2, p0]
 refs:
