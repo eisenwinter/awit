@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -197,5 +198,42 @@ func TestSentenceCountTerminatorsNeedBoundary(t *testing.T) {
 	}
 	if sentenceCount("Hello.World") != 1 {
 		t.Fatalf("sentenceCount(Hello.World) = %d, want 1 (dot not at a boundary)", sentenceCount("Hello.World"))
+	}
+}
+
+func TestValidateIgnoresUnknownKeys(t *testing.T) {
+	repo := initRepo(t)
+	raw := []byte(`---
+id: AWIT-TEST0001
+title: External reserved
+brief: An item that carries the reserved external key for a future mirror.
+status: open
+deps: []
+labels: []
+refs: []
+external: gitlab#42
+---
+
+## Summary
+
+Reserved key only.
+
+## Acceptance Criteria
+
+- validate does not FAIL on external
+`)
+	path := filepath.Join(repo, item.DirName, "items", "AWIT-TEST0001.md")
+	if err := os.WriteFile(path, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := run(t, "--repo", repo, "validate")
+	if code != 0 {
+		t.Fatalf("validate exit %d stderr %q stdout %q", code, stderr, stdout)
+	}
+	if strings.Contains(stdout, "FAIL") || strings.Contains(stderr, "FAIL") {
+		t.Fatalf("unknown key treated as FAIL:\nstdout=%q\nstderr=%q", stdout, stderr)
+	}
+	if !strings.Contains(stdout, "PASS") {
+		t.Fatalf("validate stdout = %q, want PASS", stdout)
 	}
 }

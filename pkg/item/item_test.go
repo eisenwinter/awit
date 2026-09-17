@@ -2,6 +2,7 @@ package item
 
 import (
 	"bytes"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -274,5 +275,36 @@ func TestSetBriefFolded(t *testing.T) {
 	}
 	if !bytes.Contains(got, []byte("brief: >-")) {
 		t.Fatalf("want folded brief:\n%s", got)
+	}
+}
+
+func TestParsePreservesExternalKey(t *testing.T) {
+	raw := []byte("---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nexternal: gitlab#42\n---\nbody\n")
+	it, err := Parse("x.md", raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	it.SetStatus(StatusInProgress)
+	got, err := it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(got, []byte("external: gitlab#42")) {
+		t.Fatalf("external key dropped after SetStatus:\n%s", got)
+	}
+	if !bytes.Contains(got, []byte("status: in_progress")) {
+		t.Fatalf("status not updated:\n%s", got)
+	}
+	if bytes.Contains(got, []byte("status: open\n")) {
+		t.Fatalf("old status still present:\n%s", got)
+	}
+}
+
+func TestItemHasNoExternalField(t *testing.T) {
+	st := reflect.TypeOf(Item{})
+	for i := 0; i < st.NumField(); i++ {
+		if st.Field(i).Name == "External" {
+			t.Fatal("Item must not grow an External field; keep external: on the yaml node")
+		}
 	}
 }

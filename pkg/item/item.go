@@ -9,6 +9,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Item is one Markdown ticket under .awit/items/.
+//
+// Known frontmatter keys map to the exported fields below. Unknown keys are
+// kept on the unexported YAML mapping node and survive Bytes() after any
+// setter. The key "external" is reserved for a future GitLab/GitHub mirror
+// (value form "external: <provider>#<number>", e.g. gitlab#42) and is never
+// read in v1 — do not add an External field.
 type Item struct {
 	ID        string
 	Title     string

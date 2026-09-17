@@ -38,6 +38,9 @@ An item is YAML frontmatter (`id`, `title`, `brief`, `status`, `deps`,
 Priority is a label by convention (`p0`…`p4`). Blocked is derived, never
 stored.
 
+The on-disk schema, including the reserved `external:` key, is
+documented in [docs/schema.md](docs/schema.md).
+
 ## Commands
 
 `init` · `create` · `list` · `label` · `show` · `comment` · `update` · `close` ·
