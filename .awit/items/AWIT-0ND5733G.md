@@ -7,7 +7,7 @@ brief: >-
   `WARN [STALE CLAIM]` line with an `awit release` fix hint. Warnings
   never change the exit code. Includes `humanDuration` and an overridable
   `now` for tests.
-status: open
+status: closed
 deps: [AWIT-0ND56S3G]
 labels: [phase5, p2]
 refs:

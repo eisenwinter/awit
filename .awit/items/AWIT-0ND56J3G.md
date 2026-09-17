@@ -5,7 +5,7 @@ brief: >-
   Add `awit list` with status, label, and ready/blocked/quarantined filters,
   plus shared `loadGraph` and `toEntry` on the root CLI package. Default
   listing is g.Order including closed; --ready alone uses g.Ready().
-status: open
+status: closed
 deps: [AWIT-0ND56G3G, AWIT-0ND56F3G, AWIT-0ND56Q3G]
 labels: [phase2, p1]
 refs:
