@@ -7,8 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
 )
 
@@ -87,8 +90,27 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *cli.Command {
 		// covers every subcommand too. Main does the reporting instead.
 		ExitErrHandler: func(context.Context, *cli.Command, error) {},
 		Action:         rootAction,
-		Commands:       []*cli.Command{},
+		Commands: []*cli.Command{
+			initCmd,
+		},
 	}
+}
+
+// openStore honours --repo (Open of the absolute path) else Find(cwd).
+// Used by every command except init.
+func openStore(cmd *cli.Command) (*item.Store, error) {
+	if repo := cmd.Root().String("repo"); repo != "" {
+		abs, err := filepath.Abs(repo)
+		if err != nil {
+			return nil, err
+		}
+		return item.Open(abs)
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	return item.Find(cwd)
 }
 
 // rootAction runs when the first argument did not name a command.
