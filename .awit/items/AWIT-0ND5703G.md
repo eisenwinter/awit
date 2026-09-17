@@ -7,7 +7,7 @@ brief: >-
   Item refs render the target's default view without recursion; missing
   files render `[missing]` and never fail. JSON `--full` adds a refs
   array to the entry.
-status: open
+status: closed
 deps: [AWIT-0ND56Z3G, AWIT-0ND56K3G]
 labels: [phase4, p1]
 refs:

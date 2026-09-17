@@ -7,7 +7,7 @@ brief: >-
   LoadAll's parseable items only (graph-quarantined items count, broken files
   never do), sorts rows count descending then label ascending, and renders
   through format.WriteLabels with the global --format flag.
-status: open
+status: closed
 deps: [AWIT-0ND56G3G, AWIT-0ND56F3G]
 labels: [phase2, p2]
 refs:
