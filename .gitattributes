@@ -1,0 +1,19 @@
+# Normalise every text file to LF in the repository and in the working tree.
+# awit writes "\n" unconditionally (item.Bytes, guide §5); a CRLF checkout on
+# the Windows runner would make byte comparisons fail for correct code.
+* text=auto eol=lf
+
+# Golden files are compared with bytes.Equal. "-text" switches off end-of-line
+# conversion and any future normalisation entirely, so the bytes committed are
+# the bytes both runners read.
+*.golden -text
+
+# The "conflicted" fixture deliberately contains literal Git conflict marker
+# lines (a "<<<<<<< HEAD" line, a bare seven-equals line, a ">>>>>>> other"
+# line) inside its frontmatter so that item.HasConflictMarkers has something
+# real to detect. Without "-merge", Git's merge driver treats those lines as an
+# unresolved conflict of its own during any merge or rebase touching the file
+# and rewrites them; "-merge" makes Git keep our version and report the file as
+# conflicting instead of editing it. "-text" additionally stops eol/text
+# normalisation so the fixture bytes are identical on Linux and Windows.
+testdata/fixtures/conflicted/** -merge -text
