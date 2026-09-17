@@ -5,7 +5,7 @@ brief: >-
   Stand up the awit binary: module dependencies, a three-line main, and
   internal/cli.Main with the root urfave/cli v3 command, global flags,
   version/help output, error-to-exit-code mapping and SplitLabels.
-status: open
+status: closed
 deps: []
 labels: [phase0, p0]
 refs:
