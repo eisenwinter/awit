@@ -105,6 +105,7 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *cli.Command {
 			showCmd,
 			depCmd,
 			commentCmd,
+			labelCmd,
 		},
 	}
 }
