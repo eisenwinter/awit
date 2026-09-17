@@ -92,6 +92,7 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *cli.Command {
 		Action:         rootAction,
 		Commands: []*cli.Command{
 			initCmd,
+			createCmd,
 		},
 	}
 }
