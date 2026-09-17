@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: build
+        run: go build ./...
+      - name: vet
+        run: go vet ./...
+      # -race needs a working cgo C toolchain. The windows-latest image has no
+      # gcc on PATH, so the race detector is Linux-only and Windows runs the
+      # plain test suite. Both legs still execute every test.
+      - name: test (race)
+        if: matrix.os == 'ubuntu-latest'
+        run: go test ./... -race
+      - name: test
+        if: matrix.os == 'windows-latest'
+        run: go test ./...
+
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: put GOPATH/bin on PATH
+        run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      # The version is pinned on purpose. With "@latest" a new staticcheck
+      # release can turn a previously green commit red without anybody
+      # changing the repository, and a re-run of an old commit no longer
+      # reproduces its original result. Bumping the pin is then a reviewable
+      # one-line diff instead of a surprise.
+      - name: install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@2025.1.1
+      - name: staticcheck
+        run: staticcheck ./...
