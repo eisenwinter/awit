@@ -6,7 +6,7 @@ brief: >-
   that round-trips Go duration strings, Default/Load/Write, WriteAtomic for
   later Store.Save reuse, and Agent resolution (flag then AWIT_AGENT then
   agent_id) with no prefixing.
-status: open
+status: closed
 deps: []
 labels: [phase0, p0]
 refs:

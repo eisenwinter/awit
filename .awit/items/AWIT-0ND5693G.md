@@ -5,7 +5,7 @@ brief: >-
   Implement pkg/id: 40-bit Crockford snowflake encode/decode, Format/Split/Valid/Time,
   FNV-1a worker hashing with AWIT_WORKER override, and Mint with a 4-bit crypto/rand
   nibble and 16 collision retries.
-status: open
+status: closed
 deps: []
 labels: [phase0, p0]
 refs:
