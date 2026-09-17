@@ -1,0 +1,16 @@
+[AWIT-TEST0001] Implement OAuth2 bearer token extraction
+status: open (ready) | labels: auth,p1 | unblocks: 2
+deps: -
+assignee: -
+brief: Fix header parsing so URL-safe bearer tokens authenticate.
+refs: 0 (use --full)
+
+## Summary
+
+The auth middleware splits on spaces and assumes the token is strict base64.
+URL-safe tokens with `-` and `_` are dropped before signature verification.
+
+## Acceptance Criteria
+
+- Tokens using the URL-safe base64 alphabet authenticate successfully
+- Invalid signatures still return a structured 401
