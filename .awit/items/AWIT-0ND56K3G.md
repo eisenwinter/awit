@@ -6,7 +6,7 @@ brief: >-
   with readiness, quarantine faults, deps, assignee, brief, ref count, and
   the verbatim body. Broken files render an unparseable view with exit 0;
   unknown IDs exit 1. JSON renders the entry plus body.
-status: open
+status: closed
 deps: [AWIT-0ND56G3G, AWIT-0ND56F3G, AWIT-0ND56Q3G]
 labels: [phase2, p1]
 refs:
