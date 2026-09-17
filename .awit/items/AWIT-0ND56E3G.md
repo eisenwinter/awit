@@ -5,7 +5,7 @@ brief: >-
   Add pkg/item.Store: Find/Open/Init, LoadAll with quarantine reasons, atomic
   Save via config.WriteAtomic, Mint, and comment/attachment files with sanitised
   names.
-status: open
+status: closed
 deps: [AWIT-0ND56D3G, AWIT-0ND5693G, AWIT-0ND56A3G, AWIT-0ND56C3G]
 labels: [phase1, p0]
 refs:
