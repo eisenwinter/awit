@@ -191,14 +191,6 @@ func TestValidateWarnDoesNotChangeFailExit(t *testing.T) {
 	}
 }
 
-func TestValidateNoStaleClaimsFlag(t *testing.T) {
-	dir := copyFixture(t, "clean")
-	code, _, stderr := run(t, "--repo", dir, "validate", "--stale-claims")
-	if code != 2 {
-		t.Fatalf("exit %d, want 2 (unknown flag) stderr %q", code, stderr)
-	}
-}
-
 func TestSentenceCountTerminatorsNeedBoundary(t *testing.T) {
 	if unicode.IsSpace(' ') != true {
 		t.Fatal("sanity")

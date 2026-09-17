@@ -3,9 +3,9 @@ package config
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -23,13 +23,17 @@ type Config struct {
 type Duration time.Duration
 
 func (d Duration) MarshalYAML() (any, error) {
-	s := time.Duration(d).String()
-	s = strings.TrimSuffix(s, "0s")
-	s = strings.TrimSuffix(s, "0m")
-	if s == "" {
-		s = "0s"
+	td := time.Duration(d)
+	switch {
+	case td == 0:
+		return "0s", nil
+	case td%time.Hour == 0:
+		return fmt.Sprintf("%dh", td/time.Hour), nil
+	case td%time.Minute == 0:
+		return fmt.Sprintf("%dm", td/time.Minute), nil
+	default:
+		return td.String(), nil
 	}
-	return s, nil
 }
 
 func (d *Duration) UnmarshalYAML(n *yaml.Node) error {
