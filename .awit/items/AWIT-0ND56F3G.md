@@ -5,7 +5,7 @@ brief: >-
   Implement the output layer every list-shaped command renders through: format
   detection, the one-line compact form, the tabwriter table, and indented JSON,
   all pinned by golden files with an -update flag.
-status: open
+status: closed
 deps: []
 labels: [phase1, p1]
 refs:

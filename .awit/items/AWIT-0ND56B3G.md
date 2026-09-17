@@ -6,7 +6,7 @@ brief: >-
   ubuntu-latest and windows-latest plus a pinned staticcheck lint job, and a
   .gitattributes that keeps golden files and the conflicted fixture
   byte-stable on both operating systems.
-status: open
+status: closed
 deps: [AWIT-0ND5683G]
 labels: [phase0, p1]
 refs:

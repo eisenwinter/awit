@@ -5,7 +5,7 @@ brief: >-
   Add pkg/resolver with Resolve (map every frontmatter ref relative to
   .awit/items/, read it, never fail as a whole) and IsItemRef (detect a
   resolved path that names another item file). Pure stdlib, no CLI wiring.
-status: open
+status: closed
 deps: []
 labels: [phase4, p1]
 refs:

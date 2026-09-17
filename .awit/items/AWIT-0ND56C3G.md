@@ -5,7 +5,7 @@ brief: >-
   Add internal/gitx, a thin os/exec wrapper around the git binary exposing
   Branch, UserName, Root and Commit. It is the only place in awit that shells
   out to git, and it never links a git library.
-status: open
+status: closed
 deps: []
 labels: [phase0, p1]
 refs:

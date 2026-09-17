@@ -4,7 +4,7 @@ title: 'pkg/item: frontmatter split, parse, setters, byte-identical round-trip'
 brief: >-
   Implement pkg/item frontmatter splitting, yaml.v3 Node parse, field setters
   and Bytes so a parsed file round-trips byte-identically when no setter ran.
-status: open
+status: closed
 deps: []
 labels: [phase1, p0]
 refs:
