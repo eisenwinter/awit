@@ -5,7 +5,7 @@ brief: >-
   Add `awit create`: mint (or accept `--id`), merge default labels, validate
   deps, write a new item, and print it through format.WriteOne with State
   "ready" and Unblocks 0 without building the graph.
-status: open
+status: closed
 deps: [AWIT-0ND56G3G]
 labels: [phase1, p0]
 refs:

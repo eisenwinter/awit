@@ -6,7 +6,7 @@ brief: >-
   size greater than 1, or a size-1 self-edge, quarantines every member with
   ReasonCycle, records one graph-level Fault, and prints a deterministic
   example chain plus a dep-rm fix.
-status: open
+status: closed
 deps: [AWIT-0ND56N3G]
 labels: [phase2, p0]
 refs:
