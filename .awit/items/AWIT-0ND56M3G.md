@@ -5,7 +5,7 @@ brief: >-
   Add `awit update`, `awit close` and `awit release`, plus shared `loadItem`
   and `resolveAuthor`. `update --status` must change exactly one line; `close`
   does not git-commit.
-status: open
+status: closed
 deps: [AWIT-0ND56G3G]
 labels: [phase1, p1]
 refs:

@@ -7,7 +7,7 @@ brief: >-
   non-closed non-quarantined node whose Item.Deps all resolve to closed
   non-quarantined nodes; unblock counts are BFS over Unblocks; WouldCycle
   DFS-prechecks dep add.
-status: open
+status: closed
 deps: [AWIT-0ND56P3G]
 labels: [phase2, p0]
 refs:
