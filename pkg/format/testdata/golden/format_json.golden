@@ -1,0 +1,42 @@
+[
+  {
+    "id": "AWIT-TEST0001",
+    "title": "Implement OAuth2 token extraction",
+    "brief": "Fix header parsing.",
+    "status": "open",
+    "state": "ready",
+    "labels": [
+      "auth",
+      "p1"
+    ],
+    "deps": [],
+    "unblocks": 2
+  },
+  {
+    "id": "AWIT-TEST0003",
+    "title": "Add E2E auth tests",
+    "status": "open",
+    "state": "blocked",
+    "labels": [],
+    "deps": [
+      "AWIT-TEST0001"
+    ],
+    "unblocks": 0
+  },
+  {
+    "id": "AWIT-TEST0009",
+    "title": "Rotate tokens",
+    "status": "open",
+    "state": "quarantined",
+    "labels": [
+      "p0"
+    ],
+    "deps": [
+      "AWIT-TEST0009"
+    ],
+    "unblocks": -1,
+    "faults": [
+      "[CYCLE] AWIT-TEST0009 -> AWIT-TEST0009"
+    ]
+  }
+]

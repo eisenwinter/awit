@@ -1,0 +1,7 @@
+ID: AWIT-TEST0001
+Title: Implement OAuth2 token extraction
+Status: open
+State: ready
+Labels: auth,p1
+Unblocks: 2
+Brief: Fix header parsing.

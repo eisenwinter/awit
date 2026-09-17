@@ -1,0 +1,4 @@
+ID             STATE        TITLE                              LABELS   UNBLOCKS
+AWIT-TEST0001  ready        Implement OAuth2 token extraction  auth,p1  2
+AWIT-TEST0003  blocked      Add E2E auth tests                 -        0
+AWIT-TEST0009  quarantined  Rotate tokens                      p0       -1
