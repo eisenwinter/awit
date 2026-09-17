@@ -1,0 +1,8 @@
+=== READY (1) ===
+[AWIT-TEST0002] Add E2E auth tests | auth | Unblocks: 1
+
+=== BLOCKED (1) ===
+[AWIT-TEST0003] Rotate API tokens <- AWIT-TEST0002
+
+=== CRITICAL PATH (2) ===
+AWIT-TEST0002 -> AWIT-TEST0003
