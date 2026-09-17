@@ -5,7 +5,7 @@ brief: >-
   Add `awit next`: pick the top ready item by UnblockCount, shuffle the first
   equal-count group with math/rand/v2 PCG, filter with -l, and optionally
   claim with a git commit unless --no-commit.
-status: open
+status: closed
 deps: [AWIT-0ND56Q3G, AWIT-0ND56M3G, AWIT-0ND56C3G]
 labels: [phase3, p0]
 refs:
