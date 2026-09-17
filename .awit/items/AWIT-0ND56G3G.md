@@ -5,7 +5,7 @@ brief: >-
   Add `awit init` (prefix validation, `item.Init`, the success line) plus
   `openStore` on the root command, and grow `internal/cli/helpers_test.go`
   into the shared command-test harness later tickets call.
-status: open
+status: closed
 deps: [AWIT-0ND5683G, AWIT-0ND56E3G]
 labels: [phase1, p0]
 refs:

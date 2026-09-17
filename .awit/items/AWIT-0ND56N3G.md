@@ -6,7 +6,7 @@ brief: >-
   wiring, dangling-dep faults, and carry-through of Broken files into g.Broken
   and g.Faults. Land every testdata/fixtures tree from guide §8. Cycle
   detection, classify, and unblock counts are empty seams called in that order.
-status: open
+status: closed
 deps: [AWIT-0ND56E3G]
 labels: [phase2, p0]
 refs:
