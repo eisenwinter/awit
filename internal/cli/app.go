@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/eisenwinter/awit/pkg/format"
+	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
 )
@@ -97,6 +99,7 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *cli.Command {
 			closeCmd,
 			releaseCmd,
 			validateCmd,
+			listCmd,
 		},
 	}
 }
@@ -160,4 +163,37 @@ func SplitLabels(flags []string) [][]string {
 		}
 	}
 	return groups
+}
+
+func toEntry(n *graph.Node) format.Entry {
+	e := format.Entry{
+		ID:       n.Item.ID,
+		Title:    n.Item.Title,
+		Brief:    n.Item.Brief,
+		Status:   string(n.Item.Status),
+		Labels:   n.Item.Labels,
+		Deps:     n.Item.Deps,
+		Assignee: n.Item.Assignee,
+		Unblocks: n.UnblockCount,
+	}
+	if e.Labels == nil {
+		e.Labels = []string{}
+	}
+	if e.Deps == nil {
+		e.Deps = []string{}
+	}
+	switch {
+	case n.Quarantined():
+		e.State = "quarantined"
+		for _, f := range n.Faults {
+			e.Faults = append(e.Faults, "["+string(f.Reason)+"] "+f.Detail)
+		}
+	case n.Item.Status == item.StatusClosed:
+		e.State = "closed"
+	case n.Ready:
+		e.State = "ready"
+	default:
+		e.State = "blocked"
+	}
+	return e
 }
