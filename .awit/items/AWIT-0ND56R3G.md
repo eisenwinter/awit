@@ -5,7 +5,7 @@ brief: >-
   Add the `dep` parent command with `add` and `rm` subcommands over
   `internal/cli/dep.go`. Add refuses cycles via `WouldCycle` before any
   write, prints the exact two-line error, and leaves the file byte-identical.
-status: open
+status: closed
 deps: [AWIT-0ND56Q3G, AWIT-0ND56H3G]
 labels: [phase2, p1]
 refs:
