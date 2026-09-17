@@ -103,6 +103,7 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *cli.Command {
 			nextCmd,
 			primeCmd,
 			showCmd,
+			depCmd,
 		},
 	}
 }
