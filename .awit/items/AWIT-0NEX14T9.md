@@ -37,7 +37,7 @@ So with `AWIT_AGENT` unset:
 
 - `awit comment <id> "…"` **succeeds**. It falls through to git
   `user.name`, lowercased with spaces hyphenated, used **verbatim — no
-  `agent/` prefix**. Reproduced on this ticket's parent while writing it:
+  `agent/` prefix**. Reproduced on this work item's parent while writing it:
   the comment was filed as author `jan`, the repo owner, for work an agent
   did.
 - `awit next --claim` **fails**, but with `no agent identity; pass --agent
@@ -118,6 +118,6 @@ None. Documentation only — no Go signature changes, no behaviour change.
   documented decision; only the skill is wrong.
 - Warning on stderr when the git fallback is used. Defensible, and it
   would make the silent misattribution visible — but it is a behaviour
-  change to a shipped contract and belongs in its own ticket with its own
+  change to a shipped contract and belongs in its own work item with its own
   argument.
 - Unifying the two chains into one.

@@ -3,7 +3,7 @@ id: AWIT-0NEZV7T2
 title: Rename ticket to work item across living docs and open items
 brief: >-
   awit is the agent work item tool, but the prose calls the units tickets while the Go code already calls them items. Rename ticket to work item across living docs, the skill, the agent files and every non-closed item; closed items keep their historical wording. No behaviour change - all five Go hits are comments and nothing user-facing says ticket.
-status: open
+status: in_progress
 deps: []
 labels: [phase5, p1]
 refs:
@@ -11,6 +11,7 @@ refs:
   - ../comments/AWIT-0NEZV7T2/20260918T131159Z-claude.md
   - ../comments/AWIT-0NEZV7T2/20260918T131451Z-claude.md
   - ../comments/AWIT-0NEZV7T2/20260918T131641Z-claude.md
+assignee: agent/claude
 ---
 
 ## Summary

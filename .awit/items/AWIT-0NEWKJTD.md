@@ -2,7 +2,7 @@
 id: AWIT-0NEWKJTD
 title: 'init: offer to seed the driving-awit skill into detected agent dirs'
 brief: >-
-  awit init leaves a fresh repo without the driving-awit skill, so every agent that lands in it has to be taught the CLI by hand. After this ticket init detects .claude, .omp, .opencode, .agents and .pi, asks once per directory it found, and writes the embedded skill to <dir>/skills/driving-awit/SKILL.md.
+  awit init leaves a fresh repo without the driving-awit skill, so every agent that lands in it has to be taught the CLI by hand. After this work item init detects .claude, .omp, .opencode, .agents and .pi, asks once per directory it found, and writes the embedded skill to <dir>/skills/driving-awit/SKILL.md.
 status: open
 deps: [AWIT-0NEX14T9, AWIT-0NEZV7T2]
 labels: [phase5, p1]
@@ -20,7 +20,7 @@ repo has to be taught the CLI from scratch, which is exactly what
 the missing half of onboarding: without it a fresh repo gets the graph but
 not the discipline that keeps the graph truthful.
 
-After this ticket `init` scans the repo root for known agent directories, in
+After this work item `init` scans the repo root for known agent directories, in
 this fixed order:
 
 | Directory    | Seeds                                          |
@@ -56,10 +56,10 @@ not gitignore them.
 - `internal/cli/app.go` `Main(args, stdin, stdout, stderr)` — stdin is
   already plumbed to `cmd.Root().Reader`, so prompts are testable by handing
   `Main` a `strings.Reader`.
-- `.omp/skills/driving-awit/SKILL.md` — the content being seeded. After this
-  ticket it is generated output, not hand-maintained.
+- `.omp/skills/driving-awit/SKILL.md` — the content being seeded. After this work
+  item it is generated output, not hand-maintained.
 - `plan/implementation-guide.md` §4 (interfaces), §5 (testing rules), §6
-  (ticket format), and the ticket index table.
+  (work item format), and the work item index table.
 
 ## Files
 
@@ -150,7 +150,7 @@ Prompting rules:
 - [ ] Confirm the skill-file convention and frontmatter dialect for
       `.opencode`, `.agents` and `.pi` against each tool's own
       documentation. Record the answer per target as a comment above its
-      literal. This gates the rest of the ticket.
+      literal. This gates the rest of the work item.
 - [ ] Write `internal/skill/skill_test.go` first: `Render` is deterministic
       (render twice, `bytes.Equal`), every `Targets()` entry has non-empty
       `Dir`/`Path`/`Frontmatter`, `Detect` returns targets in `Targets()`
@@ -189,8 +189,8 @@ Required, not optional — the command table is the contract users read first.
   ends "`init` gitignores only `.awit/.lock`". Extend it: init may also
   write agent skill files outside `.awit/`, and those are committed, never
   gitignored.
-- `plan/awit-implementation-plan.md` phase 5 checklist — add this ticket's
-  line item.
+- `plan/awit-implementation-plan.md` phase 5 checklist — add this work
+  item's entry.
 - `plan/implementation-guide.md` §4 — add the `internal/skill` signatures
   above, so the package is contract, not incidental.
 - `plan/implementation-guide.md` file layout (the `init.go create.go …`
@@ -198,7 +198,7 @@ Required, not optional — the command table is the contract users read first.
 - `plan/implementation-guide.md` §5 — a testing note: commands that prompt
   are tested by handing `Main` a `strings.Reader`; prompts must be gated on
   `format.IsTerminal` so the suite never blocks on a read.
-- `plan/implementation-guide.md` ticket index table (~:632) — add
+- `plan/implementation-guide.md` work item index table (~:632) — add
   `AWIT-0NEWKJTD | init: seed driving-awit skill | — | phase5, p1`.
 - `docs/schema.md:176` — the paragraph on what `init` writes: list the
   seeded skill paths and state they live outside `.awit/` and are committed.
@@ -238,12 +238,12 @@ Required, not optional — the command table is the contract users read first.
   `ErrExists`, so `awit init` refuses to run where `.awit/` exists — which
   means this feature never reaches any repo that already uses awit,
   including this one. The dogfood test above is what keeps the committed
-  copy honest in the meantime. A follow-up ticket should add the retrofit
+  copy honest in the meantime. A follow-up work item should add the retrofit
   path (`awit skill seed`, or letting `init` continue into seeding when
-  `.awit/` already exists); file it, do not widen this ticket.
+  `.awit/` already exists); file it, do not widen this work item.
 - Creating an agent directory that does not exist. Presence is the signal.
 - Seeding anything other than `driving-awit` — no skill registry, no
   `--skill <name>`, no per-tool skill sets.
 - Updating a previously seeded skill in place (diff/merge). `--force`
-  overwrites wholesale; anything smarter is a separate ticket.
+  overwrites wholesale; anything smarter is a separate work item.
 - Agent config formats other than `skills/<name>/SKILL.md`.
