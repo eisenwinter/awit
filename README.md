@@ -1,9 +1,9 @@
 # awit
 
-Zero-daemon Go CLI that turns Markdown files under `.awit/` into a
-dependency graph for humans and agents. Offline, versioned in Git, no
-database, no daemon. Every command rebuilds the graph from
-`.awit/items/*.md`; a clone is the whole state.
+Agent work item tool: a zero-daemon Go CLI that turns Markdown files
+under `.awit/` into a dependency graph for humans and agents. Offline,
+versioned in Git, no database, no daemon. Every command rebuilds the
+graph from `.awit/items/*.md`; a clone is the whole state.
 
 ## Install
 
@@ -34,7 +34,7 @@ prints `awit dev`.
 | `awit create <title>` | `--brief`, `-d` deps, `-l` labels, `--assign`, `--id` | Mint a snowflake ID, write a lean item |
 | `awit list` | `-s` status, `-l` label, `--ready`, `--blocked`, `--quarantined`, `--format` | Index view |
 | `awit label` | `--state open\|closed\|all`, `--format` | Label vocabulary with usage counts |
-| `awit show <id>` | `--full`, `--refs-only` | Core ticket or full resolved ref tree |
+| `awit show <id>` | `--full`, `--refs-only` | Core item or full resolved ref tree |
 | `awit comment <id> [text]` | `--file <path>`, `--author` | Timestamped comment or attached file; append to `refs` |
 | `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title` | Mutate frontmatter with a minimal diff |
 | `awit close <id>` | `--reason`, `--author` | Set `closed`, clear `claimed_at`; does not git-commit |
@@ -56,7 +56,7 @@ Each step is one process. State between steps lives only in files and Git.
 ```text
 awit prime                 # token-light snapshot of the graph
 awit next --claim          # claim the top unblocked item
-awit show <id> --full      # ticket + resolved refs
+awit show <id> --full      # item + resolved refs
 awit comment <id> "..."    # research notes
 awit close <id>            # unblocks downstream
 ```
@@ -71,7 +71,7 @@ Filter with `-l p0` (AND across repeated flags, OR inside one comma list).
 v1 targets tagged binaries for linux, darwin and windows (amd64 and
 arm64) via GoReleaser. CI runs `go vet`, `staticcheck` and `go test ./...`
 on ubuntu-latest and windows-latest. This repository dogfoods itself:
-implementation tickets live in [`.awit/items/`](.awit/items/).
+implementation work items live in [`.awit/items/`](.awit/items/).
 
 ## Pre-commit
 
@@ -113,8 +113,8 @@ documented in [docs/schema.md](docs/schema.md).
 
 Read [plan/implementation-guide.md](plan/implementation-guide.md) first.
 It holds the resolved design decisions, the package layout, every shared
-Go interface, and the ticket index with dependency order. Then pick a
-ticket from `.awit/items/` whose `deps` are all closed.
+Go interface, and the work item index with dependency order. Then pick a
+work item from `.awit/items/` whose `deps` are all closed.
 
 ## License
 
