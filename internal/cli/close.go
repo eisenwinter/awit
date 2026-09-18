@@ -44,8 +44,12 @@ func closeAction(_ context.Context, cmd *cli.Command) error {
 		if err != nil {
 			return err
 		}
-		_, err = s.AddComment(it, author, time.Now().UTC(), reason)
+		if _, err = s.AddComment(it, author, time.Now().UTC(), reason); err != nil {
+			return err
+		}
+	} else if err := s.Save(it); err != nil {
 		return err
 	}
-	return s.Save(it)
+	fmt.Fprintf(cmd.Root().Writer, "closed %s\n", it.ID)
+	return nil
 }

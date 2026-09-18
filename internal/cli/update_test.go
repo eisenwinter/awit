@@ -145,9 +145,12 @@ func TestCloseClearsClaimedAt(t *testing.T) {
 	if err := st.Save(it); err != nil {
 		t.Fatal(err)
 	}
-	code, _, stderr := run(t, "--repo", dir, "close", id)
+	code, stdout, stderr := run(t, "--repo", dir, "close", id)
 	if code != 0 {
 		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if stdout != "closed "+id+"\n" {
+		t.Fatalf("stdout = %q, want %q", stdout, "closed "+id+"\n")
 	}
 	got := readItem(t, dir, id)
 	if got.Status != item.StatusClosed || got.ClaimedAt != nil || got.Assignee != "agent/claude" {
@@ -159,9 +162,12 @@ func TestCloseWithReasonWritesComment(t *testing.T) {
 	dir := initRepo(t)
 	const id = "AWIT-TEST0001"
 	seedItem(t, dir, id, "T", "B.", nil)
-	code, _, stderr := run(t, "--repo", dir, "close", id, "--reason", "done", "--author", "jane")
+	code, stdout, stderr := run(t, "--repo", dir, "close", id, "--reason", "done", "--author", "jane")
 	if code != 0 {
 		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if stdout != "closed "+id+"\n" {
+		t.Fatalf("stdout = %q, want %q", stdout, "closed "+id+"\n")
 	}
 	got := readItem(t, dir, id)
 	if got.Status != item.StatusClosed || len(got.Refs) != 1 || !strings.HasPrefix(got.Refs[0], "../comments/"+id+"/") || strings.Contains(got.Refs[0], "\\") {
