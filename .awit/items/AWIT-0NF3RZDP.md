@@ -3,12 +3,11 @@ id: AWIT-0NF3RZDP
 title: CLI teaches its own workflow in --help
 brief: >-
   Top-level --help gains a Typical session block, --status names valid values with did-you-mean, list hints open items are owed transitions. Source: LongCat-2.0 playground run filed 6 tickets but never transitioned one.
-status: in_progress
+status: closed
 deps: []
 labels: []
-refs: []
+refs: [../comments/AWIT-0NF3RZDP/20260918T144451Z-orchestrator.md, ../comments/AWIT-0NF3RZDP/20260918T144453Z-orchestrator.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-18T14:34:00Z"
 ---
 
 ## Summary
