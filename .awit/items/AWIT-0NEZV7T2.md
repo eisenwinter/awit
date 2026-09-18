@@ -61,7 +61,7 @@ Resolve this first; everything else follows from it.
 
 ## Context (read first)
 
-- `plan/implementation-guide.md` §6 "Ticket format (dogfooded)" — live
+- `plan/implementation-guide.md` §6 "Work item format (dogfooded)", was "Ticket format" — live
   contract, not history. The section title and body both change.
 - `.omp/skills/driving-awit/SKILL.md` — 19 hits, the largest single file.
 - `.omp/agents/orchestrator.md` — 16 hits; it is the file that describes
@@ -160,7 +160,7 @@ None. No exported identifier, flag, output string or on-disk key contains
       byte-identical to before: `git diff --stat` lists none of them.
 - [ ] `git diff --stat` lists no file under `testdata/` — no golden file
       changed, which is the proof that no user-facing string moved.
-- [ ] `go test ./...` passes with **no test file edited** for this ticket.
+- [ ] `go test ./...` passes with **no test file edited** for this work item.
 - [ ] `go build ./...`, `go vet ./...`, `staticcheck ./...` clean on Linux
       and Windows; `awit validate` prints PASS.
 
