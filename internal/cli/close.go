@@ -27,6 +27,7 @@ func closeAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	noteWalkedUp(cmd, s)
 	release, err := s.Lock(5 * time.Second)
 	if err != nil {
 		return err

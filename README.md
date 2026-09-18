@@ -45,7 +45,10 @@ prints `awit dev`.
 | `awit next` | `-l` label, `--claim`, `--no-commit`, `--seed` | Top unblocked item; optional claim |
 
 Global flags: `--format compact|table|json`, `--repo <path>` (directory that
-contains `.awit/`), `--no-color` (accepted, no-op). Exit codes: `0` success,
+contains `.awit/`; `$AWIT_REPO` when the flag is unset, else walk up from the
+working directory), `--no-color` (accepted, no-op). A mutating command run
+from a subdirectory prints a one-line note on stderr naming the root it
+walked up to. Exit codes: `0` success,
 `1` expected non-success (`next` with no candidates, `validate` with FAIL),
 `2` usage error.
 

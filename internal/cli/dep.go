@@ -46,6 +46,7 @@ func depAdd(cmd *cli.Command, id, dep string) error {
 	if err != nil {
 		return err
 	}
+	noteWalkedUp(cmd, s)
 	release, err := s.Lock(5 * time.Second)
 	if err != nil {
 		return err
@@ -84,6 +85,7 @@ func depRm(cmd *cli.Command, id, dep string) error {
 	if err != nil {
 		return err
 	}
+	noteWalkedUp(cmd, s)
 	release, err := s.Lock(5 * time.Second)
 	if err != nil {
 		return err

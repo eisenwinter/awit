@@ -74,6 +74,7 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if cmd.Bool("claim") {
+		noteWalkedUp(cmd, s)
 		release, err := s.Lock(5 * time.Second)
 		if err != nil {
 			return err

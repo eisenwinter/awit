@@ -42,7 +42,12 @@ before and after are not directly comparable either.
 
 **Copy the subdirectory somewhere outside this repository first.** Then give
 the model that copy as its working directory and `PROMPT.md` as its
-instructions, with the `awit` binary on `PATH`.
+instructions, with the `awit` binary on `PATH`. Set `AWIT_REPO` to the
+copy's path (or pass `--repo` on every call) so the queue is pinned even
+if the model wanders: the flag wins when both are set, and a mutating
+command that still resolves its queue by walking up says so on stderr.
+Copying out remains the procedure — the note makes the mistake visible
+after the fact, it does not sandbox the run.
 
 Copying out is not tidiness, it is required for two reasons:
 

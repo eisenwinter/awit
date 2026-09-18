@@ -60,7 +60,7 @@ Additional decisions made while writing work items:
 | `next` tie-break | `math/rand/v2` with `rand.NewPCG(seed, seed)`; seed from `--seed` if set else `time.Now().UnixNano()`. Shuffle only within equal-unblock groups. |
 | Unblock count | Number of **unique, non-closed, non-quarantined** nodes reachable via `Unblocks` edges (transitive). Quarantined nodes have `UnblockCount == -1`. |
 | Critical path | Longest path (by node count) over non-closed, non-quarantined nodes following `Unblocks` edges in topological order; ties by smaller ID at each DP step. Printed from the root (item with no open deps) downstream. |
-| `--repo` semantics | Path to the directory that **contains** `.awit/`. Without it, walk up from cwd until a directory containing `.awit/` is found; stop at filesystem root with `Error: no .awit directory found (run awit init)`. |
+| `--repo` semantics | Path to the directory that **contains** `.awit/`. Precedence: `--repo` flag → `AWIT_REPO` env → walk up from cwd until a directory containing `.awit/` is found; stop at filesystem root with `Error: no .awit directory found (run awit init)`. A mutating command (`create`, `update`, `close`, `release`, `dep`, `comment`, `archive`, `next --claim`) that walked up — no flag, no env, no `.awit/` in cwd — prints one line on stderr: `Note: no .awit in the current directory; using <root>. Run awit init here, or pass --repo / set AWIT_REPO.` Read-only commands stay silent. |
 | Git commit on `--claim` | `git -C <root> add <itemfile>` then `git -C <root> commit -m "awit: claim <id>" -- <itemfile>`. Commit failure is an error **after** the file was written; message tells the user the file is claimed but uncommitted. |
 | Archive eligibility | Fixed point over the graph: start with every closed, non-quarantined node; repeatedly remove any node with an `Unblocks` neighbour outside the set (open, quarantined, or closed-but-not-in-set); stop when stable. Result sorted by ID. Never rewrites another item's `deps`, never introduces an index file; the graph engine is unchanged. |
 | Archive layout | Flat `.awit/archive/<id>.md`, same depth as `items/`, so non-comment `refs` (`../../plan/x.md`) stay valid without rewriting. `--file` attachments move to `.awit/archive/<id>/<file>`; their ref becomes `../archive/<id>/<file>` (still items-relative — the ref convention does not change for archived files). |
@@ -515,7 +515,7 @@ var Version = "dev"
 // SplitLabels turns repeated -l values into groups: ["p0,p1","auth"] → [["p0","p1"],["auth"]]. Trims spaces, drops empties.
 func SplitLabels(flags []string) [][]string
 
-// openStore honours --repo (Open) else Find(cwd). Used by every command except init.
+// openStore honours --repo (Open) else AWIT_REPO (Open) else Find(cwd). Used by every command except init.
 func openStore(cmd *cli.Command) (*item.Store, error)
 // loadGraph = store.LoadAll + graph.Build.
 func loadGraph(s *item.Store) (*graph.Graph, error)

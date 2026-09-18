@@ -89,7 +89,7 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:  "repo",
-				Usage: "`DIR` containing .awit (default: walk up from the working directory)",
+				Usage: "`DIR` containing .awit (default: $AWIT_REPO, else walk up from the working directory)",
 			},
 			&cli.BoolFlag{
 				Name:  "no-color",
@@ -121,10 +121,18 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *cli.Command {
 	}
 }
 
-// openStore honours --repo (Open of the absolute path) else Find(cwd).
+// openStore honours --repo (Open of the absolute path), else AWIT_REPO, else
+// Find(cwd). Precedence: --repo flag → AWIT_REPO → walk up from cwd.
 // Used by every command except init.
 func openStore(cmd *cli.Command) (*item.Store, error) {
 	if repo := cmd.Root().String("repo"); repo != "" {
+		abs, err := filepath.Abs(repo)
+		if err != nil {
+			return nil, err
+		}
+		return item.Open(abs)
+	}
+	if repo := os.Getenv("AWIT_REPO"); repo != "" {
 		abs, err := filepath.Abs(repo)
 		if err != nil {
 			return nil, err
@@ -136,6 +144,28 @@ func openStore(cmd *cli.Command) (*item.Store, error) {
 		return nil, err
 	}
 	return item.Find(cwd)
+}
+
+// noteWalkedUp emits the safety-brake note on stderr when a mutating command
+// resolved its root by walking up: no --repo was passed, AWIT_REPO was not
+// set, and the working directory holds no .awit/ of its own. Call it from the
+// mutating path only, after openStore succeeds; read-only commands stay
+// silent so their stdout keeps its golden-file contract.
+func noteWalkedUp(cmd *cli.Command, s *item.Store) {
+	if cmd.Root().String("repo") != "" {
+		return
+	}
+	if os.Getenv("AWIT_REPO") != "" {
+		return
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	if fi, err := os.Stat(filepath.Join(cwd, item.DirName)); err == nil && fi.IsDir() {
+		return
+	}
+	fmt.Fprintf(cmd.Root().ErrWriter, "Note: no .awit in the current directory; using %s. Run awit init here, or pass --repo / set AWIT_REPO.\n", s.Root)
 }
 
 // rootAction runs when the first argument did not name a command.
