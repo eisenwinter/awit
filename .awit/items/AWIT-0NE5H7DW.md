@@ -3,12 +3,11 @@ id: AWIT-0NE5H7DW
 title: Tag v0.1.0 and verify the stamped release build
 brief: >-
   Create annotated tag v0.1.0, confirm the goreleaser ldflags stamp, then report for the human to push.
-status: in_progress
+status: closed
 deps: [AWIT-0ND5743G]
 labels: [phase5, p2]
-refs: []
+refs: [../comments/AWIT-0NE5H7DW/20260918T062744Z-orchestrator.md, ../comments/AWIT-0NE5H7DW/20260918T062744Z-orchestrator-2.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-18T06:20:11Z"
 ---
 
 ## Summary
