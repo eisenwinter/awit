@@ -1,0 +1,6 @@
+# Each run of a playground prompt produces a whole scratch project: source,
+# node_modules, its own .awit/ queue. None of that is tracked — the prompts
+# are the only artefact worth keeping, and a committed run would also leak
+# one model's answers into the next model's context.
+*/*
+!*/PROMPT.md
