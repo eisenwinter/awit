@@ -14,11 +14,11 @@ refs:
 ---
 
 ## Summary
-After this ticket `pkg/format` exists and renders `format.Entry` rows and `format.LabelCount` rows in three formats (`compact`, `table`, `json`), plus `Detect` for choosing a format from a flag or a TTY check. Five golden files under `testdata/golden/` pin the byte-exact output, and `pkg/format/golden_test.go` provides the `-update` helper used by the rest of the repo. This package has **no** dependency on `pkg/item`, `pkg/graph` or `internal/cli`: it only knows the flat `Entry` struct. Conversion from graph nodes to `Entry` does **not** exist after this ticket (it lands in `internal/cli` with `awit list`), and no command wires this package up yet.
+After this ticket `pkg/format` exists and renders `format.Entry` rows and `format.LabelCount` rows in three formats (`compact`, `table`, `json`), plus `Detect` for choosing a format from a flag or a TTY check. Five golden files under `pkg/format/testdata/golden/` pin the byte-exact output, and `pkg/format/golden_test.go` provides the `-update` helper used by the rest of the repo. This package has **no** dependency on `pkg/item`, `pkg/graph` or `internal/cli`: it only knows the flat `Entry` struct. Conversion from graph nodes to `Entry` does **not** exist after this ticket (it lands in `internal/cli` with `awit list`), and no command wires this package up yet.
 
 ## Context (read first)
 - **guide §4.7 `pkg/format`** — the exact signatures to implement. Copy them; do not rename anything.
-- **guide §1 global constraints** — stdlib only (`encoding/json`, `text/tabwriter`, `os`, `strings`, `fmt`, `io`); deterministic output (no map iteration in rendering); no colour anywhere; tests use `testing` only, table-driven; golden files live in `testdata/golden/` with `var update = flag.Bool("update", false, "rewrite golden files")`.
+- **guide §1 global constraints** — stdlib only (`encoding/json`, `text/tabwriter`, `os`, `strings`, `fmt`, `io`); deterministic output (no map iteration in rendering); no colour anywhere; tests use `testing` only, table-driven; golden files live in `pkg/format/testdata/golden/` with `var update = flag.Bool("update", false, "rewrite golden files")`.
 - **guide §5 testing conventions** — golden comparison is `bytes.Equal`; on mismatch print got and want and hint `go test ./... -update`.
 - **guide §2 decisions that matter here** (one line each):
   - Unblock count is `-1` for quarantined nodes, so `Unblocks: -1` is a legal rendered value.
@@ -31,11 +31,11 @@ After this ticket `pkg/format` exists and renders `format.Entry` rows and `forma
 - Create: `pkg/format/format.go`
 - Create: `pkg/format/format_test.go`
 - Create: `pkg/format/golden_test.go`
-- Create (via `-update`): `testdata/golden/format_compact.golden`
-- Create (via `-update`): `testdata/golden/format_table.golden`
-- Create (via `-update`): `testdata/golden/format_json.golden`
-- Create (via `-update`): `testdata/golden/format_one_table.golden`
-- Create (via `-update`): `testdata/golden/format_labels_table.golden`
+- Create (via `-update`): `pkg/format/testdata/golden/format_compact.golden`
+- Create (via `-update`): `pkg/format/testdata/golden/format_table.golden`
+- Create (via `-update`): `pkg/format/testdata/golden/format_json.golden`
+- Create (via `-update`): `pkg/format/testdata/golden/format_one_table.golden`
+- Create (via `-update`): `pkg/format/testdata/golden/format_labels_table.golden`
 
 ## Interfaces
 - Consumes: nothing. `pkg/format` imports only the standard library.
@@ -421,10 +421,9 @@ import (
 
 var update = flag.Bool("update", false, "rewrite golden files")
 
-// goldenPath resolves testdata/golden at the repository root. pkg/format sits
-// two directories below the root, hence the two "..".
+// goldenPath resolves testdata/golden next to this package.
 func goldenPath(name string) string {
-	return filepath.Join("..", "..", "testdata", "golden", name)
+	return filepath.Join("testdata", "golden", name)
 }
 
 func golden(t *testing.T, name string, got []byte) {
@@ -611,7 +610,7 @@ go test ./pkg/format -run TestWrite -v
 
   Expected: first run writes the files, second run passes without `-update`. Now check each file byte for byte against the content below; if a file differs, the implementation is wrong — fix the code, not the golden.
 
-  `testdata/golden/format_compact.golden`:
+  `pkg/format/testdata/golden/format_compact.golden`:
 
 ```text
 [AWIT-TEST0001] Implement OAuth2 token extraction | auth,p1 | Unblocks: 2
@@ -619,7 +618,7 @@ go test ./pkg/format -run TestWrite -v
 [AWIT-TEST0009] Rotate tokens | p0 | Unblocks: -1 | QUARANTINED
 ```
 
-  `testdata/golden/format_table.golden` (column widths: ID 15, STATE 13, TITLE 35, LABELS 9, UNBLOCKS unpadded because it is the last cell on the line):
+  `pkg/format/testdata/golden/format_table.golden` (column widths: ID 15, STATE 13, TITLE 35, LABELS 9, UNBLOCKS unpadded because it is the last cell on the line):
 
 ```text
 ID             STATE        TITLE                              LABELS   UNBLOCKS
@@ -628,7 +627,7 @@ AWIT-TEST0003  blocked      Add E2E auth tests                 -        0
 AWIT-TEST0009  quarantined  Rotate tokens                      p0       -1
 ```
 
-  `testdata/golden/format_json.golden`:
+  `pkg/format/testdata/golden/format_json.golden`:
 
 ```json
 [
@@ -679,7 +678,7 @@ AWIT-TEST0009  quarantined  Rotate tokens                      p0       -1
 
 ```sh
 gofmt -w pkg/format
-git add pkg/format testdata/golden
+git add pkg/format
 git commit -m "format: render entries as compact, table and json"
 ```
 
@@ -815,7 +814,7 @@ go test ./pkg/format -run TestWriteOne -update
 go test ./pkg/format -run TestWriteOne -v
 ```
 
-  `testdata/golden/format_one_table.golden` must be exactly:
+  `pkg/format/testdata/golden/format_one_table.golden` must be exactly:
 
 ```text
 ID: AWIT-TEST0001
@@ -829,7 +828,7 @@ Brief: Fix header parsing.
 
 ```sh
 gofmt -w pkg/format
-git add pkg/format testdata/golden
+git add pkg/format
 git commit -m "format: add WriteOne single-entry rendering"
 ```
 
@@ -953,7 +952,7 @@ go test ./pkg/format -run 'TestWriteLabels|TestWriteUnknownFormat' -update
 go test ./pkg/format -v
 ```
 
-  `testdata/golden/format_labels_table.golden` must be exactly:
+  `pkg/format/testdata/golden/format_labels_table.golden` must be exactly:
 
 ```text
 LABEL  COUNT
@@ -964,7 +963,7 @@ db     1
 
 ```sh
 gofmt -w pkg/format
-git add pkg/format testdata/golden
+git add pkg/format
 git commit -m "format: add label vocabulary rendering"
 ```
 
@@ -972,10 +971,10 @@ git commit -m "format: add label vocabulary rendering"
 
 ```sh
 go build ./... && go vet ./... && go test ./pkg/format -v
-git status --porcelain testdata/golden
+git status --porcelain pkg/format/testdata/golden
 ```
 
-  Expected: build and vet silent, every test `PASS`, and `git status --porcelain testdata/golden` prints nothing (a plain test run must not rewrite goldens).
+  Expected: build and vet silent, every test `PASS`, and `git status --porcelain pkg/format/testdata/golden` prints nothing (a plain test run must not rewrite goldens).
 
 - [ ] **Step 18: Close ticket**
 
@@ -1008,10 +1007,10 @@ git commit -m "tickets: close AWIT-0ND56F3G"
 - `go build ./...` exits 0 with no output.
 - `go vet ./...` exits 0 with no output.
 - `go test ./pkg/format -v` exits 0; output contains `--- PASS: TestDetect`, `--- PASS: TestIsTerminalFalseForFile`, `--- PASS: TestLine`, `--- PASS: TestWriteCompactGolden`, `--- PASS: TestWriteTableGolden`, `--- PASS: TestWriteJSONGolden`, `--- PASS: TestWriteJSONEmpty`, `--- PASS: TestWriteOneTableGolden`, `--- PASS: TestWriteLabelsGolden`, `--- PASS: TestWriteLabelsEmptyJSON`, `--- PASS: TestWriteUnknownFormat`.
-- `go test ./pkg/format` run twice in a row both exit 0, and `git status --porcelain testdata/golden` prints nothing.
-- `cat testdata/golden/format_table.golden` prints exactly the four lines shown in Step 12 (header plus three rows), the last line ending `-1`.
-- `cat testdata/golden/format_compact.golden` prints exactly the three lines shown in Step 12, the third ending ` | QUARANTINED`.
-- `cat testdata/golden/format_labels_table.golden` prints exactly `LABEL  COUNT` / `auth   3` / `p1     3` / `db     1`.
+- `go test ./pkg/format` run twice in a row both exit 0, and `git status --porcelain pkg/format/testdata/golden` prints nothing.
+- `cat pkg/format/testdata/golden/format_table.golden` prints exactly the four lines shown in Step 12 (header plus three rows), the last line ending `-1`.
+- `cat pkg/format/testdata/golden/format_compact.golden` prints exactly the three lines shown in Step 12, the third ending ` | QUARANTINED`.
+- `cat pkg/format/testdata/golden/format_labels_table.golden` prints exactly `LABEL  COUNT` / `auth   3` / `p1     3` / `db     1`.
 - `gofmt -l pkg/format` prints nothing.
 
 ## Out of scope

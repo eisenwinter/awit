@@ -29,7 +29,7 @@ After this ticket `pkg/item` can split a Markdown file into YAML frontmatter and
 - Create: `pkg/item/reason.go`
 - Create: `pkg/item/item.go`
 - Create: `pkg/item/item_test.go`
-- Modify: `go.mod` / `go.sum` via `go get gopkg.in/yaml.v3@v3.0.4` only.
+- Modify: `go.mod` / `go.sum` via `go get gopkg.in/yaml.v3@v3.0.1` only.
 
 ## Interfaces
 - Consumes: `gopkg.in/yaml.v3` and stdlib. No awit package.
@@ -502,7 +502,7 @@ func TestBodyRaw(t *testing.T) {
 - [ ] **Step 6: Run it, see it fail.**
 
 ```sh
-go get gopkg.in/yaml.v3@v3.0.4
+go get gopkg.in/yaml.v3@v3.0.1
 go test ./pkg/item -run 'TestParseStatus|TestParseFull|TestParseMissingTitle|TestParseBadClaimedAt|TestParseUnknownKeyKept|TestHasLabel|TestBodyRaw' -v
 ```
 
