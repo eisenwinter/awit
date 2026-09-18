@@ -3,12 +3,11 @@ id: AWIT-0NE5JZDX
 title: Validate trips on conflict markers quoted in ticket bodies
 brief: >-
   awit validate fails on our own queue because a closed ticket quotes load-bearing conflict-marker fixture bytes; decide fence-aware detection or ticket-text convention.
-status: in_progress
+status: closed
 deps: []
 labels: [phase5, p2]
-refs: []
+refs: [../comments/AWIT-0NE5JZDX/20260918T064510Z-orchestrator.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-18T06:39:33Z"
 ---
 
 ## Summary
