@@ -183,3 +183,95 @@ func TestNextNoReadyUnfiltered(t *testing.T) {
 		t.Fatalf("exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
 }
+func TestNextPrintExactID(t *testing.T) {
+	dir := copyFixture(t, "clean")
+	code, stdout, stderr := run(t, "--repo", dir, "--format", "compact", "next", "AWIT-TEST0002")
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit %d stderr %q stdout %q", code, stderr, stdout)
+	}
+	if !strings.HasPrefix(stdout, "[AWIT-TEST0002]") || !strings.Contains(stdout, "Update database migration scripts") {
+		t.Fatalf("stdout = %q, want the TEST0002 line", stdout)
+	}
+}
+
+func TestNextClaimExactIDNoCommit(t *testing.T) {
+	dir := copyFixture(t, "clean")
+	code, _, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--no-commit", "--agent", "claude", "AWIT-TEST0002")
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	got := readItem(t, dir, "AWIT-TEST0002")
+	if got.Status != item.StatusInProgress || got.Assignee != "agent/claude" || got.ClaimedAt == nil {
+		t.Fatalf("status=%q assignee=%q claimed_at=%v", got.Status, got.Assignee, got.ClaimedAt)
+	}
+	top := readItem(t, dir, "AWIT-TEST0001")
+	if top.Status != item.StatusOpen || top.Assignee != "" {
+		t.Fatalf("top pick must be untouched: status=%q assignee=%q", top.Status, top.Assignee)
+	}
+}
+
+func TestNextClaimExactIDCommits(t *testing.T) {
+	gitLookPath(t)
+	dir := copyFixture(t, "clean")
+	gitRun(t, dir, "init", "-q")
+	gitRun(t, dir, "config", "user.name", "tester")
+	gitRun(t, dir, "config", "user.email", "tester@example.com")
+	gitRun(t, dir, "add", ".")
+	gitRun(t, dir, "commit", "-q", "-m", "init")
+
+	code, _, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--agent", "claude", "AWIT-TEST0002")
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if subject := gitRun(t, dir, "log", "-1", "--pretty=%s"); subject != "awit: claim AWIT-TEST0002" {
+		t.Fatalf("subject = %q, want %q", subject, "awit: claim AWIT-TEST0002")
+	}
+}
+
+func TestNextClaimIDRefusals(t *testing.T) {
+	tests := []struct {
+		name    string
+		fixture string
+		id      string
+		stderr  string
+	}{
+		{"blocked", "clean", "AWIT-TEST0003", "AWIT-TEST0003 is blocked by AWIT-TEST0001\n"},
+		{"closed", "clean", "AWIT-TEST0005", "AWIT-TEST0005 is closed; awit release AWIT-TEST0005 to reopen it\n"},
+		{"quarantined", "cyclic", "AWIT-TEST0001", "AWIT-TEST0001 is quarantined [CYCLE]; run awit validate\n"},
+		{"unknown", "clean", "AWIT-TEST0099", "Error: unknown item AWIT-TEST0099\n"},
+		{"claimed", "clean", "AWIT-TEST0006", "AWIT-TEST0006 is claimed by agent/claude; awit release AWIT-TEST0006\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := copyFixture(t, tc.fixture)
+			code, stdout, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--no-commit", "--agent", "claude", tc.id)
+			if code != 1 || stdout != "" || stderr != tc.stderr {
+				t.Fatalf("exit %d stdout %q stderr %q, want stderr %q", code, stdout, stderr, tc.stderr)
+			}
+		})
+	}
+}
+
+func TestNextIDHelp(t *testing.T) {
+	code, stdout, stderr := run(t, "next", "--help")
+	if code != 0 {
+		t.Fatalf("next --help exit = %d, want 0 (stderr %q)", code, stderr)
+	}
+	for _, want := range []string{
+		"Print the top unblocked item, or [id], optionally claiming it",
+		"claim [id] or the pick: sets in_progress, commits (needs --agent or AWIT_AGENT)",
+		"[id]",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("next --help missing %q; got:\n%s", want, stdout)
+		}
+	}
+	code, stdout, stderr = run(t, "--help")
+	if code != 0 {
+		t.Fatalf("--help exit = %d, want 0 (stderr %q)", code, stderr)
+	}
+	want := "awit next --claim <id>              claim that exact item when ready"
+	if !strings.Contains(stdout, want) {
+		t.Errorf("--help missing %q; got:\n%s", want, stdout)
+	}
+}

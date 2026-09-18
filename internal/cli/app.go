@@ -77,6 +77,7 @@ TYPICAL SESSION (set AWIT_AGENT first):
    awit create "Title" --brief "..."   file work items before you code
    awit prime                          see ready and blocked items
    awit next --claim                   claim a ready item, sets in_progress
+   awit next --claim <id>              claim that exact item when ready
    awit show <id> --full               read the item and its refs
    awit comment <id> "note"            add a progress note while you work
    awit close <id>                     close it when the work is done

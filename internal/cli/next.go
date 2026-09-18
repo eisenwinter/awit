@@ -15,15 +15,16 @@ import (
 )
 
 var nextCmd = &cli.Command{
-	Name:  "next",
-	Usage: "Print the top unblocked item, optionally claiming it",
+	Name:      "next",
+	Usage:     "Print the top unblocked item, or [id], optionally claiming it",
+	ArgsUsage: "[id]",
 	// urfave splits slice-flag values on "," by default, which would turn
-	// "-l p0,p1" into two ANDed groups. Disable it so SplitLabels sees
+	// "-l auth,db" into two ANDed groups. Disable it so SplitLabels sees
 	// each -l occurrence intact (OR within a flag, AND across flags).
 	DisableSliceFlagSeparator: true,
 	Flags: []cli.Flag{
 		&cli.StringSliceFlag{Name: "label", Aliases: []string{"l"}, Usage: "AND across flags, OR within a flag"},
-		&cli.BoolFlag{Name: "claim", Usage: "set in_progress, assignee, claimed_at, and commit (needs --agent or AWIT_AGENT)"},
+		&cli.BoolFlag{Name: "claim", Usage: "claim [id] or the pick: sets in_progress, commits (needs --agent or AWIT_AGENT)"},
 		&cli.BoolFlag{Name: "no-commit", Usage: "with --claim, skip the git commit"},
 		&cli.Int64Flag{Name: "seed", Usage: "tie-break RNG seed; 0 (default) uses time.Now().UnixNano()"},
 		&cli.StringFlag{
@@ -73,6 +74,9 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	if cmd.Args().Len() > 1 {
+		return cli.Exit("next takes at most one item id", 2)
+	}
 	if cmd.Bool("claim") {
 		noteWalkedUp(cmd, s)
 		release, err := s.Lock(5 * time.Second)
@@ -85,16 +89,31 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	labelFlags := cmd.StringSlice("label")
-	cands := graph.FilterLabels(g.Ready(), SplitLabels(labelFlags))
-	if len(cands) == 0 {
-		return cli.Exit(noReadyMessage(labelFlags), 1)
+	var n *graph.Node
+	if id := cmd.Args().First(); id != "" {
+		n, err = nextNode(g, id)
+		if err != nil {
+			return err
+		}
+		// Without --claim the exact item prints as-is, whatever its
+		// state; with --claim it must be ready and unclaimed.
+		if cmd.Bool("claim") {
+			if err := refuseClaim(n); err != nil {
+				return err
+			}
+		}
+	} else {
+		labelFlags := cmd.StringSlice("label")
+		cands := graph.FilterLabels(g.Ready(), SplitLabels(labelFlags))
+		if len(cands) == 0 {
+			return cli.Exit(noReadyMessage(labelFlags), 1)
+		}
+		seed := cmd.Int64("seed")
+		if seed == 0 {
+			seed = time.Now().UnixNano()
+		}
+		n = pickNext(cands, seed)
 	}
-	seed := cmd.Int64("seed")
-	if seed == 0 {
-		seed = time.Now().UnixNano()
-	}
-	n := pickNext(cands, seed)
 
 	if cmd.Bool("claim") {
 		agent := s.Config.Agent(cmd.String("agent"))
@@ -125,4 +144,53 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	return format.WriteOne(cmd.Root().Writer, f, toEntry(n))
+}
+
+// nextNode resolves the positional ID form of next. A broken file that
+// could not become an item refuses like a quarantined node; anything else
+// unknown keeps the existing "unknown item" string.
+func nextNode(g *graph.Graph, id string) (*graph.Node, error) {
+	if n, ok := g.Nodes[id]; ok {
+		return n, nil
+	}
+	var reasons []string
+	seen := map[string]bool{}
+	for _, br := range g.Broken {
+		if br.ID == id && !seen[string(br.Reason)] {
+			seen[string(br.Reason)] = true
+			reasons = append(reasons, "["+string(br.Reason)+"]")
+		}
+	}
+	if len(reasons) > 0 {
+		return nil, cli.Exit(fmt.Sprintf("%s is quarantined %s; run awit validate", id, strings.Join(reasons, ", ")), 1)
+	}
+	return nil, fmt.Errorf("unknown item %s", id)
+}
+
+// refuseClaim errors when the exact item cannot be claimed: quarantined,
+// closed, blocked, or already claimed by someone. Messages carry no
+// "Error: " prefix; Main prints the cli.Exit body as-is with exit 1.
+func refuseClaim(n *graph.Node) error {
+	id := n.Item.ID
+	if n.Quarantined() {
+		var reasons []string
+		seen := map[string]bool{}
+		for _, f := range n.Faults {
+			if !seen[string(f.Reason)] {
+				seen[string(f.Reason)] = true
+				reasons = append(reasons, "["+string(f.Reason)+"]")
+			}
+		}
+		return cli.Exit(fmt.Sprintf("%s is quarantined %s; run awit validate", id, strings.Join(reasons, ", ")), 1)
+	}
+	if n.Item.Status == item.StatusClosed {
+		return cli.Exit(fmt.Sprintf("%s is closed; awit release %s to reopen it", id, id), 1)
+	}
+	if n.Blocked {
+		return cli.Exit(fmt.Sprintf("%s is blocked by %s", id, strings.Join(n.OpenDepIDs(), ", ")), 1)
+	}
+	if n.Item.Status == item.StatusInProgress && n.Item.Assignee != "" {
+		return cli.Exit(fmt.Sprintf("%s is claimed by %s; awit release %s", id, n.Item.Assignee, id), 1)
+	}
+	return nil
 }
