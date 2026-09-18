@@ -12,7 +12,7 @@ var update = flag.Bool("update", false, "rewrite golden files")
 
 // goldenPath resolves testdata/golden next to this package.
 //
-// NOTE: this deviates from ticket AWIT-0ND56F3G Step 8, whose verbatim helper
+// NOTE: this deviates from work item AWIT-0ND56F3G Step 8, whose verbatim helper
 // resolves ../../testdata/golden at the repo root. Per orchestrator scope
 // direction the five golden files live in-package at
 // pkg/format/testdata/golden/ to avoid concurrent edits of the shared

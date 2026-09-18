@@ -9,7 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Item is one Markdown ticket under .awit/items/.
+// Item is one Markdown work item under .awit/items/.
 //
 // Known frontmatter keys map to the exported fields below. Unknown keys are
 // kept on the unexported YAML mapping node and survive Bytes() after any

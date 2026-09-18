@@ -90,7 +90,7 @@ func showOne(cmd *cli.Command, id string) error {
 	return fmt.Errorf("unknown item %s", id)
 }
 
-// defaultView renders the core ticket: header, status, faults, deps,
+// defaultView renders the core item: header, status, faults, deps,
 // assignee, brief, ref count, blank line, verbatim body.
 func defaultView(n *graph.Node) string {
 	e := toEntry(n)

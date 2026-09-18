@@ -68,7 +68,7 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return report(stderr, root.Run(context.Background(), append([]string{"awit"}, args...)))
 }
 
-// newRoot builds the root command. Later tickets register their commands by
+// newRoot builds the root command. Later work items register their commands by
 // appending to the Commands slice below; nothing else in this function moves.
 func newRoot(stdin io.Reader, stdout, stderr io.Writer) *cli.Command {
 	return &cli.Command{
