@@ -3,14 +3,14 @@ id: AWIT-0NE610DS
 title: 'awit archive: move eligible closed items to .awit/archive with collapsed comments'
 brief: >-
   Add awit archive [--dry-run]: compute the fixed-point set of closed items with no dependant outside the set, collapse each item's comments into one archive/<id>.md, move --file attachments to archive/<id>/, delete items/<id>.md and comments/<id>/. Never breaks validate.
-status: in_progress
+status: closed
 deps: [AWIT-0ND56Q3G, AWIT-0ND56Y3G, AWIT-0ND56S3G]
 labels: [phase5, p1]
 refs:
   - ../../plan/implementation-guide.md
   - ../../plan/awit-implementation-plan.md
+  - ../comments/AWIT-0NE610DS/20260918T063925Z-orchestrator.md
 assignee: agent/orchestrator
-claimed_at: "2026-09-18T06:27:48Z"
 ---
 
 ## Summary
