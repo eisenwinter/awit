@@ -1,6 +1,6 @@
 ---
 name: driving-awit
-description: Use when working in a repository that has a `.awit/` directory, when asked to pick up / implement / close work items, run the agent loop, add work items, or when an `awit` command output is unclear (No ready items, QUARANTINED, GRAPH WARNINGS, FAIL, "no author"). Covers both a single agent working the queue and an orchestrator handing work items to workers.
+description: Use when working in a repository that has a `.awit/` directory, when asked to pick up / implement / close work items, run the agent loop, add work items, or when an `awit` command output is unclear (No ready items, QUARANTINED, GRAPH WARNINGS, FAIL, "no author", "no agent identity"). Covers both a single agent working the queue and an orchestrator handing work items to workers.
 ---
 
 # Driving awit
@@ -16,7 +16,14 @@ export AWIT_AGENT=<your-name>     # identity for --claim, comment, close; render
 awit --repo <dir>                 # only if cwd is not inside the repo
 ```
 
-Without `AWIT_AGENT`, `next --claim` and `comment` fail with `Error: no author`. Parse output with `--format json`; humans get a table, pipes get compact lines.
+`AWIT_AGENT` is not optional in practice, and the two commands that need an identity fail **differently** without it:
+
+- `next --claim` refuses: `Error: no agent identity; pass --agent or set AWIT_AGENT`. It tries `--agent` → `AWIT_AGENT` → `config.agent_id` and stops there.
+- `comment` and `close` do **not** refuse. They keep going to git `user.name` (lowercased, spaces hyphenated) and use it **verbatim, with no `agent/` prefix** — so your notes are signed with whoever owns the checkout, and nothing in the output says so. You only see `Error: no author; pass --author or set AWIT_AGENT` when git has no `user.name` either, which in practice means a bare CI checkout.
+
+So setting `AWIT_AGENT` is not what makes those commands work — it is what makes the audit trail true. Unset, the work still happens and is attributed to a human who did not do it.
+
+Parse output with `--format json`; humans get a table, pipes get compact lines.
 
 ## Vocabulary
 
@@ -109,7 +116,9 @@ Stop and act per row. Do not improvise around the graph.
 | `[CONFLICT MARKERS]`                                                                       | Two branches touched the same item — usually a double claim. | Do not edit around it. Resolve the Git conflict (or hand to the human), then `validate`.                                                                       |
 | Work item contradicts its refs / spec, or two designs are equally valid and it did not choose | Not your call.                                               | `awit comment <id> "BLOCKED: <exact contradiction and the two options>"`, then `awit release <id>`. Report `BLOCKED`. Do not close, do not pick.               |
 | Missing prerequisite (dep marked closed but not really done, tool absent)                  | Upstream truth is wrong.                                     | `awit comment <id> "NEEDS_CONTEXT: …"`, `awit release <id>`, report. Never close the dep yourself.                                                             |
-| `Error: no author`                                                                         | Identity not set.                                            | `export AWIT_AGENT=<name>` and rerun.                                                                                                                          |
+| `Error: no agent identity; pass --agent or set AWIT_AGENT`                                 | `next --claim` has no identity to claim with.                | `export AWIT_AGENT=<name>` and rerun.                                                                                                                          |
+| `Error: no author; pass --author or set AWIT_AGENT`                                        | `comment`/`close` found no identity **and** no git `user.name` — usually a bare CI checkout. | `export AWIT_AGENT=<name>`, or pass `--author` for a one-off.                                                                    |
+| A comment or close is signed with a human name you did not expect                          | Not an error. `AWIT_AGENT` was unset, so git `user.name` was used verbatim and your work is attributed to them. | Set `AWIT_AGENT` now, and say in a comment which notes were misattributed. Do not rewrite the comment files.                       |
 | `validate --stale-claims` warns about someone else's claim                                 | Another agent may have died.                                 | Report it. Only `release` another agent's item when explicitly told.                                                                                           |
 | `Error: another awit process holds .awit/.lock`                                            | Concurrent run in this checkout.                             | Retry after a moment; do not delete the lock.                                                                                                                  |
 
