@@ -29,6 +29,11 @@ You implement **one** ticket. You do not spawn subagents. You do not run git. Yo
 - Tests: stdlib `testing`, `t.TempDir()`, table-driven. Goldens via `-update`.
 - Never `git add`, `git commit`, `git push`, `git rebase`, or `git reset`. Skip every ticket step titled "Commit". Suggest a `<scope>: <imperative>` message in the report instead.
 
+## Guards
+
+- Never run the built binary or `go run` with the repo root as `--repo` or cwd. Smoke tests MUST use a temp dir.
+- Before reporting, `git status` must show no `AWIT-*` files under `.awit/items` and no `.awit/.lock`.
+
 ## Stop and report `BLOCKED` / `NEEDS_CONTEXT` when
 
 - The ticket needs a signature that contradicts guide §4
