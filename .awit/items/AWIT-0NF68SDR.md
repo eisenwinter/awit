@@ -3,12 +3,11 @@ id: AWIT-0NF68SDR
 title: list views show item status
 brief: >-
   Kimi K2.5 run: compact list has no status column and table STATE merges open with in_progress, forcing list --format json to confirm transitions. Carry status in compact and table views.
-status: in_progress
+status: closed
 deps: []
 labels: []
-refs: []
+refs: [../comments/AWIT-0NF68SDR/20260918T153801Z-orchestrator.md, ../comments/AWIT-0NF68SDR/20260918T153808Z-orchestrator.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-18T15:33:22Z"
 ---
 
 ## Summary
