@@ -92,9 +92,13 @@ func seedSkills(cmd *cli.Command, root string) {
 		in = bufio.NewReader(cmd.Root().Reader)
 	}
 	// On a terminal the user's Enter ends the prompt line. Anywhere else
-	// nothing echoes, so close the line or the answer and the next message
-	// run together. This is about display only — the prompt itself is asked
-	// either way.
+	// nothing echoes, so without this the answer and the next message run
+	// together. Display only — the prompt is asked either way.
+	//
+	// format.IsTerminal really answers "is a character device", so stdin
+	// from /dev/null counts as a terminal here and those prompts do run
+	// together. Left alone: an EOF stdin seeds nothing, so the only output
+	// affected is prompts nobody answered.
 	echo := true
 	if f, ok := cmd.Root().Reader.(*os.File); ok && format.IsTerminal(f) {
 		echo = false
