@@ -3,12 +3,11 @@ id: AWIT-0NFAW5DT
 title: next accepts an item ID to claim
 brief: >-
   GLM playground run bypassed next --claim (random top pick) for update --status to grab a specific ticket. next --claim with a positional ID claims that exact item when ready, errors otherwise; no-ID behavior unchanged.
-status: in_progress
+status: closed
 deps: []
 labels: []
-refs: []
+refs: [../comments/AWIT-0NFAW5DT/20260918T162536Z-orchestrator.md, ../comments/AWIT-0NFAW5DT/20260918T162537Z-orchestrator.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-18T16:20:21Z"
 ---
 
 ## Summary
