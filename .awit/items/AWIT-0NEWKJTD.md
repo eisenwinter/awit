@@ -3,13 +3,15 @@ id: AWIT-0NEWKJTD
 title: 'init: offer to seed the driving-awit skill into detected agent dirs'
 brief: >-
   awit init leaves a fresh repo without the driving-awit skill, so every agent that lands in it has to be taught the CLI by hand. After this work item init detects .claude, .omp, .opencode, .agents and .pi, asks once per directory it found, and writes the embedded skill to <dir>/skills/driving-awit/SKILL.md.
-status: open
+status: in_progress
 deps: [AWIT-0NEX14T9, AWIT-0NEZV7T2]
 labels: [phase5, p1]
 refs:
   - ../../plan/implementation-guide.md
   - ../../plan/awit-implementation-plan.md
   - ../comments/AWIT-0NEWKJTD/20260918T122204Z-claude.md
+assignee: agent/claude
+claimed_at: "2026-09-18T13:28:26Z"
 ---
 
 ## Summary
