@@ -3,10 +3,12 @@ id: AWIT-0NE5H7DR
 title: 'Guide section 5: record the urfave/cli v3 in-process lessons'
 brief: >-
   Fold the four urfave/cli v3 findings re-derived across tickets into plan/implementation-guide.md section 5.
-status: open
+status: in_progress
 deps: []
 labels: [phase5, p1]
 refs: []
+assignee: agent/orchestrator
+claimed_at: "2026-09-18T06:45:12Z"
 ---
 
 ## Summary
