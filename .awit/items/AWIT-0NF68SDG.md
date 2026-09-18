@@ -3,12 +3,11 @@ id: AWIT-0NF68SDG
 title: update echoes changed fields on success
 brief: >-
   Kimi K2.5 run: update --status prints nothing on success, indistinguishable from a no-op. Echo the changed fields (one line each) so callers see what happened.
-status: in_progress
+status: closed
 deps: []
 labels: []
-refs: []
+refs: [../comments/AWIT-0NF68SDG/20260918T154129Z-orchestrator.md, ../comments/AWIT-0NF68SDG/20260918T154129Z-orchestrator-2.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-18T15:38:12Z"
 ---
 
 ## Summary
