@@ -10,6 +10,7 @@ refs:
   - ../../plan/implementation-guide.md
   - ../comments/AWIT-0NEZV7T2/20260918T131159Z-claude.md
   - ../comments/AWIT-0NEZV7T2/20260918T131451Z-claude.md
+  - ../comments/AWIT-0NEZV7T2/20260918T131641Z-claude.md
 ---
 
 ## Summary
