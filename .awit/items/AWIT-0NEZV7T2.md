@@ -2,13 +2,14 @@
 id: AWIT-0NEZV7T2
 title: Rename ticket to work item across living docs and open items
 brief: >-
-  awit is the agent work item tool, but the prose calls the units tickets while the Go code already calls them items. Rename ticket to work item across living docs, the skill, the agent files and the six open items; the thirty closed items keep their historical wording. No behaviour change - all five Go hits are comments and nothing user-facing says ticket.
+  awit is the agent work item tool, but the prose calls the units tickets while the Go code already calls them items. Rename ticket to work item across living docs, the skill, the agent files and every non-closed item; closed items keep their historical wording. No behaviour change - all five Go hits are comments and nothing user-facing says ticket.
 status: open
 deps: []
 labels: [phase5, p1]
 refs:
   - ../../plan/implementation-guide.md
   - ../comments/AWIT-0NEZV7T2/20260918T131159Z-claude.md
+  - ../comments/AWIT-0NEZV7T2/20260918T131451Z-claude.md
 ---
 
 ## Summary
@@ -18,7 +19,8 @@ noun is `Item` (`pkg/item`, `item.Item`, `.awit/items/`). Only the prose
 drifted, and it settled on "ticket", a word that appears nowhere in the name
 and nowhere in the code.
 
-This is a vocabulary change, not a behaviour change. Measured before filing:
+This is a vocabulary change, not a behaviour change. Measured at
+`870bed6` (after the v0.1.0 tag and the `archive` command landed):
 
 | Surface                                   | Hits |
 | ----------------------------------------- | ---- |
@@ -27,12 +29,20 @@ This is a vocabulary change, not a behaviour change. Measured before filing:
 | `docs/schema.md`                          | 0 |
 | `testdata/`, golden files                 | 0 |
 | `.github/` CI                             | 0 |
-| Living prose (plan, README, AGENTS, .omp) | ~146 |
-| `.awit/items` bodies                      | 253, across 30 closed and 6 open files (before this one) |
+| Living prose (plan 28, .omp 112, README 5, AGENTS 2) | 147 |
+| `.awit/items` bodies                      | 275, across 34 closed and 3 open files |
+| `.awit/comments/`                         | 5 |
 
 Because there is no user-facing string and no golden file, nothing needs
 regenerating and no test should change. That is what makes a rename of this
 size safe; confirm it stays true (Acceptance Criteria).
+
+**Re-measure before starting.** These counts have already moved once: this
+item was filed against 6 open items and by the time it was pushed the
+orchestrator had closed five of them and added `archive`, taking the corpus
+from 253 hits to 275. The zero rows held throughout, which is the load-
+bearing part — but the item list did not, so Scope below is written as a
+rule rather than a list of IDs.
 
 ## Terminology decision
 
@@ -70,9 +80,10 @@ reason — get the skill's words right once, then distribute.
 ## Scope
 
 **In:** `README.md`, `AGENTS.md`, `plan/awit-implementation-plan.md`,
-`plan/implementation-guide.md`, all of `.omp/`, and the 7 open items
-(`AWIT-0NE5H7DR`, `AWIT-0NE5H7DS`, `AWIT-0NE5JZDX`, `AWIT-0NE610DS`,
-`AWIT-0NEWKJTD`, `AWIT-0NEX14T9`, and **this one**). Optionally the 5 Go
+`plan/implementation-guide.md`, all of `.omp/`, and **every item whose
+status is not `closed` when you start** — determine that list yourself, do
+not trust the snapshot. At `870bed6` that is three items:
+`AWIT-0NEWKJTD`, `AWIT-0NEX14T9`, and this one. Optionally the 5 Go
 comments — cheap, no risk, do it in the same pass.
 
 This item is itself the one place where "ticket" legitimately survives: it
@@ -82,9 +93,10 @@ item" into "rename work item to work item" has destroyed the record of why
 the change happened. Treat every occurrence in this file as a quotation
 unless it is plainly being used as the live noun.
 
-**Out:** the 30 closed items, and every file under `.awit/comments/`. They
+**Out:** every `closed` item (34 of them at `870bed6`, carrying ~270 of the
+275 item hits), and every file under `.awit/comments/`. They
 record what was written at the time; rewriting them changes an audit trail,
-balloons the diff by roughly 200 hits, and helps nobody, because no one
+balloons the diff by roughly 270 hits, and helps nobody, because no one
 works from a closed item. Accept the inconsistency deliberately rather than
 by omission — and say so in the guide so the next reader knows it was a
 decision.
@@ -93,13 +105,13 @@ decision.
 
 - Modify: `README.md` (5), `AGENTS.md` (2).
 - Modify: `plan/implementation-guide.md`, `plan/awit-implementation-plan.md`
-  (27 between them), including the §6 section title.
+  (28 between them), including the §6 section title.
 - Modify: `.omp/skills/driving-awit/SKILL.md` (19).
 - Modify: `.omp/agents/orchestrator.md` (16), `dev.md`, `dev-glm.md`,
   `dev-grok.md`, `dev-kimi.md`, `dev-muse.md` (7 each).
 - Rename + modify: `.omp/agents/ticket-{glm,grok,kimi,muse}.md` to
   `workitem-{glm,grok,kimi,muse}.md`, updating the `name:` field in each.
-- Modify: the 7 open items listed under Scope (including this one).
+- Modify: every non-closed item (3 at `870bed6`, including this one).
 - Modify (optional): `internal/cli/app.go:71`, `internal/cli/show.go:93`,
   `pkg/format/golden_test.go:15`, `pkg/graph/graph.go:66`,
   `pkg/item/item.go:12` — comments only.
@@ -125,7 +137,7 @@ None. No exported identifier, flag, output string or on-disk key contains
       where "ticket" is the subject of a clause need reading, not
       substitution. Where "work item" reads clumsily after a first
       mention, use "item".
-- [ ] Pass over the 7 open items the same way, this one last and by hand.
+- [ ] Pass over every non-closed item the same way, this one last and by hand.
 - [ ] Optionally fix the 5 Go comments.
 - [ ] Add one line to `plan/implementation-guide.md` recording that closed
       items deliberately keep the old wording, so the inconsistency reads
@@ -136,13 +148,13 @@ None. No exported identifier, flag, output string or on-disk key contains
 ## Acceptance Criteria
 
 - [ ] `grep -ric ticket` over `README.md`, `AGENTS.md`, `plan/`, `.omp/`
-      and the 7 open items returns 0, except where a hit is a deliberate
+      and every non-closed item returns 0, except where a hit is a deliberate
       quotation of the old term.
 - [ ] `.omp/agents/` contains `workitem-{glm,grok,kimi,muse}.md` and no
       `ticket-*.md`; each file's `name:` matches its new filename.
 - [ ] `git status` shows the four renames as renames (`R`), not as
       add+delete pairs.
-- [ ] The 30 closed items and everything under `.awit/comments/` are
+- [ ] Every closed item and everything under `.awit/comments/` are
       byte-identical to before: `git diff --stat` lists none of them.
 - [ ] `git diff --stat` lists no file under `testdata/` — no golden file
       changed, which is the proof that no user-facing string moved.
@@ -154,7 +166,7 @@ None. No exported identifier, flag, output string or on-disk key contains
 
 - Renaming anything in Go beyond the five comments. `item.Item`, `pkg/item`
   and `.awit/items/` are already correct and must not move.
-- The 30 closed items and `.awit/comments/` — see Scope.
+- Closed items and `.awit/comments/` — see Scope.
 - Renaming the `.awit/items/` directory or any on-disk key. That would be a
   format break requiring migration, and the current name is already right.
 - Re-seeding skills into other repos. That is AWIT-0NEWKJTD's job, and it
