@@ -13,14 +13,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-24.04, windows-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
@@ -32,19 +32,19 @@ jobs:
       # gcc on PATH, so the race detector is Linux-only and Windows runs the
       # plain test suite. Both legs still execute every test.
       - name: test (race)
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-24.04'
         run: go test ./... -race
       - name: test
         if: matrix.os == 'windows-latest'
         run: go test ./...
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # Two tracked paths that differ only in case are one file on Windows
       # and on default macOS: git checks out whichever comes last and then
       # reports the survivor as permanently modified in every clone. Only
@@ -60,7 +60,7 @@ jobs:
             done <<< "$collisions"
             exit 1
           fi
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
