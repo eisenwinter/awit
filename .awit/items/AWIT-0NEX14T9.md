@@ -3,12 +3,14 @@ id: AWIT-0NEX14T9
 title: 'skill: driving-awit misstates author resolution for comment and claim'
 brief: >-
   The driving-awit skill claims comment and next --claim both fail with 'Error: no author' when AWIT_AGENT is unset. Neither is true: comment silently falls back to git user.name and signs agent work with the human's name, and claim fails with a different message, 'no agent identity'. An agent that forgets the export is never told.
-status: open
+status: in_progress
 deps: []
 labels: [phase5, p1]
 refs:
   - ../../plan/implementation-guide.md
   - ../comments/AWIT-0NEX14T9/20260918T122427Z-claude.md
+assignee: agent/claude
+claimed_at: "2026-09-18T13:26:26Z"
 ---
 
 ## Summary
