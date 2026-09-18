@@ -30,7 +30,7 @@ prints `awit dev`.
 
 | Command | Flags | Purpose |
 | --- | --- | --- |
-| `awit init` | `--prefix` | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock` |
+| `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
 | `awit create <title>` | `--brief`, `-d` deps, `-l` labels, `--assign`, `--id` | Mint a snowflake ID, write a lean item |
 | `awit list` | `-s` status, `-l` label, `--ready`, `--blocked`, `--quarantined`, `--format` | Index view |
 | `awit label` | `--state open\|closed\|all`, `--format` | Label vocabulary with usage counts |

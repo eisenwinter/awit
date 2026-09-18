@@ -51,7 +51,7 @@ One mechanism covers cycles, dangling deps, unparseable frontmatter, Git conflic
 
 ### Paths and platforms
 
-`refs` are stored with forward slashes (`filepath.ToSlash` on write, `FromSlash` on read). Files are written temp-then-rename. CI runs on Linux and Windows from the first commit; `init` gitignores only `.awit/.lock`.
+`refs` are stored with forward slashes (`filepath.ToSlash` on write, `FromSlash` on read). Files are written temp-then-rename. CI runs on Linux and Windows from the first commit; `init` gitignores only `.awit/.lock`. It may also write agent skill files outside `.awit/` (see `awit init --skills`); those are project config and are committed, never gitignored.
 
 ## Data model
 
@@ -167,7 +167,7 @@ Fourteen commands; `-p` is gone everywhere, `release`, `validate`, `label` and `
 
 | Command | Flags | User | Purpose |
 | --- | --- | --- | --- |
-| `awit init` | `--prefix` | Human | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock` |
+| `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Human | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
 | `awit create <title>` | `--brief`, `-d deps`, `-l labels`, `--assign`, `--id` | Both | Mint a snowflake ID, write a lean item |
 | `awit list` | `-s status`, `-l label`, `--ready`, `--blocked`, `--quarantined`, `--format` | Both | Index view |
 | `awit label` | `--state open\|closed\|all`, `--format` | Both | Label vocabulary with usage counts; answers "what labels exist and how busy are they" |
@@ -290,6 +290,7 @@ Six phases; phases 1–2 set the codebase's shape, and the agent surface waits u
 - [ ] `validate --stale-claims` using `config.stale_claim`
 - [ ] Documented pre-commit hook running `awit validate`
 - [ ] goreleaser config, version embedding, `README` with the agent loop
+- [ ] `init --skills`: detect `.claude`, `.omp`, `.opencode`, `.agents`, `.pi` and offer to seed the driving-awit skill from an embedded asset
 - [ ] Reserve `external:` frontmatter key (unused) for a future GitLab/GitHub mirror
 - [ ] `archive`: fixed-point eligibility, comment collapse, attachment move, `--dry-run`; `validate` stays `PASS` afterwards
 

@@ -77,6 +77,7 @@ internal/cli/
   app.go                         root *cli.Command, global flags, Main(), helpers (openStore, exitf, SplitLabels)
   init.go create.go list.go label.go show.go comment.go update.go close.go release.go dep.go validate.go prime.go next.go archive.go
   *_test.go                      command tests drive Main() with args and capture stdout/stderr
+internal/skill/skill.go          Targets, Detect, Render; assets/ holds the embedded driving-awit body and frontmatter
 internal/gitx/gitx.go            Branch, UserName, Commit, Root (os/exec wrappers)
 pkg/id/id.go                     snowflake IDs
 pkg/config/config.go             config.yaml
@@ -551,6 +552,35 @@ var createCmd = &cli.Command{
 
 Errors returned from `Action` are printed by `Main` as `Error: <msg>` to stderr with exit `1`; use `cli.Exit(msg, code)` only when a different code is needed.
 
+### `internal/skill`
+
+```go
+// Name is the skill's directory name; every tool requires the frontmatter
+// `name` to equal the directory holding SKILL.md, so it is both.
+const Name = "driving-awit"
+
+// Target is one agent tool awit knows how to seed. Dir is repo-root
+// relative, Path is relative to Dir, Frontmatter is the complete YAML block
+// including both --- fences.
+type Target struct {
+    Dir         string
+    Path        string
+    Frontmatter string
+}
+
+func Targets() []Target          // fixed order: .claude, .omp, .opencode, .agents, .pi
+func Detect(repoRoot string) []Target // those whose Dir exists as a directory, in Targets order
+func Render(t Target) []byte     // frontmatter + shared body; deterministic
+```
+
+The body and the default frontmatter are `go:embed` assets under
+`internal/skill/assets/`. They are the source of truth: this repo's own
+`.omp/skills/driving-awit/SKILL.md` is generated from them and pinned to
+`Render` by a test, so edit the asset and regenerate, never the seeded copy.
+All five tools currently accept the same frontmatter (`name` + `description`,
+unknown keys ignored); `Frontmatter` is per-target so a future divergence
+costs one string rather than a second copy of the skill.
+
 ## 5. Testing conventions
 
 - **Unit tests** next to the package. Table-driven. Use `t.TempDir()` and write fixture bytes inline or copy from `testdata/fixtures`.
@@ -560,6 +590,7 @@ Errors returned from `Action` are printed by `Main` as `Error: <msg>` to stderr 
 - **Windows**: any test comparing paths uses `filepath.Join`; any test comparing frontmatter refs expects forward slashes. Only the ref itself is forward-slash — a resolved on-disk path (`resolver.Resolved.Path`, the right-hand side of `show --refs-only`) carries OS separators, so never assert "no backslash" on a whole line that contains one. Line endings: `Split` accepts `\r\n`; `Bytes()` writes `\n`.
 - **Never commit two paths that differ only in case.** Windows and default macOS fold them into one file: git checks out whichever comes last and then reports the survivor as permanently modified in every clone. A test that needs such a pair builds it in `t.TempDir()` and `t.Skip`s when the filesystem folds it (see `duplicateIDRoot` in `pkg/graph/graph_test.go`). CI enforces this in the `lint` job.
 - **Determinism test** (`prime`): render twice on the same graph, `bytes.Equal`; also compare against the golden file, which CI runs on both OSes.
+- **Commands that prompt** read one line from `cmd.Root().Reader`, so a test drives them with `runStdin(t, "y\n", …)`. Do not gate a prompt on `format.IsTerminal`: the harness passes a `strings.Reader`, so the prompt path would never be exercised. The hazard `IsTerminal` guards in `readStdinText` is reading to **EOF**, which blocks on a TTY; reading a single line does not, and an exhausted or closed stdin simply reads EOF, which must mean "no". `IsTerminal` is still right for deciding whether to echo a newline after the answer, which is display, not control flow.
 
 ### urfave/cli v3 command patterns (`v3.12.0`)
 
@@ -666,6 +697,9 @@ Phase order is dependency order; within a phase, work items without mutual deps 
 | `AWIT-0ND5743G` | goreleaser, version embedding, pre-commit hook docs, README agent loop | 6B3G, 713G | phase5, p1 |
 | `AWIT-0ND5753G` | Reserve `external:` key and document the schema | 6D3G | phase5, p2 |
 | `AWIT-0NE610DS` | awit archive: fixed-point eligibility, comment collapse, attachment move | 6Q3G, 6Y3G, 6S3G | phase5, p1 |
+| `AWIT-0NEZV7T2` | Rename ticket to work item across living docs and open items | — | phase5, p1 |
+| `AWIT-0NEX14T9` | skill: correct author resolution in driving-awit | — | phase5, p1 |
+| `AWIT-0NEWKJTD` | init: seed the driving-awit skill into detected agent dirs | X14T9, ZV7T2 | phase5, p1 |
 
 Short forms in the Deps column are the last four characters of the ID; the work item files use full IDs.
 

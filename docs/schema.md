@@ -177,6 +177,20 @@ mutating commands. `awit init` appends `.awit/.lock` to the repo
 `.gitignore` and does not create the file. The file is created on first
 `Store.Lock`. It is never committed.
 
+## Seeded agent skills
+
+`awit init` also looks for agent directories in the repo root — `.claude`,
+`.omp`, `.opencode`, `.agents`, `.pi`, in that order — and offers to write
+`<dir>/skills/driving-awit/SKILL.md` into each one it finds. It never
+creates an agent directory; their presence is the signal that the tool is
+in use. `--skills` seeds every detected directory without asking,
+`--no-skills` skips the whole step, `--force` overwrites an existing skill
+file instead of keeping it.
+
+These files live **outside** `.awit/` and are not part of the item schema.
+They are project config and are meant to be committed; unlike `.awit/.lock`,
+`init` does not gitignore them.
+
 ## Quarantine (not schema, but load-time)
 
 These are not extra keys; they are reasons a file fails to become a
