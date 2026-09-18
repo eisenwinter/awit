@@ -62,6 +62,12 @@ Additional decisions made while writing tickets:
 | Critical path | Longest path (by node count) over non-closed, non-quarantined nodes following `Unblocks` edges in topological order; ties by smaller ID at each DP step. Printed from the root (item with no open deps) downstream. |
 | `--repo` semantics | Path to the directory that **contains** `.awit/`. Without it, walk up from cwd until a directory containing `.awit/` is found; stop at filesystem root with `Error: no .awit directory found (run awit init)`. |
 | Git commit on `--claim` | `git -C <root> add <itemfile>` then `git -C <root> commit -m "awit: claim <id>" -- <itemfile>`. Commit failure is an error **after** the file was written; message tells the user the file is claimed but uncommitted. |
+| Archive eligibility | Fixed point over the graph: start with every closed, non-quarantined node; repeatedly remove any node with an `Unblocks` neighbour outside the set (open, quarantined, or closed-but-not-in-set); stop when stable. Result sorted by ID. Never rewrites another item's `deps`, never introduces an index file; the graph engine is unchanged. |
+| Archive layout | Flat `.awit/archive/<id>.md`, same depth as `items/`, so non-comment `refs` (`../../plan/x.md`) stay valid without rewriting. `--file` attachments move to `.awit/archive/<id>/<file>`; their ref becomes `../archive/<id>/<file>` (still items-relative — the ref convention does not change for archived files). |
+| Comment collapse format | Original item bytes, then `\n## Comments\n` and one `\n### <created RFC3339 UTC> <author>\n\n<text>\n` block per comment, ordered by comment filename asc (chronological). Comment refs (`../comments/<id>/…` with frontmatter `author`+`created`) are removed from `refs`; all other frontmatter untouched (node edit, unknown keys kept). No `archived_at` key — Git records when. Items with zero comments get no `## Comments` section. |
+| Comment vs attachment | A file under `comments/<id>/` is a **comment** when `Split` succeeds and the frontmatter has `author` and `created`; every other file is an **attachment** (verbatim `--file` copy) and is moved, never inlined. No MIME sniffing. |
+| Archive write order | Per item: write `archive/<id>.md` atomically → move attachments (`os.Rename`, atomic write fallback on cross-device) → `os.Remove(items/<id>.md)` → `os.RemoveAll(comments/<id>)`. Idempotent: if both `archive/<id>.md` and `items/<id>.md` exist (crash between steps) the archive file is rebuilt from `items/` and overwritten. |
+| Does `archive` commit? | **No**, same as `close`. Holds `Store.Lock`. Output ignores `--format` (like `close`): one `archived <id>` line per item, sorted by ID, then `Archived N items`. `--dry-run` writes nothing, prints `would archive <id>` lines and `skip <id>: dependant <dep-id> not archivable` for every closed item left behind, then `Would archive N items`. Exit 0 even when N = 0. |
 
 ## 3. Repository layout
 
@@ -69,7 +75,7 @@ Additional decisions made while writing tickets:
 cmd/awit/main.go                 → internal/cli.Main()
 internal/cli/
   app.go                         root *cli.Command, global flags, Main(), helpers (openStore, exitf, SplitLabels)
-  init.go create.go list.go label.go show.go comment.go update.go close.go release.go dep.go validate.go prime.go next.go
+  init.go create.go list.go label.go show.go comment.go update.go close.go release.go dep.go validate.go prime.go next.go archive.go
   *_test.go                      command tests drive Main() with args and capture stdout/stderr
 internal/gitx/gitx.go            Branch, UserName, Commit, Root (os/exec wrappers)
 pkg/id/id.go                     snowflake IDs
@@ -77,12 +83,14 @@ pkg/config/config.go             config.yaml
 pkg/item/
   item.go                        Item, Parse, setters, Bytes
   frontmatter.go                 Split, conflict-marker detection
-  store.go                       Store: Find/Open/LoadAll/Save/Mint/AddComment/AttachFile
+  store.go                       Store: Find/Open/Init/LoadAll/Load/Save/Mint/Lock
+  comment.go                     AddComment, AttachFile, CommentFileName, SanitizeAuthor, Comments (parse comments/<id>/)
+  archive.go                     Store.Archive: collapse + move + delete
   reason.go                      Reason constants, Broken
 pkg/graph/
   graph.go                       Node, Fault, Graph, Build
   scc.go                         Tarjan, example chain
-  rank.go                        Ready/Blocked/Quarantined, FilterLabels, WouldCycle
+  rank.go                        Ready/Blocked/Quarantined, FilterLabels, WouldCycle, Archivable
   critical.go                    CriticalPath
 pkg/format/format.go             Format, Detect, Entry, Entries, Entry rendering (compact/table/json)
 pkg/prime/prime.go               Render
@@ -306,6 +314,29 @@ func (s *Store) AttachFile(it *Item, author string, now time.Time, src string) (
 func CommentFileName(now time.Time, author, ext string) string
 func SanitizeAuthor(author string) string
 
+// Comment is one file under comments/<id>/. Attachment files have Attachment == true and
+// empty Author/Created/Text (see §2 "Comment vs attachment").
+type Comment struct {
+    File       string    // filename inside comments/<id>/
+    Author     string
+    Created    time.Time // UTC
+    Text       string    // body after frontmatter, trimmed
+    Attachment bool
+}
+
+func (s *Store) ArchiveDir() string                     // Dir/archive
+func (s *Store) ArchivePath(id string) string           // Dir/archive/<id>.md
+
+// Comments lists comments/<id>/ sorted by filename asc. Missing directory → empty slice, nil error.
+// Comment files that fail Split or lack author/created are returned as attachments, never as errors.
+func (s *Store) Comments(id string) ([]Comment, error)
+
+// Archive collapses it and its comments into ArchivePath(it.ID), moves attachments to
+// ArchiveDir()/<id>/, rewrites refs, removes ItemPath(it.ID) and CommentsDir(it.ID).
+// Eligibility is the caller's job (graph.Archivable); Archive does not check dependants.
+// Layout, format and write order per §2.
+func (s *Store) Archive(it *Item) error
+
 // BrokenError wraps a Broken so Load can report the reason.
 type BrokenError struct{ Broken Broken }
 func (e *BrokenError) Error() string
@@ -366,6 +397,9 @@ func (g *Graph) Blocked() []*Node        // sorted ID asc
 func (g *Graph) Quarantined() []*Node    // sorted ID asc
 func (g *Graph) Closed() []*Node         // sorted ID asc
 func (g *Graph) CriticalPath() []*Node   // see §2; empty when no open nodes
+// Archivable returns the fixed-point set of closed, non-quarantined nodes with no Unblocks
+// neighbour outside the set (see §2 "Archive eligibility"). Sorted ID asc; empty when none.
+func (g *Graph) Archivable() []*Node
 
 // WouldCycle returns the dependency chain that adding "from depends on to" would close, or nil.
 // Algorithm: DFS from `to` over Deps looking for `from`. Result starts with from, ends with from:
@@ -578,6 +612,7 @@ All under `testdata/fixtures/<name>/.awit/` with `config.yaml` (`prefix: AWIT`, 
 | `id-mismatch` | file `AWIT-TEST0001.md` with `id: AWIT-TEST0009` | ID MISMATCH |
 | `parse-error` | `AWIT-TEST0001.md` with invalid yaml (`title: [unclosed`) | PARSE ERROR |
 | `loop` | Three-item chain 0001→0002→0003 plus `docs/spec.md` at repo root referenced from 0001 | E2E agent loop |
+| `archive` | `TEST0001` (closed) ← `TEST0002` (closed, deps 0001) ← `TEST0003` (open, deps 0002); `TEST0004` (closed, two comments + one `.log` attachment, refs to all three) ← `TEST0005` (closed, deps 0004) | Archivable = 0004, 0005 (0001, 0002 pinned by open 0003); collapse golden for 0004; `validate` PASS after archive |
 
 ## 9. Ticket index
 
@@ -615,6 +650,7 @@ Phase order is dependency order; within a phase, tickets without mutual deps can
 | `AWIT-0ND5733G` | validate --stale-claims | 6S3G | phase5, p2 |
 | `AWIT-0ND5743G` | goreleaser, version embedding, pre-commit hook docs, README agent loop | 6B3G, 713G | phase5, p1 |
 | `AWIT-0ND5753G` | Reserve `external:` key and document the schema | 6D3G | phase5, p2 |
+| `AWIT-0NE610DS` | awit archive: fixed-point eligibility, comment collapse, attachment move | 6Q3G, 6Y3G, 6S3G | phase5, p1 |
 
 Short forms in the Deps column are the last four characters of the ID; the ticket files use full IDs.
 

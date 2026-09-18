@@ -63,10 +63,14 @@ Everything is a Markdown file under `.awit/`; the only non-committed file is the
 ├── items/
 │   ├── AWIT-0K7M2QX9.md               # one lean item per file, ID = filename
 │   └── AWIT-0K7M3A1F.md
-└── comments/
-    └── AWIT-0K7M2QX9/
-        ├── 20260917T143205Z-claude.md
-        └── 20260917T151047Z-jan.md
+├── comments/
+│   └── AWIT-0K7M2QX9/
+│       ├── 20260917T143205Z-claude.md
+│       └── 20260917T151047Z-jan.md
+└── archive/                           # written only by `awit archive`
+    ├── AWIT-0K7LZ9RT.md               # item + comments collapsed into one file
+    └── AWIT-0K7LZ9RT/                 # only when the item had --file attachments
+        └── 20260916T090000Z-jan.log
 ```
 
 Revised item schema:
@@ -108,6 +112,14 @@ refs:
 | `refs` | list | Paths relative to `.awit/items/`, forward slashes only |
 
 Unknown keys are preserved on write so teams can add their own fields without a schema change. `config.yaml` holds `prefix`, optional `default_labels`, `stale_claim` (duration, default `2h`), and `agent_id` (overridden by `AWIT_AGENT`).
+
+### Archive
+
+`items/` grows forever otherwise, and every command re-parses all of it. `awit archive` moves finished work out of the hot path without touching the graph engine: an archived item simply no longer exists as far as `Build` is concerned.
+
+That is also the constraint. A closed item `Y` that any remaining item still lists in `deps` would become a `DANGLING DEP` fault on that dependant the moment `Y` leaves `items/`. So the archive set is the **fixed point**: start with every closed, non-quarantined item; repeatedly drop any item that has a dependant outside the set; stop when nothing changes. Items that stay behind are still closed and still satisfy their dependants; they get archived on a later run once their dependants are archivable too. No index file, no "external closed" state in the graph, no rewriting of other items' `deps`.
+
+Per archived item: the file is rewritten to `archive/<id>.md` with its comments appended as a `## Comments` section in chronological order (comment `refs` removed from frontmatter, everything else preserved), `--file` attachments move to `archive/<id>/` with their `refs` rewritten, then `items/<id>.md` and `comments/<id>/` are deleted. Archived items are invisible to every other command; the history lives in Git and in the archive file. There is no `unarchive`; `git revert` is the way back.
 
 ## Graph engine
 
@@ -151,7 +163,7 @@ Cycle: AWIT-0K7M2QX9 -> AWIT-0K7LZ9RT -> AWIT-0K7M1B4C -> AWIT-0K7M2QX9
 
 ## CLI command matrix
 
-Thirteen commands; `-p` is gone everywhere, `release`, `validate` and `label` are new, and every list-shaped output honours `--format compact|table|json` (compact when stdout is not a TTY).
+Fourteen commands; `-p` is gone everywhere, `release`, `validate`, `label` and `archive` are new, and every list-shaped output honours `--format compact|table|json` (compact when stdout is not a TTY).
 
 | Command | Flags | User | Purpose |
 | --- | --- | --- | --- |
@@ -166,6 +178,7 @@ Thirteen commands; `-p` is gone everywhere, `release`, `validate` and `label` ar
 | `awit release <id>` | — | Both | Set `open`, clear `assignee` and `claimed_at` |
 | `awit dep add\|rm <id> <dep>` | — | Both | Edit `deps` with cycle pre-check |
 | `awit validate` | `--stale-claims` | Both | Integrity report; non-zero exit on `FAIL` |
+| `awit archive` | `--dry-run` | Human | Move the fixed-point set of closed items to `.awit/archive/`, one collapsed file each |
 | `awit prime` | `--max-tokens`, `-l label` | Agent | Deterministic state graph for prompt injection |
 | `awit next` | `-l label`, `--claim`, `--no-commit`, `--seed` | Agent | Top unblocked item; optional claim |
 
@@ -278,6 +291,7 @@ Six phases; phases 1–2 set the codebase's shape, and the agent surface waits u
 - [ ] Documented pre-commit hook running `awit validate`
 - [ ] goreleaser config, version embedding, `README` with the agent loop
 - [ ] Reserve `external:` frontmatter key (unused) for a future GitLab/GitHub mirror
+- [ ] `archive`: fixed-point eligibility, comment collapse, attachment move, `--dry-run`; `validate` stays `PASS` afterwards
 
 ## Open questions
 
