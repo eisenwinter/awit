@@ -3,6 +3,7 @@
 /awit.exe
 /dist/
 /bin/
+/.task/
 
 # Go
 *.test

@@ -1,0 +1,58 @@
+# Taskfile.dev — local dev builds for awit (dogfood binary).
+# Run with: task --taskfile Taskfile.dev <task>
+version: '3'
+
+vars:
+  BINARY: bin/awit
+  PKG: ./cmd/awit
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo dev
+  LDFLAGS: -s -w -X github.com/eisenwinter/awit/internal/cli.Version={{.VERSION}}
+
+tasks:
+  build:
+    desc: Build {{.BINARY}} stamped with {{.VERSION}}
+    cmds:
+      - mkdir -p bin
+      - go build -ldflags "{{.LDFLAGS}}" -o {{.BINARY}} {{.PKG}}
+    sources:
+      - "**/*.go"
+      - go.mod
+      - go.sum
+    generates:
+      - "{{.BINARY}}"
+    status:
+      - test -x {{.BINARY}}
+
+  test:
+    desc: Full test suite
+    cmds:
+      - go test ./...
+
+  vet:
+    desc: go vet over all packages
+    cmds:
+      - go vet ./...
+
+  check:
+    desc: vet + full tests
+    cmds:
+      - task: vet
+      - task: test
+
+  smoke:
+    desc: Build then exercise init/create/list/next in a temp repo
+    cmds:
+      - task: build
+      - |
+        repo="$(mktemp -d)" && trap 'rm -rf "$repo"' EXIT
+        ./{{.BINARY}} --repo "$repo" init
+        ./{{.BINARY}} --repo "$repo" create --brief "dogfood smoke" "Smoke item"
+        ./{{.BINARY}} --repo "$repo" list
+        ./{{.BINARY}} --repo "$repo" next
+        ./{{.BINARY}} --version
+
+  clean:
+    desc: Remove local build output
+    cmds:
+      - rm -rf bin dist
