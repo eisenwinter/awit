@@ -11,7 +11,7 @@ The loop it serves:
 ```mermaid
 flowchart LR
   A[awit prime<br/>token-light graph] --> B[awit next --claim<br/>lock top unblocked item]
-  B --> C[awit show id --full<br/>ticket + resolved refs]
+  B --> C[awit show id --full<br/>item + resolved refs]
   C --> D[awit comment id<br/>research notes]
   D --> E[awit close id<br/>unblocks downstream]
   E --> A
@@ -171,7 +171,7 @@ Fourteen commands; `-p` is gone everywhere, `release`, `validate`, `label` and `
 | `awit create <title>` | `--brief`, `-d deps`, `-l labels`, `--assign`, `--id` | Both | Mint a snowflake ID, write a lean item |
 | `awit list` | `-s status`, `-l label`, `--ready`, `--blocked`, `--quarantined`, `--format` | Both | Index view |
 | `awit label` | `--state open\|closed\|all`, `--format` | Both | Label vocabulary with usage counts; answers "what labels exist and how busy are they" |
-| `awit show <id>` | `--full`, `--refs-only` | Agent | Core ticket (~200 tokens) or full resolved ref tree |
+| `awit show <id>` | `--full`, `--refs-only` | Agent | Core item (~200 tokens) or full resolved ref tree |
 | `awit comment <id> [text]` | `--file <path>`, `--author` | Both | Write a timestamped comment or attach an external file; append to `refs` |
 | `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title` | Both | Mutate frontmatter with a minimal diff |
 | `awit close <id>` | `--reason` | Both | Set `closed`, clear `claimed_at`, append reason as a comment |

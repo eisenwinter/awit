@@ -1,6 +1,6 @@
 # awit — Implementation Guide
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan ticket-by-ticket. Tickets live in `.awit/items/` and use checkbox (`- [ ]`) steps.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan one work item at a time. Work items live in `.awit/items/` and use checkbox (`- [ ]`) steps.
 
 **Goal:** Build `awit`, a zero-daemon Go CLI that turns Markdown files under `.awit/` into a dependency graph for humans and agents.
 
@@ -10,16 +10,16 @@
 
 **Spec:** [`plan/awit-implementation-plan.md`](awit-implementation-plan.md). This guide implements that spec; where the two disagree, this guide wins because it resolves the spec's open questions.
 
-**Tickets:** `.awit/items/AWIT-*.md` — this repo dogfoods its own format. Index and dependency order in [§9](#9-ticket-index).
+**Work items:** `.awit/items/AWIT-*.md` — this repo dogfoods its own format. Index and dependency order in [§9](#9-work-item-index).
 
 ---
 
 ## 1. Global constraints
 
-Every ticket inherits these. Copy them into your head before you start.
+Every work item inherits these. Copy them into your head before you start.
 
 - Module path: `github.com/eisenwinter/awit`. Binary: `cmd/awit`. Go `1.27.1` as in `go.mod`.
-- Dependencies allowed: `github.com/urfave/cli/v3`, `gopkg.in/yaml.v3`. Nothing else without a ticket saying so. (`golang.org/x/sys` is allowed only in `pkg/lock` for Windows `LockFileEx`.)
+- Dependencies allowed: `github.com/urfave/cli/v3`, `gopkg.in/yaml.v3`. Nothing else without a work item saying so. (`golang.org/x/sys` is allowed only in `pkg/lock` for Windows `LockFileEx`.)
 - Must compile and pass `go vet`, `staticcheck`, and `go test ./...` on **Linux and Windows**. Never hardcode `/` in filesystem paths; use `filepath`. `refs` inside frontmatter are always forward slashes (`filepath.ToSlash` on write, `filepath.FromSlash` on read).
 - Every file write is temp-then-rename in the same directory (`os.CreateTemp(dir, ".tmp-*")`, write, `Close`, `os.Rename`). No exceptions.
 - The CLI **never panics on a bad file**. Any file that cannot be parsed becomes a quarantine fault and the command continues.
@@ -28,11 +28,11 @@ Every ticket inherits these. Copy them into your head before you start.
 - No colour anywhere in v1 output; `--no-color` is accepted and is a no-op that exists so scripts written today keep working.
 - Commit after every green step. Commit message format: `<scope>: <imperative summary>` where scope is the package or command (`id: add base32 codec`, `cli/next: seeded tie-break`).
 - Tests: `testing` stdlib only, table-driven, `t.TempDir()` for filesystem. Golden files under `testdata/golden/` with an `-update` flag (`var update = flag.Bool("update", false, "rewrite golden files")`). Fixtures under `testdata/fixtures/<name>/.awit/…`.
-- Do not run formatters/linters project-wide inside a ticket beyond `gofmt` on files you touched; CI runs `go vet` and `staticcheck` once.
+- Do not run formatters/linters project-wide inside a work item beyond `gofmt` on files you touched; CI runs `go vet` and `staticcheck` once.
 
 ## 2. Resolved decisions
 
-The spec left six questions open. They are decided here so that no ticket has to guess. Change them only by editing this section first.
+The spec left six questions open. They are decided here so that no work item has to guess. Change them only by editing this section first.
 
 | # | Question | Decision |
 | --- | --- | --- |
@@ -43,7 +43,7 @@ The spec left six questions open. They are decided here so that no ticket has to
 | 5 | Token estimate for `--max-tokens` | **`len(bytes)/4`**, integer division. Documented as approximate. No tokenizer dependency. |
 | 6 | ID epoch and width | **Keep**: epoch `2026-01-01T00:00:00Z`, 30-bit seconds, 6-bit worker, 4-bit random, 8 Crockford chars. Rolls over in 2060. `Encode` returns an error if timestamp exceeds 30 bits. |
 
-Additional decisions made while writing tickets:
+Additional decisions made while writing work items:
 
 | Topic | Decision |
 | --- | --- |
@@ -104,7 +104,7 @@ testdata/golden/                 *.golden
 
 ## 4. Shared interfaces
 
-These are the exact names later tickets consume. Implement them with these signatures. If you must add a method, add it; never rename or change a signature listed here without updating this guide and every ticket that references it.
+These are the exact names later work items consume. Implement them with these signatures. If you must add a method, add it; never rename or change a signature listed here without updating this guide and every work item that references it.
 
 ### 4.1 `pkg/id`
 
@@ -571,9 +571,9 @@ Commands are package-level `*cli.Command` values reused across every in-process 
 - **Hold the package-level `sync.Mutex` around `root.Run()` in `Main`.** The subcommand tree is shared and `Run` mutates it (flag parse state, `setupDefaults`), so concurrent in-process `Main` calls race; `mainMu` in `app.go` serialises them. This only matters to concurrent test drivers — production makes one call per process, and cross-process exclusion is the `.awit/.lock` file lock, not this mutex.
 - **`-l` flags need `DisableSliceFlagSeparator: true` plus manual comma-split.** Urfave splits slice-flag values on `,` by default, which would turn one `-l auth,db` occurrence into two ANDed groups. Disable the separator (`listCmd`, `nextCmd`, `primeCmd`) so `SplitLabels` sees each `-l` occurrence intact and implements §2 decision 1: OR within a flag, AND across flags. Same manual split applies to other repeatable comma-carrying values (`parseIDList`, `splitFlagCSV`).
 
-## 6. Ticket format (dogfooded)
+## 6. Work item format (dogfooded)
 
-Each ticket is `.awit/items/AWIT-XXXXXXXX.md` in the real awit schema:
+Each work item is `.awit/items/AWIT-XXXXXXXX.md` in the real awit schema:
 
 ```markdown
 ---
@@ -600,16 +600,18 @@ refs:
 
 Body sections are mandatory and in that order. `Steps` are checkbox items in TDD order (write failing test → run, see fail → implement → run, see pass → commit) with real code in fenced blocks. `Acceptance Criteria` are commands with expected output. Labels: `phaseN` and priority `p0` (critical path) / `p1` / `p2`.
 
-When quoting Git conflict-marker bytes (`<<<<<<< `, a line of seven or more `=`, `>>>>>>> `) in a ticket body, break each marker so `HasConflictMarkers` does not match: insert U+200B after the first character, or otherwise interpolate. Literal unbroken markers anywhere in an item file quarantine it as `CONFLICT MARKERS`.
+When quoting Git conflict-marker bytes (`<<<<<<< `, a line of seven or more `=`, `>>>>>>> `) in a work item body, break each marker so `HasConflictMarkers` does not match: insert U+200B after the first character, or otherwise interpolate. Literal unbroken markers anywhere in an item file quarantine it as `CONFLICT MARKERS`.
 
-## 7. How to implement a ticket
+**Vocabulary.** The unit is a **work item** — `awit` is the agent work item tool. After a first full mention, `item` is the short form; it is also the Go noun (`item.Item`) and the directory (`.awit/items/`). `workitem`, one word, is used only as a slug in filenames and `name:` fields. Earlier work called these "tickets". Closed items and everything under `.awit/comments/` deliberately keep that older wording (AWIT-0NEZV7T2): they are a record of what was written at the time, and rewriting an audit trail buys consistency nobody reads. The inconsistency is a decision, not a missed file.
 
-1. Read this guide §1–§5 and the ticket. Open the spec section the ticket points to.
-2. Check the ticket's `deps` are all `status: closed` (read their files). If not, stop and pick another.
+## 7. How to implement a work item
+
+1. Read this guide §1–§5 and the work item. Open the spec section the work item points to.
+2. Check the work item's `deps` are all `status: closed` (read their files). If not, stop and pick another.
 3. Follow the steps in order. Do not skip the "run, see it fail" step.
 4. Commit per step with the scope convention.
-5. Before closing: run `go build ./... && go vet ./... && go test ./...` for the packages you touched. Paste the acceptance-criteria output into a comment file `.awit/comments/<id>/<stamp>-<author>.md` (by hand until `awit comment` exists) and add its ref to the ticket.
-6. Set `status: closed` in the ticket frontmatter. Commit `tickets: close <id>`.
+5. Before closing: run `go build ./... && go vet ./... && go test ./...` for the packages you touched. Paste the acceptance-criteria output into a comment file `.awit/comments/<id>/<stamp>-<author>.md` (by hand until `awit comment` exists) and add its ref to the work item.
+6. Set `status: closed` in the work item frontmatter. Commit `items: close <id>`.
 
 ## 8. Fixture catalogue
 
@@ -627,11 +629,11 @@ All under `testdata/fixtures/<name>/.awit/` with `config.yaml` (`prefix: AWIT`, 
 | `loop` | Three-item chain 0001→0002→0003 plus `docs/spec.md` at repo root referenced from 0001 | E2E agent loop |
 | `archive` | `TEST0001` (closed) ← `TEST0002` (closed, deps 0001) ← `TEST0003` (open, deps 0002); `TEST0004` (closed, two comments + one `.log` attachment, refs to all three) ← `TEST0005` (closed, deps 0004) | Archivable = 0004, 0005 (0001, 0002 pinned by open 0003); collapse golden for 0004; `validate` PASS after archive |
 
-## 9. Ticket index
+## 9. Work item index
 
-Phase order is dependency order; within a phase, tickets without mutual deps can run in parallel. `p0` marks the critical path through the build.
+Phase order is dependency order; within a phase, work items without mutual deps can run in parallel. `p0` marks the critical path through the build.
 
-| Ticket | Title | Deps | Labels |
+| Work item | Title | Deps | Labels |
 | --- | --- | --- | --- |
 | `AWIT-0ND5683G` | CLI skeleton with urfave/cli v3 and global flags | — | phase0, p0 |
 | `AWIT-0ND5693G` | pkg/id: Crockford snowflake IDs | — | phase0, p0 |
@@ -665,7 +667,7 @@ Phase order is dependency order; within a phase, tickets without mutual deps can
 | `AWIT-0ND5753G` | Reserve `external:` key and document the schema | 6D3G | phase5, p2 |
 | `AWIT-0NE610DS` | awit archive: fixed-point eligibility, comment collapse, attachment move | 6Q3G, 6Y3G, 6S3G | phase5, p1 |
 
-Short forms in the Deps column are the last four characters of the ID; the ticket files use full IDs.
+Short forms in the Deps column are the last four characters of the ID; the work item files use full IDs.
 
 ```mermaid
 flowchart LR
