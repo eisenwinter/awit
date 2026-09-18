@@ -24,6 +24,13 @@ tasks:
     status:
       - test -x {{.BINARY}}
 
+  install:
+    desc: Build {{.BINARY}} and copy it to ~/.local/bin/awit
+    cmds:
+      - task: build
+      - mkdir -p "$HOME/.local/bin"
+      - cp {{.BINARY}} "$HOME/.local/bin/awit"
+
   test:
     desc: Full test suite
     cmds:
