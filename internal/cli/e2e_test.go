@@ -84,8 +84,17 @@ func TestAgentLoop(t *testing.T) {
 	if !strings.Contains(refsOnly, "../comments/AWIT-TEST0001/") {
 		t.Fatalf("refs-only missing comment ref:\n%s", refsOnly)
 	}
-	if strings.Contains(refsOnly, "\\") {
-		t.Fatalf("refs-only contains a backslash:\n%s", refsOnly)
+	// Only the ref column is forward-slash: frontmatter refs are stored with
+	// ToSlash. The resolved path after " -> " is an on-disk path and carries
+	// OS separators, so it is backslashed on Windows by design.
+	for _, line := range strings.Split(strings.TrimSuffix(refsOnly, "\n"), "\n") {
+		ref, _, ok := strings.Cut(line, " -> ")
+		if !ok {
+			t.Fatalf("refs-only line %q is not %q:\n%s", line, "<ref> -> <path>", refsOnly)
+		}
+		if strings.Contains(ref, "\\") {
+			t.Fatalf("refs-only ref %q contains a backslash:\n%s", ref, refsOnly)
+		}
 	}
 	nRefs := 0
 	if strings.Contains(refsOnly, "../../docs/spec.md") {

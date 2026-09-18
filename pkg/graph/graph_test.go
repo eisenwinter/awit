@@ -16,13 +16,18 @@ func fixtureRoot(t *testing.T, name string) string {
 
 func buildFixture(t *testing.T, name string) *Graph {
 	t.Helper()
-	st, err := item.Open(fixtureRoot(t, name))
+	return buildRoot(t, fixtureRoot(t, name))
+}
+
+func buildRoot(t *testing.T, root string) *Graph {
+	t.Helper()
+	st, err := item.Open(root)
 	if err != nil {
-		t.Fatalf("item.Open(%s): %v", name, err)
+		t.Fatalf("item.Open(%s): %v", root, err)
 	}
 	items, broken, err := st.LoadAll()
 	if err != nil {
-		t.Fatalf("LoadAll(%s): %v", name, err)
+		t.Fatalf("LoadAll(%s): %v", root, err)
 	}
 	return Build(items, broken)
 }
@@ -279,16 +284,70 @@ func TestBuildCarriesBroken(t *testing.T) {
 	}
 }
 
-func TestBuildCarriesDuplicate(t *testing.T) {
-	root := fixtureRoot(t, "duplicate-id")
-	ents, err := os.ReadDir(filepath.Join(root, ".awit", "items"))
+// duplicateIDLowerTwin is the lower-case half of the duplicate-id pair. Its
+// id matches its own filename stem, so the only fault it carries is
+// DUPLICATE ID, not ID MISMATCH. It lives here instead of in testdata
+// because two tracked paths that differ only in case collapse into one file
+// on a case-insensitive filesystem: git can check out only one of them and
+// reports the survivor as permanently modified on every Windows and default
+// macOS clone.
+const duplicateIDLowerTwin = `---
+id: awit-test0001
+title: Implement OAuth2 bearer token extraction (lowercase copy)
+brief: Fix header parsing so URL-safe bearer tokens authenticate.
+status: open
+deps: []
+labels: [auth, p1]
+refs: []
+---
+
+## Summary
+
+Lower-case stem of the case-insensitive duplicate pair.
+
+## Acceptance Criteria
+
+- LoadAll reports DUPLICATE ID on this stem
+`
+
+// duplicateIDRoot copies the duplicate-id fixture into a temp dir and adds
+// the lower-case twin of AWIT-TEST0001.md. On a case-insensitive filesystem
+// the twin IS its upper-case sibling, so the pair cannot be created there at
+// all and the test skips.
+func duplicateIDRoot(t *testing.T) string {
+	t.Helper()
+	src := fixtureRoot(t, "duplicate-id")
+	root := t.TempDir()
+	items := filepath.Join(root, ".awit", "items")
+	if err := os.MkdirAll(items, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	copyFixtureFile(t, filepath.Join(src, ".awit", "config.yaml"), filepath.Join(root, ".awit", "config.yaml"))
+	copyFixtureFile(t, filepath.Join(src, ".awit", "items", "AWIT-TEST0001.md"), filepath.Join(items, "AWIT-TEST0001.md"))
+
+	lower := filepath.Join(items, "awit-test0001.md")
+	if _, err := os.Stat(lower); err == nil {
+		t.Skip("case-insensitive filesystem: the duplicate-id pair collapses to one file")
+	}
+	if err := os.WriteFile(lower, []byte(duplicateIDLowerTwin), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+func copyFixtureFile(t *testing.T, src, dst string) {
+	t.Helper()
+	data, err := os.ReadFile(src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ents) < 2 {
-		t.Skip("duplicate-id fixture collapsed on a case-insensitive filesystem")
+	if err := os.WriteFile(dst, data, 0o644); err != nil {
+		t.Fatal(err)
 	}
-	g := buildFixture(t, "duplicate-id")
+}
+
+func TestBuildCarriesDuplicate(t *testing.T) {
+	g := buildRoot(t, duplicateIDRoot(t))
 	if len(g.Broken) != 2 {
 		t.Fatalf("len(Broken) = %d, want 2", len(g.Broken))
 	}

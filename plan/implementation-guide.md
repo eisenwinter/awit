@@ -557,7 +557,8 @@ Errors returned from `Action` are printed by `Main` as `Error: <msg>` to stderr 
 - **Command tests** in `internal/cli/*_test.go` call `Main([]string{...}, strings.NewReader(""), &out, &errb)` against a copy of a fixture (`copyFixture(t, "clean") string` helper in `internal/cli/helpers_test.go` returns the temp repo root; always pass `--repo`).
 - **Golden files**: `testdata/golden/<name>.golden`; compare with `bytes.Equal`; on mismatch print a unified-ish diff (`t.Errorf("got:\n%s\nwant:\n%s")`) and hint `go test ./... -update`.
 - **Fixtures** are complete `.awit/` trees committed to git. Because `config.yaml` is required, every fixture has one with `prefix: AWIT`. Fixture item IDs are `AWIT-TEST0001`..`AWIT-TEST00NN` — valid Crockford, readable in assertions. The `conflicted` fixture contains literal `<<<<<<< HEAD` lines, so `.gitattributes` must mark `testdata/fixtures/conflicted/** -merge` to keep Git from mangling it.
-- **Windows**: any test comparing paths uses `filepath.Join`; any test comparing frontmatter refs expects forward slashes. Line endings: `Split` accepts `\r\n`; `Bytes()` writes `\n`.
+- **Windows**: any test comparing paths uses `filepath.Join`; any test comparing frontmatter refs expects forward slashes. Only the ref itself is forward-slash — a resolved on-disk path (`resolver.Resolved.Path`, the right-hand side of `show --refs-only`) carries OS separators, so never assert "no backslash" on a whole line that contains one. Line endings: `Split` accepts `\r\n`; `Bytes()` writes `\n`.
+- **Never commit two paths that differ only in case.** Windows and default macOS fold them into one file: git checks out whichever comes last and then reports the survivor as permanently modified in every clone. A test that needs such a pair builds it in `t.TempDir()` and `t.Skip`s when the filesystem folds it (see `duplicateIDRoot` in `pkg/graph/graph_test.go`). CI enforces this in the `lint` job.
 - **Determinism test** (`prime`): render twice on the same graph, `bytes.Equal`; also compare against the golden file, which CI runs on both OSes.
 
 ### urfave/cli v3 command patterns (`v3.12.0`)
@@ -620,7 +621,7 @@ All under `testdata/fixtures/<name>/.awit/` with `config.yaml` (`prefix: AWIT`, 
 | `cyclic` | `TEST0001` deps 0002; `TEST0002` deps 0003; `TEST0003` deps 0001; `TEST0004` self-dep; `TEST0005` clean | Two CYCLE faults; 0005 ready |
 | `dangling` | `TEST0001` deps `AWIT-TEST9999`; `TEST0002` deps 0001 | 0001 DANGLING DEP + quarantined; 0002 blocked |
 | `conflicted` | `TEST0001` with `<<<<<<< HEAD` block in frontmatter; `TEST0002` clean | CONFLICT MARKERS |
-| `duplicate-id` | `AWIT-TEST0001.md` and `awit-test0001.md` (lower case) | DUPLICATE ID on both (fixture stores both files; on case-insensitive FS the test skips) |
+| `duplicate-id` | `AWIT-TEST0001.md`; the lower-case twin `awit-test0001.md` is written by the test into a temp copy | DUPLICATE ID on both (the pair cannot be committed, see the Windows note above; on a case-insensitive FS it cannot be built either and the test skips) |
 | `id-mismatch` | file `AWIT-TEST0001.md` with `id: AWIT-TEST0009` | ID MISMATCH |
 | `parse-error` | `AWIT-TEST0001.md` with invalid yaml (`title: [unclosed`) | PARSE ERROR |
 | `loop` | Three-item chain 0001→0002→0003 plus `docs/spec.md` at repo root referenced from 0001 | E2E agent loop |

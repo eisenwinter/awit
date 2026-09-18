@@ -45,6 +45,21 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+      # Two tracked paths that differ only in case are one file on Windows
+      # and on default macOS: git checks out whichever comes last and then
+      # reports the survivor as permanently modified in every clone. Only
+      # Linux runs notice nothing, so the collision has to be caught here
+      # instead of in a contributor's working tree.
+      - name: no case-colliding paths
+        run: |
+          collisions=$(git ls-files | tr 'A-Z' 'a-z' | sort | uniq -d)
+          if [ -n "$collisions" ]; then
+            echo "tracked paths that differ only in case:" >&2
+            while read -r lower; do
+              git ls-files | grep -ixF "$lower" >&2
+            done <<< "$collisions"
+            exit 1
+          fi
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -56,7 +71,15 @@ jobs:
       # changing the repository, and a re-run of an old commit no longer
       # reproduces its original result. Bumping the pin is then a reviewable
       # one-line diff instead of a surprise.
+      #
+      # The pin is coupled to the Go version in go.mod and has to move with
+      # it. staticcheck type-checks with the go/types of the toolchain that
+      # built it, so a release older than the language version in go.mod
+      # fails the whole run at load time ("export data version N is greater
+      # than maximum supported version M", or "package requires newer Go
+      # version"). setup-go above installs the go.mod toolchain, so the
+      # install below builds staticcheck with that same Go.
       - name: install staticcheck
-        run: go install honnef.co/go/tools/cmd/staticcheck@2025.1.1
+        run: go install honnef.co/go/tools/cmd/staticcheck@2026.2.1
       - name: staticcheck
         run: staticcheck ./...
