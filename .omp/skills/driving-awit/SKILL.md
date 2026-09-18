@@ -1,13 +1,13 @@
 ---
 name: driving-awit
-description: Use when working in a repository that has a `.awit/` directory, when asked to pick up / implement / close tickets, run the agent loop, add tickets, or when an `awit` command output is unclear (No ready items, QUARANTINED, GRAPH WARNINGS, FAIL, "no author"). Covers both a single agent working the queue and an orchestrator handing tickets to workers.
+description: Use when working in a repository that has a `.awit/` directory, when asked to pick up / implement / close work items, run the agent loop, add work items, or when an `awit` command output is unclear (No ready items, QUARANTINED, GRAPH WARNINGS, FAIL, "no author"). Covers both a single agent working the queue and an orchestrator handing work items to workers.
 ---
 
 # Driving awit
 
 `awit` is a zero-daemon CLI: every command rebuilds a dependency graph from `.awit/items/*.md` and writes back at most one file. There is no server and no hidden state — the files and Git **are** the state. You are one of possibly several agents reading the same files, so the discipline below exists to keep the graph truthful for everyone else.
 
-**Core rule: every state change goes through the CLI, never through editing `.awit/` by hand.** The one exception is the ticket _body_ (Markdown below the frontmatter), which `awit create` leaves empty for you to fill.
+**Core rule: every state change goes through the CLI, never through editing `.awit/` by hand.** The one exception is the work item _body_ (Markdown below the frontmatter), which `awit create` leaves empty for you to fill.
 
 ## Setup (once per session)
 
@@ -32,13 +32,13 @@ Without `AWIT_AGENT`, `next --claim` and `comment` fail with `Error: no author`.
 
 ## The loop
 
-Run this per ticket. Do not skip steps; do not reorder.
+Run this per work item. Do not skip steps; do not reorder.
 
 ```bash
 awit prime                       # 1. snapshot: warnings, READY, BLOCKED, critical path
 awit next --claim                # 2. claim the top ready item; prints its line, commits "awit: claim <id>"
-awit show <id> --full            # 3. ticket + every ref inlined; read all of it before touching code
-# 4. build your todo list from the ticket (see below)
+awit show <id> --full            # 3. work item + every ref inlined; read all of it before touching code
+# 4. build your todo list from the work item (see below)
 # 5. do the work
 awit comment <id> "<what you did, what you verified, what is left>"   # 6. progress note; repeat as needed
 awit close <id> --reason "<one line>"                                  # 7. after EVERY acceptance criterion is verified
@@ -54,17 +54,17 @@ Decisions the baseline agent had to guess, resolved:
 - **`.awit/.lock` is never committed.** `awit init` gitignores it; if `git status` shows it untracked, add `.awit/.lock` to `.gitignore` first, then `git add .awit`.
 - **One claim at a time.** Finish or `release` before the next `next --claim`.
 
-### Building your todo list from a ticket
+### Building your todo list from a work item
 
-The ticket body is the plan. Map it mechanically:
+The work item body is the plan. Map it mechanically:
 
 1. Each `- [ ]` under `## Steps` → one todo, verbatim title, in order. Do not merge steps; do not skip a "run, see it fail" step.
 2. `## Acceptance Criteria` → one final todo: `Verify acceptance criteria for <id>`. Run each criterion's command and compare against the stated output. `close` is forbidden while this todo is open.
 3. Every `## Context (read first)` bullet → read before the first todo. `awit show <dep-id>` every ID in `deps`, whether or not a Context section names it.
-4. **Check the ticket against its refs while reading them** — before any acceptance-criteria todo. A criterion can be literally satisfiable and still wrong (spec says 401, ticket says 500). Contradiction → escalation ladder, not a todo.
-5. Anything you discover that the ticket does not cover → **new ticket** (below), not silent scope growth. Mention its ID in a comment on the current ticket.
+4. **Check the work item against its refs while reading them** — before any acceptance-criteria todo. A criterion can be literally satisfiable and still wrong (spec says 401, work item says 500). Contradiction → escalation ladder, not a todo.
+5. Anything you discover that the work item does not cover → **new work item** (below), not silent scope growth. Mention its ID in a comment on the current work item.
 
-Tickets without `## Steps` (short items): todo list = `Read refs and deps; check ticket against refs`, one todo per acceptance criterion, `Verify acceptance criteria`, `Comment + close`.
+Work items without `## Steps` (short items): todo list = `Read refs and deps; check work item against refs`, one todo per acceptance criterion, `Verify acceptance criteria`, `Comment + close`.
 
 ## Reading `prime`
 
@@ -82,7 +82,7 @@ A -> B -> C                     # longest open chain; finishing A moves the whol
 
 `prime` is deterministic (same state → same bytes) and safe to paste into a prompt. `--max-tokens N` trims READY then BLOCKED, never warnings. `-l p0` restricts READY/BLOCKED to items with that label; `-l p0 -l auth` = both labels, `-l p0,p1` = either. `awit next -l p0` (without `--claim`) answers "is anything critical ready?" without side effects.
 
-## Adding tickets
+## Adding work items
 
 ```bash
 awit create "<imperative title>" \
@@ -91,9 +91,9 @@ awit create "<imperative title>" \
   -d <dep-id> -d <dep-id>
 ```
 
-Then edit `.awit/items/<new-id>.md` **below** the closing `---` — fill `## Summary` and `## Acceptance Criteria` (commands with expected output). Bigger tickets follow the project's ticket template (in this repo: `plan/implementation-guide.md` §6). Rules:
+Then edit `.awit/items/<new-id>.md` **below** the closing `---` — fill `## Summary` and `## Acceptance Criteria` (commands with expected output). Bigger work items follow the project's work item template (in this repo: `plan/implementation-guide.md` §6). Rules:
 
-- `--brief` is mandatory and must fit three sentences. If it cannot, the ticket is two tickets.
+- `--brief` is mandatory and must fit three sentences. If it cannot, the work item is two work items.
 - Priority is a label (`p0` critical path, `p1`, `p2`), never a field. Check `awit label` for the vocabulary already in use before inventing one.
 - Deps later: `awit dep add <id> <dep>` (id _depends on_ dep). It refuses cycles before writing and prints the chain.
 - Finish with `awit validate` → `PASS`. Warnings about a missing or long brief are yours to fix now.
@@ -105,24 +105,24 @@ Stop and act per row. Do not improvise around the graph.
 | Signal                                                                                     | Meaning                                                      | Do                                                                                                                                                             |
 | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `next` exits 1: `No ready items`                                                           | Queue is drained or fully blocked.                           | Stop the loop. Report `awit prime` output.                                                                                                                     |
-| `validate` prints `FAIL` / `prime` shows GRAPH WARNINGS                                    | Graph fault. Each line carries a `fix:` command.             | Run the fix only if the affected item is yours (your ticket, or one you just created). Otherwise report the line verbatim; never `dep rm` to unblock yourself. |
+| `validate` prints `FAIL` / `prime` shows GRAPH WARNINGS                                    | Graph fault. Each line carries a `fix:` command.             | Run the fix only if the affected item is yours (your work item, or one you just created). Otherwise report the line verbatim; never `dep rm` to unblock yourself. |
 | `[CONFLICT MARKERS]`                                                                       | Two branches touched the same item — usually a double claim. | Do not edit around it. Resolve the Git conflict (or hand to the human), then `validate`.                                                                       |
-| Ticket contradicts its refs / spec, or two designs are equally valid and it did not choose | Not your call.                                               | `awit comment <id> "BLOCKED: <exact contradiction and the two options>"`, then `awit release <id>`. Report `BLOCKED`. Do not close, do not pick.               |
+| Work item contradicts its refs / spec, or two designs are equally valid and it did not choose | Not your call.                                               | `awit comment <id> "BLOCKED: <exact contradiction and the two options>"`, then `awit release <id>`. Report `BLOCKED`. Do not close, do not pick.               |
 | Missing prerequisite (dep marked closed but not really done, tool absent)                  | Upstream truth is wrong.                                     | `awit comment <id> "NEEDS_CONTEXT: …"`, `awit release <id>`, report. Never close the dep yourself.                                                             |
 | `Error: no author`                                                                         | Identity not set.                                            | `export AWIT_AGENT=<name>` and rerun.                                                                                                                          |
 | `validate --stale-claims` warns about someone else's claim                                 | Another agent may have died.                                 | Report it. Only `release` another agent's item when explicitly told.                                                                                           |
 | `Error: another awit process holds .awit/.lock`                                            | Concurrent run in this checkout.                             | Retry after a moment; do not delete the lock.                                                                                                                  |
 
-Report statuses, in this order of preference: `DONE`, `DONE_WITH_CONCERNS`, `BLOCKED`, `NEEDS_CONTEXT`. Always include the ticket ID, the last `awit validate` line, and the ref(s) `awit comment` printed (`close --reason` also writes a comment but prints nothing).
+Report statuses, in this order of preference: `DONE`, `DONE_WITH_CONCERNS`, `BLOCKED`, `NEEDS_CONTEXT`. Always include the work item ID, the last `awit validate` line, and the ref(s) `awit comment` printed (`close --reason` also writes a comment but prints nothing).
 
 ## Orchestrator mode
 
 When you dispatch workers instead of working yourself:
 
 1. `awit next --claim` yourself (you hold the claim; the worker never runs `next`).
-2. Spawn one worker per ticket with **only** the ID and the project invariants; the worker runs `awit show <id> --full`. Parallelise only tickets whose `Files` sections do not overlap.
+2. Spawn one worker per work item with **only** the ID and the project invariants; the worker runs `awit show <id> --full`. Parallelise only work items whose `Files` sections do not overlap.
 3. Worker reports `DONE` → review the diff → you commit → `awit close <id> --reason "implemented"`.
-4. Worker reports `BLOCKED`/`NEEDS_CONTEXT` → read its comment on the ticket, resolve (new ticket, updated ticket via `awit update`, or human), re-dispatch. Never implement it yourself.
+4. Worker reports `BLOCKED`/`NEEDS_CONTEXT` → read its comment on the work item, resolve (new work item, updated work item via `awit update`, or human), re-dispatch. Never implement it yourself.
 5. Loop until `next` exits 1.
 
 ## Quick reference
@@ -132,7 +132,7 @@ When you dispatch workers instead of working yourself:
 | Whole picture                     | `awit prime`                                                             |
 | What would I get, no side effects | `awit next` / `awit next -l p0`                                          |
 | Take work                         | `awit next --claim` (`--no-commit` in tests)                             |
-| Read a ticket                     | `awit show <id>` (~200 tokens) / `--full` (refs inlined) / `--refs-only` |
+| Read a work item                     | `awit show <id>` (~200 tokens) / `--full` (refs inlined) / `--refs-only` |
 | Record progress                   | `awit comment <id> "…"` / `--file report.log`                            |
 | Change fields                     | `awit update <id> --status                                               | --brief        | --title | --assign | -l  | --unlabel` |
 | Finish / give back                | `awit close <id> --reason "…"` / `awit release <id>`                     |
