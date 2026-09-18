@@ -1,0 +1,5 @@
+would archive AWIT-TEST0004
+would archive AWIT-TEST0005
+skip AWIT-TEST0001: dependant AWIT-TEST0002 not archivable
+skip AWIT-TEST0002: dependant AWIT-TEST0003 not archivable
+Would archive 2 items

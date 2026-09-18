@@ -108,6 +108,7 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *cli.Command {
 			updateCmd,
 			closeCmd,
 			releaseCmd,
+			archiveCmd,
 			validateCmd,
 			listCmd,
 			nextCmd,

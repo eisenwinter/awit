@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/eisenwinter/awit/pkg/config"
+	"gopkg.in/yaml.v3"
 )
 
 func SanitizeAuthor(author string) string {
@@ -108,4 +109,61 @@ func (s *Store) AttachFile(it *Item, author string, now time.Time, src string) (
 		return "", err
 	}
 	return ref, nil
+}
+
+// Comment is one file under comments/<id>/. Attachment files (verbatim
+// --file copies) have Attachment == true and empty Author/Created/Text
+// (guide §2 "Comment vs attachment").
+type Comment struct {
+	File       string // filename inside comments/<id>/
+	Author     string
+	Created    time.Time // UTC
+	Text       string    // body after frontmatter, trimmed
+	Attachment bool
+}
+
+// Comments lists comments/<id>/ sorted by filename. Missing directory
+// → nil, nil. A file is a comment when Split succeeds and the
+// frontmatter carries author and created; everything else is an
+// attachment.
+func (s *Store) Comments(id string) ([]Comment, error) {
+	entries, err := os.ReadDir(s.CommentsDir(id))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Comment, 0, len(entries))
+	for _, e := range entries { // ReadDir is sorted by filename
+		if e.IsDir() {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(s.CommentsDir(id), e.Name()))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, parseComment(e.Name(), data))
+	}
+	return out, nil
+}
+
+func parseComment(name string, data []byte) Comment {
+	c := Comment{File: name, Attachment: true}
+	front, body, err := Split(data)
+	if err != nil {
+		return c
+	}
+	var fm struct {
+		Author  string `yaml:"author"`
+		Created string `yaml:"created"`
+	}
+	if yaml.Unmarshal(front, &fm) != nil || fm.Author == "" || fm.Created == "" {
+		return c
+	}
+	created, err := time.Parse(time.RFC3339, fm.Created)
+	if err != nil {
+		return c
+	}
+	return Comment{File: name, Author: fm.Author, Created: created.UTC(), Text: strings.TrimSpace(string(body))}
 }

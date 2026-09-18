@@ -1,0 +1,31 @@
+---
+id: AWIT-TEST0004
+title: Fix URL-safe base64 token rejection
+brief: The middleware rejects URL-safe bearer tokens before signature checks.
+status: closed
+deps: []
+labels: []
+refs:
+  - ../archive/AWIT-TEST0004/20260916T091500Z-jan.log
+---
+
+## Summary
+
+URL-safe base64 characters in bearer tokens must authenticate.
+
+## Acceptance Criteria
+
+- Tokens from the URL-safe alphabet authenticate successfully
+
+## Comments
+
+### 2026-09-16T09:00:00Z jan
+
+Started on the spec; grammar section drafted.
+
+### 2026-09-16T09:30:00Z agent/claude
+
+Reviewed. Two nits fixed inline:
+
+- header grammar now cites RFC 6750 §2.1
+- 401 body example uses `error_description`
