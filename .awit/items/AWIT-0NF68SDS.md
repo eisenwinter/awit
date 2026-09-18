@@ -3,10 +3,12 @@ id: AWIT-0NF68SDS
 title: close prints closed ID confirmation
 brief: >-
   Kimi K2.5 run: close prints the compact entry line with no status, so the model could not tell it closed anything. archive already prints archived ID per line; close should print closed ID the same way.
-status: open
+status: in_progress
 deps: []
 labels: []
 refs: []
+assignee: agent/orchestrator
+claimed_at: "2026-09-18T15:41:32Z"
 ---
 
 ## Summary
