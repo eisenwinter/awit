@@ -3,10 +3,12 @@ id: AWIT-0NE5H7DZ
 title: 'dev.md: ban running the binary against the repo root'
 brief: >-
   Add a never-use-repo-root rule to dev.md guards after test pollution wrote junk items into .awit/items.
-status: open
+status: in_progress
 deps: []
 labels: [phase5, p1]
 refs: []
+assignee: agent/orchestrator
+claimed_at: "2026-09-18T06:13:01Z"
 ---
 
 ## Summary
