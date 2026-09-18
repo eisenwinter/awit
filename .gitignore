@@ -19,3 +19,6 @@ coverage.*
 *.swp
 .DS_Store
 Thumbs.db
+
+# Local agent definitions (never committed; the driving-awit skill stays tracked)
+.omp/agents/*
