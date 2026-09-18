@@ -35,7 +35,7 @@ func TestUpdateStatusOneLineDiff(t *testing.T) {
 		t.Fatal(err)
 	}
 	code, stdout, stderr := run(t, "--repo", dir, "update", id, "--status", "in_progress")
-	if code != 0 || stdout != "" {
+	if code != 0 || stdout != "updated "+id+": status=in_progress\n" {
 		t.Fatalf("exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
 	after, err := os.ReadFile(path)
@@ -275,5 +275,35 @@ func TestResolveAuthorPrecedence(t *testing.T) {
 				t.Fatalf("got %q err %v, want %q", got, err, tt.want)
 			}
 		})
+	}
+}
+func TestUpdateEchoesChangedFields(t *testing.T) {
+	dir := initRepo(t)
+	seedItem(t, dir, "AWIT-TEST0001", "T", "B.", nil)
+	code, stdout, stderr := run(t, "--repo", dir, "update", "AWIT-TEST0001", "--status", "in_progress")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	want := "updated AWIT-TEST0001: status=in_progress\n"
+	if stdout != want {
+		t.Fatalf("stdout = %q, want %q", stdout, want)
+	}
+}
+
+func TestUpdateEchoesMultipleFieldsInOrder(t *testing.T) {
+	dir := initRepo(t)
+	seedItem(t, dir, "AWIT-TEST0001", "Old", "Old brief.", nil)
+	code, stdout, stderr := run(t, "--repo", dir, "update", "AWIT-TEST0001",
+		"--status", "in_progress", "--title", "New", "--brief", "New brief.", "--assign", "bob", "--label", "a")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	want := "updated AWIT-TEST0001: status=in_progress\n" +
+		"updated AWIT-TEST0001: title=New\n" +
+		"updated AWIT-TEST0001: brief=New brief.\n" +
+		"updated AWIT-TEST0001: assignee=bob\n" +
+		"updated AWIT-TEST0001: labels=a\n"
+	if stdout != want {
+		t.Fatalf("stdout = %q, want %q", stdout, want)
 	}
 }

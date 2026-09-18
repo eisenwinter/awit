@@ -62,6 +62,8 @@ func updateAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	// Echo order is fixed: status, title, brief, assignee, labels.
+	var changed []string
 	if status != "" {
 		st, err := item.ParseStatus(status)
 		if err != nil {
@@ -71,15 +73,19 @@ func updateAction(_ context.Context, cmd *cli.Command) error {
 		if st == item.StatusClosed {
 			it.SetClaimedAt(nil)
 		}
-	}
-	if brief != "" {
-		it.SetBrief(brief)
-	}
-	if assign != "" {
-		it.SetAssignee(assign)
+		changed = append(changed, "status="+string(st))
 	}
 	if title != "" {
 		it.SetTitle(title)
+		changed = append(changed, "title="+title)
+	}
+	if brief != "" {
+		it.SetBrief(brief)
+		changed = append(changed, "brief="+brief)
+	}
+	if assign != "" {
+		it.SetAssignee(assign)
+		changed = append(changed, "assignee="+assign)
 	}
 	if len(add) > 0 || len(remove) > 0 {
 		seen := map[string]bool{}
@@ -105,6 +111,14 @@ func updateAction(_ context.Context, cmd *cli.Command) error {
 			}
 		}
 		it.SetLabels(kept)
+		changed = append(changed, "labels="+strings.Join(kept, ","))
 	}
-	return s.Save(it)
+	if err := s.Save(it); err != nil {
+		return err
+	}
+	w := cmd.Root().Writer
+	for _, c := range changed {
+		fmt.Fprintf(w, "updated %s: %s\n", it.ID, c)
+	}
+	return nil
 }
