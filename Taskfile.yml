@@ -14,7 +14,7 @@ tasks:
     desc: Build {{.BINARY}} stamped with {{.VERSION}}
     cmds:
       - mkdir -p bin
-      - go build -ldflags "{{.LDFLAGS}}" -o {{.BINARY}} {{.PKG}}
+      - go build -trimpath -ldflags "{{.LDFLAGS}}" -o {{.BINARY}} {{.PKG}}
     sources:
       - "**/*.go"
       - go.mod
