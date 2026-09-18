@@ -3,12 +3,11 @@ id: AWIT-0NE5H7DS
 title: Reconcile stale ticket text (yaml pin, golden paths)
 brief: >-
   Fix two known-wrong lines in closed tickets: the nonexistent yaml v3.0.4 pin and the repo-root golden path.
-status: in_progress
+status: closed
 deps: []
 labels: [phase5, p2]
-refs: []
+refs: [../comments/AWIT-0NE5H7DS/20260918T062007Z-orchestrator.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-18T06:15:43Z"
 ---
 
 ## Summary
