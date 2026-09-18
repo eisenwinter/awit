@@ -462,18 +462,18 @@ After this ticket `pkg/graph/graph.go` exists with types `Fault`, `Node`, `Graph
   - File parses as an open item depending on AWIT-TEST0001
   ```
 
-  `testdata/fixtures/conflicted/.awit/items/AWIT-TEST0001.md` (the `<<<<<<< ` / `=======` / `>>>>>>> ` lines are load-bearing; a line must *start* with those bytes including the space after `<<<<<<< `):
+  `testdata/fixtures/conflicted/.awit/items/AWIT-TEST0001.md` (the `<<<<<<< ` / `=======` / `>>>>>>> ` lines are load-bearing; a line must *start* with those bytes including the space after `<<<<<<< `; quoted markers below insert U+200B after the first character so this ticket is not quarantined):
 
   ```markdown
   ---
   id: AWIT-TEST0001
   title: Implement OAuth2 bearer token extraction
   brief: Fix header parsing so URL-safe bearer tokens authenticate.
-  <<<<<<< HEAD
+  <​<<<<<< HEAD
   status: open
-  =======
+  =​======
   status: in_progress
-  >>>>>>> branch-b
+  >​>>>>>> branch-b
   deps: []
   labels: [auth, p1]
   refs: []
