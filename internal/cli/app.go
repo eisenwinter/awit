@@ -68,14 +68,33 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return report(stderr, root.Run(context.Background(), append([]string{"awit"}, args...)))
 }
 
+// typicalSessionBlock teaches the agent loop in the top-level --help, in
+// urfave's house shape: uppercase header, 3-space indent, ≤75 cols. A claim
+// sets in_progress by itself, so the loop never needs update --status.
+const typicalSessionBlock = `
+
+TYPICAL SESSION (set AWIT_AGENT first):
+   awit create "Title" --brief "..."   file work items before you code
+   awit prime                          see ready and blocked items
+   awit next --claim                   claim a ready item, sets in_progress
+   awit show <id> --full               read the item and its refs
+   awit comment <id> "note"            add a progress note while you work
+   awit close <id>                     close it when the work is done
+`
+
+// rootHelpTemplate is urfave's default root template with the session block
+// spliced between COMMANDS and GLOBAL OPTIONS.
+var rootHelpTemplate = strings.Replace(cli.RootCommandHelpTemplate, "{{if .VisibleFlagCategories}}", typicalSessionBlock+"{{if .VisibleFlagCategories}}", 1)
+
 // newRoot builds the root command. Later work items register their commands by
 // appending to the Commands slice below; nothing else in this function moves.
 func newRoot(stdin io.Reader, stdout, stderr io.Writer) *cli.Command {
 	return &cli.Command{
-		Name:      "awit",
-		Usage:     "Turn Markdown files under .awit/ into a dependency graph",
-		ArgsUsage: "<command> [arguments]",
-		Version:   Version,
+		Name:                          "awit",
+		Usage:                         "Turn Markdown files under .awit/ into a dependency graph",
+		ArgsUsage:                     "<command> [arguments]",
+		Version:                       Version,
+		CustomRootCommandHelpTemplate: rootHelpTemplate,
 		// Subcommands inherit these three when they leave them nil, so every
 		// command writes to the streams the caller passed in. Reader is what
 		// "awit comment" reads its body from.

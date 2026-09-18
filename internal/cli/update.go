@@ -13,7 +13,7 @@ import (
 var updateCmd = &cli.Command{
 	Name: "update", Usage: "Change fields on an existing item", ArgsUsage: "<id>",
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "status"},
+		&cli.StringFlag{Name: "status", Usage: "set status: `open`, in_progress or closed"},
 		&cli.StringFlag{Name: "brief"},
 		&cli.StringFlag{Name: "assign"},
 		&cli.StringFlag{Name: "title"},

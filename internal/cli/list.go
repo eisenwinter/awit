@@ -93,5 +93,32 @@ func listAction(_ context.Context, cmd *cli.Command) error {
 	if err := format.Write(cmd.Root().Writer, f, entries); err != nil {
 		return fmt.Errorf("format: %w", err)
 	}
+	printListFooter(cmd, nodes)
 	return nil
+}
+
+// printListFooter teaches the transition loop on stderr while the printed
+// rows still hold non-closed items. Zero counts are dropped, so a closed-only
+// listing stays silent; stderr keeps --format json parseable on stdout.
+func printListFooter(cmd *cli.Command, nodes []*graph.Node) {
+	var open, inProgress int
+	for _, n := range nodes {
+		switch n.Item.Status {
+		case item.StatusOpen:
+			open++
+		case item.StatusInProgress:
+			inProgress++
+		}
+	}
+	if open == 0 && inProgress == 0 {
+		return
+	}
+	var parts []string
+	if open > 0 {
+		parts = append(parts, fmt.Sprintf("%d open", open))
+	}
+	if inProgress > 0 {
+		parts = append(parts, fmt.Sprintf("%d in_progress", inProgress))
+	}
+	fmt.Fprintf(cmd.Root().ErrWriter, "Note: %s. Claim a ready item with awit next --claim; close it with awit close <id> when the work is done.\n", strings.Join(parts, ", "))
 }

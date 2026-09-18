@@ -82,7 +82,14 @@ func TestReadOnlyFromSubdirSilent(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("%v: exit %d stderr %q", args, code, stderr)
 		}
-		if stderr != "" {
+		// Read-only commands never emit the walked-up note. list still
+		// prints its open-items footer on stderr; prime and next stay
+		// fully silent.
+		if args[0] == "list" {
+			if !strings.HasPrefix(stderr, "Note: 4 open, 1 in_progress.") || strings.Contains(stderr, "no .awit in the current directory") {
+				t.Errorf("%v: stderr = %q, want only the open-items footer", args, stderr)
+			}
+		} else if stderr != "" {
 			t.Errorf("%v: stderr = %q, want empty", args, stderr)
 		}
 		t.Chdir(root)

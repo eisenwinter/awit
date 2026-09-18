@@ -23,7 +23,7 @@ var nextCmd = &cli.Command{
 	DisableSliceFlagSeparator: true,
 	Flags: []cli.Flag{
 		&cli.StringSliceFlag{Name: "label", Aliases: []string{"l"}, Usage: "AND across flags, OR within a flag"},
-		&cli.BoolFlag{Name: "claim", Usage: "set in_progress, assignee, claimed_at, and commit"},
+		&cli.BoolFlag{Name: "claim", Usage: "set in_progress, assignee, claimed_at, and commit (needs --agent or AWIT_AGENT)"},
 		&cli.BoolFlag{Name: "no-commit", Usage: "with --claim, skip the git commit"},
 		&cli.Int64Flag{Name: "seed", Usage: "tie-break RNG seed; 0 (default) uses time.Now().UnixNano()"},
 		&cli.StringFlag{

@@ -9,17 +9,25 @@ import (
 func TestListAllCompact(t *testing.T) {
 	dir := copyFixture(t, "clean")
 	code, stdout, stderr := run(t, "--repo", dir, "--format", "compact", "list")
-	if code != 0 || stderr != "" {
+	if code != 0 {
 		t.Fatalf("exit %d stderr %q stdout %q", code, stderr, stdout)
 	}
 	golden(t, "list_clean_compact.golden", []byte(stdout))
+	wantFooter := "Note: 4 open, 1 in_progress. Claim a ready item with awit next --claim; close it with awit close <id> when the work is done.\n"
+	if stderr != wantFooter {
+		t.Fatalf("footer = %q, want %q", stderr, wantFooter)
+	}
 }
 
 func TestListReadyOrder(t *testing.T) {
 	dir := copyFixture(t, "clean")
 	code, stdout, stderr := run(t, "--repo", dir, "--format", "compact", "list", "--ready")
-	if code != 0 || stderr != "" {
+	if code != 0 {
 		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	wantFooter := "Note: 2 open, 1 in_progress. Claim a ready item with awit next --claim; close it with awit close <id> when the work is done.\n"
+	if stderr != wantFooter {
+		t.Fatalf("footer = %q, want %q", stderr, wantFooter)
 	}
 	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
 	if len(lines) != 3 {
@@ -48,8 +56,11 @@ func TestListStatusFilter(t *testing.T) {
 	}
 
 	code, stdout, stderr = run(t, "--repo", dir, "--format", "compact", "list", "-s", "open")
-	if code != 0 || stderr != "" {
+	if code != 0 {
 		t.Fatalf("open: exit %d stderr %q", code, stderr)
+	}
+	if stderr != "Note: 4 open. Claim a ready item with awit next --claim; close it with awit close <id> when the work is done.\n" {
+		t.Fatalf("open footer = %q", stderr)
 	}
 	if strings.Contains(stdout, "AWIT-TEST0005") || strings.Contains(stdout, "AWIT-TEST0006") {
 		t.Fatalf("open filter leaked closed/in_progress:\n%s", stdout)
@@ -61,8 +72,11 @@ func TestListStatusFilter(t *testing.T) {
 	}
 
 	code, stdout, stderr = run(t, "--repo", dir, "--format", "compact", "list", "-s", "in_progress")
-	if code != 0 || stderr != "" {
+	if code != 0 {
 		t.Fatalf("in_progress: exit %d stderr %q", code, stderr)
+	}
+	if stderr != "Note: 1 in_progress. Claim a ready item with awit next --claim; close it with awit close <id> when the work is done.\n" {
+		t.Fatalf("in_progress footer = %q", stderr)
 	}
 	if !strings.HasPrefix(stdout, "[AWIT-TEST0006]") || strings.Count(stdout, "\n") != 1 {
 		t.Fatalf("in_progress stdout = %q", stdout)
@@ -86,8 +100,11 @@ func TestListLabelAnd(t *testing.T) {
 	}
 
 	code, stdout, stderr = run(t, "--repo", dir, "--format", "compact", "list", "-l", "auth,db")
-	if code != 0 || stderr != "" {
+	if code != 0 {
 		t.Fatalf("OR: exit %d stderr %q", code, stderr)
+	}
+	if stderr != "Note: 2 open. Claim a ready item with awit next --claim; close it with awit close <id> when the work is done.\n" {
+		t.Fatalf("OR footer = %q", stderr)
 	}
 	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
 	if len(lines) != 2 {
@@ -103,9 +120,13 @@ func TestListLabelAnd(t *testing.T) {
 
 func TestListJSON(t *testing.T) {
 	dir := copyFixture(t, "clean")
+
 	code, stdout, stderr := run(t, "--repo", dir, "--format", "json", "list")
-	if code != 0 || stderr != "" {
+	if code != 0 {
 		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if !strings.HasPrefix(stderr, "Note: 4 open, 1 in_progress.") {
+		t.Fatalf("json list footer = %q, want Note on stderr (stdout must stay parseable)", stderr)
 	}
 	var rows []struct {
 		ID     string `json:"id"`
@@ -135,8 +156,11 @@ func TestListJSON(t *testing.T) {
 func TestListQuarantined(t *testing.T) {
 	dir := copyFixture(t, "cyclic")
 	code, stdout, stderr := run(t, "--repo", dir, "--format", "compact", "list", "--quarantined")
-	if code != 0 || stderr != "" {
+	if code != 0 {
 		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if stderr != "Note: 4 open. Claim a ready item with awit next --claim; close it with awit close <id> when the work is done.\n" {
+		t.Fatalf("footer = %q", stderr)
 	}
 	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
 	if len(lines) != 4 {
