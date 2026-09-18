@@ -37,7 +37,7 @@ func TestCreateMintsAndWrites(t *testing.T) {
 	if !id.Valid("AWIT", it.ID) {
 		t.Fatalf("minted id %q is not valid", it.ID)
 	}
-	wantLine := "[" + it.ID + "] Implement OAuth2 token extraction | - | Unblocks: 0\n"
+	wantLine := "[" + it.ID + "] open Implement OAuth2 token extraction | - | Unblocks: 0\n"
 	if stdout != wantLine {
 		t.Fatalf("stdout = %q, want %q", stdout, wantLine)
 	}

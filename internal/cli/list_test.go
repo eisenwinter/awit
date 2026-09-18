@@ -51,7 +51,7 @@ func TestListStatusFilter(t *testing.T) {
 	if code != 0 || stderr != "" {
 		t.Fatalf("closed: exit %d stderr %q", code, stderr)
 	}
-	if stdout != "[AWIT-TEST0005] Write auth middleware spec | - | Unblocks: 1\n" {
+	if stdout != "[AWIT-TEST0005] closed Write auth middleware spec | - | Unblocks: 1\n" {
 		t.Fatalf("closed stdout = %q", stdout)
 	}
 

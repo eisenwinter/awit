@@ -41,7 +41,7 @@ func TestDepAddWritesOneLine(t *testing.T) {
 	if code != 0 || stderr != "" {
 		t.Fatalf("exit %d stderr %q", code, stderr)
 	}
-	if !strings.HasPrefix(stdout, "[AWIT-TEST0002] Update database migration scripts | ") {
+	if !strings.HasPrefix(stdout, "[AWIT-TEST0002] open Update database migration scripts | ") {
 		t.Fatalf("stdout = %q, want compact line for AWIT-TEST0002", stdout)
 	}
 	if !strings.HasSuffix(stdout, "\n") || strings.Count(stdout, "\n") != 1 {
@@ -127,7 +127,7 @@ func TestDepRm(t *testing.T) {
 	if code != 0 || stderr != "" {
 		t.Fatalf("exit %d stderr %q", code, stderr)
 	}
-	if !strings.HasPrefix(stdout, "[AWIT-TEST0004] Rotate API tokens | ") {
+	if !strings.HasPrefix(stdout, "[AWIT-TEST0004] open Rotate API tokens | ") {
 		t.Fatalf("stdout = %q, want compact line for AWIT-TEST0004", stdout)
 	}
 	got := readItem(t, dir, "AWIT-TEST0004")

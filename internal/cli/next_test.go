@@ -18,7 +18,7 @@ func TestNextTopByUnblocks(t *testing.T) {
 	if code != 0 || stderr != "" {
 		t.Fatalf("exit %d stderr %q stdout %q", code, stderr, stdout)
 	}
-	want := "[AWIT-TEST0001] Implement OAuth2 bearer token extraction | auth,p1 | Unblocks: 2\n"
+	want := "[AWIT-TEST0001] open Implement OAuth2 bearer token extraction | auth,p1 | Unblocks: 2\n"
 	if stdout != want {
 		t.Fatalf("stdout = %q, want %q", stdout, want)
 	}

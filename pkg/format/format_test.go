@@ -127,17 +127,17 @@ func TestLine(t *testing.T) {
 		{
 			name: "labels and unblocks",
 			in:   entries[0],
-			want: "[AWIT-TEST0001] Implement OAuth2 token extraction | auth,p1 | Unblocks: 2",
+			want: "[AWIT-TEST0001] open Implement OAuth2 token extraction | auth,p1 | Unblocks: 2",
 		},
 		{
 			name: "no labels renders dash",
 			in:   entries[1],
-			want: "[AWIT-TEST0003] Add E2E auth tests | - | Unblocks: 0",
+			want: "[AWIT-TEST0003] open Add E2E auth tests | - | Unblocks: 0",
 		},
 		{
 			name: "quarantined suffix and negative unblocks",
 			in:   entries[2],
-			want: "[AWIT-TEST0009] Rotate tokens | p0 | Unblocks: -1 | QUARANTINED",
+			want: "[AWIT-TEST0009] open Rotate tokens | p0 | Unblocks: -1 | QUARANTINED",
 		},
 	}
 	for _, tt := range tests {
@@ -261,7 +261,7 @@ func TestWriteOneCompact(t *testing.T) {
 	if err := WriteOne(&buf, Compact, sampleEntries()[0]); err != nil {
 		t.Fatalf("WriteOne compact: %v", err)
 	}
-	want := "[AWIT-TEST0001] Implement OAuth2 token extraction | auth,p1 | Unblocks: 2\n"
+	want := "[AWIT-TEST0001] open Implement OAuth2 token extraction | auth,p1 | Unblocks: 2\n"
 	if got := buf.String(); got != want {
 		t.Fatalf("WriteOne compact = %q, want %q", got, want)
 	}

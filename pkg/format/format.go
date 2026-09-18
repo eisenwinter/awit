@@ -79,10 +79,10 @@ func labelsOrDash(labels []string) string {
 }
 
 // Line renders the one-line compact form used by list, next and prime:
-// "[ID] Title | label1,label2 | Unblocks: N", with "-" for no labels and a
-// " | QUARANTINED" suffix for quarantined entries.
+// "[ID] status Title | label1,label2 | Unblocks: N", with "-" for no labels
+// and a " | QUARANTINED" suffix for quarantined entries.
 func Line(e Entry) string {
-	s := fmt.Sprintf("[%s] %s | %s | Unblocks: %d", e.ID, e.Title, labelsOrDash(e.Labels), e.Unblocks)
+	s := fmt.Sprintf("[%s] %s %s | %s | Unblocks: %d", e.ID, e.Status, e.Title, labelsOrDash(e.Labels), e.Unblocks)
 	if e.State == "quarantined" {
 		s += " | QUARANTINED"
 	}
@@ -113,8 +113,8 @@ func writeJSON(w io.Writer, v any) error {
 
 // Write renders entries in the given format. JSON is always an array, indented
 // two spaces, with a trailing newline; an empty input renders "[]\n".
-// Table columns are ID, STATE, TITLE, LABELS, UNBLOCKS, left aligned with a
-// two-space gutter and an uppercase header row.
+// Table columns are ID, STATUS, STATE, TITLE, LABELS, UNBLOCKS, left aligned
+// with a two-space gutter and an uppercase header row.
 func Write(w io.Writer, f Format, entries []Entry) error {
 	switch f {
 	case Compact:
@@ -126,12 +126,12 @@ func Write(w io.Writer, f Format, entries []Entry) error {
 		return nil
 	case Table:
 		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-		if _, err := fmt.Fprintln(tw, "ID\tSTATE\tTITLE\tLABELS\tUNBLOCKS"); err != nil {
+		if _, err := fmt.Fprintln(tw, "ID\tSTATUS\tSTATE\tTITLE\tLABELS\tUNBLOCKS"); err != nil {
 			return err
 		}
 		for _, e := range entries {
-			if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%d\n",
-				e.ID, e.State, e.Title, labelsOrDash(e.Labels), e.Unblocks); err != nil {
+			if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%d\n",
+				e.ID, e.Status, e.State, e.Title, labelsOrDash(e.Labels), e.Unblocks); err != nil {
 				return err
 			}
 		}

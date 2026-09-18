@@ -1,5 +1,5 @@
 === READY (1) ===
-[AWIT-TEST0001] Implement OAuth2 bearer token extraction | auth,p1 | Unblocks: 2
+[AWIT-TEST0001] open Implement OAuth2 bearer token extraction | auth,p1 | Unblocks: 2
 
 === BLOCKED (2) ===
 [AWIT-TEST0002] Add E2E auth tests <- AWIT-TEST0001

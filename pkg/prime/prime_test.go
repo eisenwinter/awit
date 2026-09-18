@@ -101,7 +101,7 @@ func TestPrimeGoldenCyclic(t *testing.T) {
 			t.Fatalf("warning = %q", w)
 		}
 	}
-	if !strings.Contains(out, "=== READY (1) ===\n[AWIT-TEST0005] Update the changelog | - | Unblocks: 0\n") {
+	if !strings.Contains(out, "=== READY (1) ===\n[AWIT-TEST0005] open Update the changelog | - | Unblocks: 0\n") {
 		t.Fatalf("ready section missing 0005:\n%s", out)
 	}
 	if !strings.Contains(out, "=== BLOCKED (0) ===\n\n=== CRITICAL PATH (1) ===\nAWIT-TEST0005\n") {
