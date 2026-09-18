@@ -560,6 +560,16 @@ Errors returned from `Action` are printed by `Main` as `Error: <msg>` to stderr 
 - **Windows**: any test comparing paths uses `filepath.Join`; any test comparing frontmatter refs expects forward slashes. Line endings: `Split` accepts `\r\n`; `Bytes()` writes `\n`.
 - **Determinism test** (`prime`): render twice on the same graph, `bytes.Equal`; also compare against the golden file, which CI runs on both OSes.
 
+### urfave/cli v3 command patterns (`v3.12.0`)
+
+Commands are package-level `*cli.Command` values reused across every in-process `Main` call, so five behaviours bite. Each was proven by source-reading plus a failing test; follow all five:
+
+- **Write output via `cmd.Root().Writer` / `cmd.Root().ErrWriter`, never `cmd.Writer`.** `newRoot` sets the streams on the root per call and subcommands inherit them while they stay nil, but a reused subcommand's own `Writer` is stale after the first `Main` call (`didSetupDefaults` gate skips re-setup). Every `format.Write` / `fmt.Fprint` call in `internal/cli` addresses the root.
+- **`Required: true` fires only on the first `Main` call per process — repeat the check in `Action`.** The flag's `hasBeenSet` persists across runs while values reset, so urfave's required validation goes quiet after the first call. Guard on the value and return the exact usage error with exit 2: `cli.Exit(`Incorrect usage: Required flag "brief" not set (run "awit --help")`, 2)` (`createAction`).
+- **Detect set flags via values, never `cmd.IsSet`.** Same `hasBeenSet` retention: `IsSet` misreports flags from earlier runs on the reused tree. Read `cmd.String(...)` / `cmd.StringSlice(...)` and treat `""` / empty as unset (`updateAction`: all-empty means `nothing to update`).
+- **Hold the package-level `sync.Mutex` around `root.Run()` in `Main`.** The subcommand tree is shared and `Run` mutates it (flag parse state, `setupDefaults`), so concurrent in-process `Main` calls race; `mainMu` in `app.go` serialises them. This only matters to concurrent test drivers — production makes one call per process, and cross-process exclusion is the `.awit/.lock` file lock, not this mutex.
+- **`-l` flags need `DisableSliceFlagSeparator: true` plus manual comma-split.** Urfave splits slice-flag values on `,` by default, which would turn one `-l auth,db` occurrence into two ANDed groups. Disable the separator (`listCmd`, `nextCmd`, `primeCmd`) so `SplitLabels` sees each `-l` occurrence intact and implements §2 decision 1: OR within a flag, AND across flags. Same manual split applies to other repeatable comma-carrying values (`parseIDList`, `splitFlagCSV`).
+
 ## 6. Ticket format (dogfooded)
 
 Each ticket is `.awit/items/AWIT-XXXXXXXX.md` in the real awit schema:
