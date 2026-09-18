@@ -3,14 +3,15 @@ id: AWIT-0NF23MT1
 title: 'Safety brake: say which .awit a mutating command found by walking up'
 brief: >-
   awit searches ancestor directories for .awit/, so a command run in a subdirectory that is conceptually its own project silently writes into the parent's queue - as the playground harness does into this repo's real backlog. Mutating commands should say on stderr when the root was found by walking up, and AWIT_REPO should let a caller pin the root without passing --repo everywhere.
-status: in_progress
+status: closed
 deps: []
 labels: [phase5, p1]
 refs:
   - ../../plan/implementation-guide.md
   - ../comments/AWIT-0NF23MT1/20260918T135052Z-claude.md
+  - ../comments/AWIT-0NF23MT1/20260918T141514Z-orchestrator.md
+  - ../comments/AWIT-0NF23MT1/20260918T141516Z-orchestrator.md
 assignee: agent/orchestrator
-claimed_at: "2026-09-18T14:09:23Z"
 ---
 
 ## Summary
