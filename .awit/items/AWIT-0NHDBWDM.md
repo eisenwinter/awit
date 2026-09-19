@@ -3,10 +3,11 @@ id: AWIT-0NHDBWDM
 title: 'prime: preserve the top ready item before spending budget on framing'
 brief: >-
   Replace scaffolding-first admission with deterministic payload-preserving truncation. Keep at least one complete ready row for every positive budget when a filtered ready item exists, and document the unavoidable soft-budget floor.
-status: open
+status: closed
 deps: [AWIT-0ND56W3G, AWIT-0ND56V3G]
 labels: [phase3, p1]
-refs: []
+refs_base: repo
+refs: [.awit/comments/AWIT-0NHDBWDM/20260919T151901Z-orchestrator.md]
 ---
 ## Summary
 
