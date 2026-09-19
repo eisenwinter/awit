@@ -131,6 +131,7 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	warnQuarantined(cmd, g)
 	var n *graph.Node
 	if id := cmd.Args().First(); id != "" {
 		n, err = nextNode(g, id)

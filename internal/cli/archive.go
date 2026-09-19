@@ -33,6 +33,7 @@ func archiveAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	warnQuarantined(cmd, g)
 	w := cmd.Root().Writer
 	set := g.Archivable()
 	if cmd.Bool("dry-run") {

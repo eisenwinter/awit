@@ -159,8 +159,8 @@ func TestListQuarantined(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d stderr %q", code, stderr)
 	}
-	if stderr != "Note: 4 open. Claim a ready item with awit next --claim; close it with awit close <id> when the work is done.\n" {
-		t.Fatalf("footer = %q", stderr)
+	if stderr != quarantineWarning(4)+"Note: 4 open. Claim a ready item with awit next --claim; close it with awit close <id> when the work is done.\n" {
+		t.Fatalf("stderr = %q, want warning then footer", stderr)
 	}
 	lines := strings.Split(strings.TrimSuffix(stdout, "\n"), "\n")
 	if len(lines) != 4 {

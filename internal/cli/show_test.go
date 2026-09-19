@@ -20,8 +20,8 @@ func TestShowClean(t *testing.T) {
 func TestShowQuarantined(t *testing.T) {
 	dir := copyFixture(t, "cyclic")
 	code, stdout, stderr := run(t, "--repo", dir, "show", "AWIT-TEST0001")
-	if code != 0 || stderr != "" {
-		t.Fatalf("exit %d stderr %q", code, stderr)
+	if code != 0 || stderr != quarantineWarning(4) {
+		t.Fatalf("exit %d stderr %q, want the single quarantine warning", code, stderr)
 	}
 	lines := strings.Split(stdout, "\n")
 	if lines[0] != "[AWIT-TEST0001] Implement OAuth2 bearer token extraction" {
@@ -41,8 +41,8 @@ func TestShowQuarantined(t *testing.T) {
 func TestShowBrokenFile(t *testing.T) {
 	dir := copyFixture(t, "parse-error")
 	code, stdout, stderr := run(t, "--repo", dir, "show", "AWIT-TEST0001")
-	if code != 0 || stderr != "" {
-		t.Fatalf("exit %d stderr %q, want exit 0", code, stderr)
+	if code != 0 || stderr != quarantineWarning(1) {
+		t.Fatalf("exit %d stderr %q, want exit 0 and the single quarantine warning", code, stderr)
 	}
 	lines := strings.Split(stdout, "\n")
 	if lines[0] != "[AWIT-TEST0001] (unparseable)" {

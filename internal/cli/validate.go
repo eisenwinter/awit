@@ -73,6 +73,7 @@ func validateAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	warnQuarantined(cmd, g)
 	nItems := len(g.Order) + len(g.Broken)
 	nQuar := len(g.Quarantined()) + len(g.Broken)
 	w := cmd.Root().Writer

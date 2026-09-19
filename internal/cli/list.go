@@ -38,6 +38,7 @@ func listAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	warnQuarantined(cmd, g)
 
 	ready := cmd.Bool("ready")
 	blocked := cmd.Bool("blocked")

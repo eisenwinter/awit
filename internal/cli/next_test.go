@@ -237,7 +237,7 @@ func TestNextClaimIDRefusals(t *testing.T) {
 	}{
 		{"blocked", "clean", "AWIT-TEST0003", "AWIT-TEST0003 is blocked by AWIT-TEST0001\n"},
 		{"closed", "clean", "AWIT-TEST0005", "AWIT-TEST0005 is closed; awit release AWIT-TEST0005 to reopen it\n"},
-		{"quarantined", "cyclic", "AWIT-TEST0001", "AWIT-TEST0001 is quarantined [CYCLE]; run awit validate\n"},
+		{"quarantined", "cyclic", "AWIT-TEST0001", quarantineWarning(4) + "AWIT-TEST0001 is quarantined [CYCLE]; run awit validate\n"},
 		{"unknown", "clean", "AWIT-TEST0099", "Error: unknown item AWIT-TEST0099\n"},
 		{"claimed", "clean", "AWIT-TEST0006", "AWIT-TEST0006 is claimed by agent/claude; awit release AWIT-TEST0006\n"},
 	}

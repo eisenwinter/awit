@@ -30,6 +30,7 @@ var primeCmd = &cli.Command{
 		if err != nil {
 			return err
 		}
+		warnQuarantined(cmd, g)
 		// NOTE: the global --format flag is intentionally ignored.
 		return prime.Render(cmd.Root().Writer, g, prime.Options{
 			MaxTokens: cmd.Int("max-tokens"),

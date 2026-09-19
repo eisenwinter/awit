@@ -46,6 +46,7 @@ func showOne(cmd *cli.Command, key string) error {
 	if err != nil {
 		return err
 	}
+	warnQuarantined(cmd, g)
 	f, err := detectFormat(cmd)
 	if err != nil {
 		return err

@@ -56,6 +56,7 @@ func depAdd(cmd *cli.Command, id, dep string) error {
 	if err != nil {
 		return err
 	}
+	warnQuarantined(cmd, g)
 	// Dependency CLI inputs accept ids, aliases and external keys; the
 	// serialized edge is always the canonical AWIT ID.
 	id, err = resolveItemID(graphItems(g), id)
@@ -99,6 +100,7 @@ func depRm(cmd *cli.Command, id, dep string) error {
 	if err != nil {
 		return err
 	}
+	warnQuarantined(cmd, g)
 	// Dependency CLI inputs accept ids, aliases and external keys; the
 	// serialized edge is always the canonical AWIT ID.
 	id, err = resolveItemID(graphItems(g), id)
