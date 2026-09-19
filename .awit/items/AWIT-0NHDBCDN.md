@@ -3,10 +3,10 @@ id: AWIT-0NHDBCDN
 title: 'item: support structured Gitea external metadata without losing source bytes'
 brief: >-
   Promote the reserved external key to structured Gitea metadata editable on create and update. Preserve unknown YAML keys and unchanged source bytes, warn rather than quarantine on invalid optional integration metadata, and display valid links.
-status: open
+status: closed
 deps: [AWIT-0ND5753G, AWIT-0ND56H3G, AWIT-0ND56M3G, AWIT-0ND56F3G, AWIT-0ND56S3G]
 labels: [phase5, p0]
-refs: []
+refs: [../comments/AWIT-0NHDBCDN/20260919T114205Z-jan.md]
 ---
 ## Summary
 
