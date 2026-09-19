@@ -188,25 +188,30 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 	return format.WriteOne(cmd.Root().Writer, f, toEntry(n))
 }
 
-// nextNode resolves the positional ID form of next. A broken file that
-// could not become an item refuses like a quarantined node; anything else
-// unknown keeps the existing "unknown item" string.
-func nextNode(g *graph.Graph, id string) (*graph.Node, error) {
-	if n, ok := g.Nodes[id]; ok {
-		return n, nil
+// nextNode resolves the positional form of next — canonical id, alias, or
+// external key — through the same helper every command uses. Exact [key]
+// remains a lookup, never a rerank. A broken file that could not become an
+// item refuses like a quarantined node; anything else unknown keeps the
+// existing "unknown item" string.
+func nextNode(g *graph.Graph, key string) (*graph.Node, error) {
+	id, err := resolveItemID(graphItems(g), key)
+	if err == nil {
+		return g.Nodes[id], nil
 	}
-	var reasons []string
-	seen := map[string]bool{}
-	for _, br := range g.Broken {
-		if br.ID == id && !seen[string(br.Reason)] {
-			seen[string(br.Reason)] = true
-			reasons = append(reasons, "["+string(br.Reason)+"]")
+	if errors.Is(err, errUnknownItem) {
+		var reasons []string
+		seen := map[string]bool{}
+		for _, br := range g.Broken {
+			if br.ID == key && !seen[string(br.Reason)] {
+				seen[string(br.Reason)] = true
+				reasons = append(reasons, "["+string(br.Reason)+"]")
+			}
+		}
+		if len(reasons) > 0 {
+			return nil, cli.Exit(fmt.Sprintf("%s is quarantined %s; run awit validate", key, strings.Join(reasons, ", ")), 1)
 		}
 	}
-	if len(reasons) > 0 {
-		return nil, cli.Exit(fmt.Sprintf("%s is quarantined %s; run awit validate", id, strings.Join(reasons, ", ")), 1)
-	}
-	return nil, fmt.Errorf("unknown item %s", id)
+	return nil, err
 }
 
 // refuseClaim errors when the exact item cannot be claimed: quarantined,

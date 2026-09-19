@@ -99,6 +99,9 @@ func validateAction(_ context.Context, cmd *cli.Command) error {
 		for _, line := range externalWarnLines(g) {
 			fmt.Fprintln(cmd.Root().ErrWriter, line)
 		}
+		for _, line := range aliasWarnLines(g) {
+			fmt.Fprintln(cmd.Root().ErrWriter, line)
+		}
 		if len(g.Faults) > 0 {
 			return cli.Exit("", 1)
 		}
@@ -124,6 +127,9 @@ func validateAction(_ context.Context, cmd *cli.Command) error {
 			fmt.Fprintf(w, "WARN  %s: %s\n", n.Item.ID, n.Item.ExternalProblem)
 		}
 	}
+	for _, line := range aliasWarnLines(g) {
+		fmt.Fprintln(w, line)
+	}
 	if cmd.Bool("stale-claims") {
 		for _, line := range staleClaimLines(g, time.Duration(s.Config.StaleClaim), now) {
 			fmt.Fprintln(w, line)
@@ -140,6 +146,34 @@ func externalWarnLines(g *graph.Graph) []string {
 	for _, n := range g.Order {
 		if n.Item.ExternalProblem != "" {
 			out = append(out, fmt.Sprintf("WARN  %s: %s", n.Item.ID, n.Item.ExternalProblem))
+		}
+	}
+	return out
+}
+
+// aliasWarnLines reports invalid optional aliases and case-insensitive
+// duplicates across active parseable items. Neither is a graph fault;
+// duplicates make alias lookup refuse instead of choosing arbitrarily.
+func aliasWarnLines(g *graph.Graph) []string {
+	var out []string
+	byFold := map[string][]string{}
+	for _, n := range g.Order {
+		a := n.Item.Alias
+		if a == "" {
+			continue
+		}
+		if err := item.ValidateAlias(a); err != nil {
+			out = append(out, fmt.Sprintf("WARN  %s: %s", n.Item.ID, err))
+		}
+		byFold[strings.ToUpper(a)] = append(byFold[strings.ToUpper(a)], n.Item.ID)
+	}
+	for _, n := range g.Order {
+		a := n.Item.Alias
+		if a == "" {
+			continue
+		}
+		if ids := byFold[strings.ToUpper(a)]; len(ids) > 1 {
+			out = append(out, fmt.Sprintf("WARN  %s: duplicate alias %q shared with %s", n.Item.ID, a, strings.Join(ids, ", ")))
 		}
 	}
 	return out

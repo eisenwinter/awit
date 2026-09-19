@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/eisenwinter/awit/pkg/id"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,6 +33,7 @@ type Item struct {
 	Path            string
 	External        *External
 	ExternalProblem string // derived diagnostic; never serialized
+	Alias           string // optional human alias; "" = absent
 
 	doc   *yaml.Node
 	body  []byte
@@ -412,6 +414,91 @@ func (it *Item) HasLabel(l string) bool {
 
 func (it *Item) Body() []byte {
 	return it.body
+}
+
+// validAliasShape reports whether alias is [A-Za-z][A-Za-z0-9._-]{0,127}.
+func validAliasShape(alias string) bool {
+	if len(alias) < 1 || len(alias) > 128 {
+		return false
+	}
+	for i := range len(alias) {
+		c := alias[i]
+		letter := c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+		if i == 0 {
+			if !letter {
+				return false
+			}
+			continue
+		}
+		if !letter && !(c >= '0' && c <= '9') && c != '.' && c != '_' && c != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+// idShaped reports whether alias collides with the canonical ID shape
+// (<PREFIX>-<8 Crockford chars>, case-insensitively). Such an alias could
+// shadow or be shadowed by a real item ID and is refused.
+func idShaped(alias string) bool {
+	prefix, body, err := id.Split(strings.ToUpper(alias))
+	if err != nil {
+		return false
+	}
+	if len(prefix) < 2 || len(prefix) > 8 {
+		return false
+	}
+	for i := range len(prefix) {
+		c := prefix[i]
+		if i == 0 && !(c >= 'A' && c <= 'Z') {
+			return false
+		}
+		if !(c >= 'A' && c <= 'Z' || c >= '0' && c <= '9') {
+			return false
+		}
+	}
+	_, _, _, err = id.Decode(body)
+	return err == nil
+}
+
+// ValidateAlias checks the optional human alias grammar and refuses
+// anything that could collide with a canonical item ID.
+func ValidateAlias(alias string) error {
+	if alias == "" {
+		return fmt.Errorf("invalid alias: empty (clear the alias instead)")
+	}
+	if !validAliasShape(alias) {
+		return fmt.Errorf("invalid alias %q: must match [A-Za-z][A-Za-z0-9._-]{0,127}", alias)
+	}
+	if idShaped(alias) {
+		return fmt.Errorf("invalid alias %q: must not look like an item ID", alias)
+	}
+	return nil
+}
+
+// SetAlias sets the optional human alias; "" removes the key. The alias is
+// validated with ValidateAlias. An identical alias is a no-op.
+func (it *Item) SetAlias(alias string) error {
+	if alias == "" {
+		_, _, idx := it.findKey("alias")
+		if it.Alias == "" && idx < 0 {
+			return nil
+		}
+		it.Alias = ""
+		it.deleteKey("alias")
+		it.markDirty()
+		return nil
+	}
+	if err := ValidateAlias(alias); err != nil {
+		return err
+	}
+	if it.Alias == alias {
+		return nil
+	}
+	it.Alias = alias
+	it.setScalar("alias", alias)
+	it.markDirty()
+	return nil
 }
 
 // SetBody replaces the markdown body with a copy of body. No newline

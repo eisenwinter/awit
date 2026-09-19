@@ -424,3 +424,35 @@ func TestWriteOneTableExternal(t *testing.T) {
 		t.Fatalf("WriteOne table =\n%s", buf.String())
 	}
 }
+
+func TestLineAlias(t *testing.T) {
+	e := sampleEntries()[0]
+	e.Alias = "DTRM-F21"
+	want := "[AWIT-TEST0001] open Implement OAuth2 token extraction | auth,p1 | Unblocks: 2 | Alias: DTRM-F21"
+	if got := Line(e); got != want {
+		t.Fatalf("Line() =\n%q\nwant\n%q", got, want)
+	}
+}
+
+func TestWriteJSONAliasField(t *testing.T) {
+	e := sampleEntries()[0]
+	e.Alias = "DTRM-F21"
+	var buf bytes.Buffer
+	if err := Write(&buf, JSON, []Entry{e}); err != nil {
+		t.Fatal(err)
+	}
+	var rows []map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &rows); err != nil {
+		t.Fatal(err)
+	}
+	if rows[0]["alias"] != "DTRM-F21" {
+		t.Fatalf("json = %s", buf.String())
+	}
+	var bare bytes.Buffer
+	if err := Write(&bare, JSON, sampleEntries()); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(bare.String(), "alias") {
+		t.Fatalf("alias must be omitted when empty:\n%s", bare.String())
+	}
+}

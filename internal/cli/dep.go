@@ -56,11 +56,15 @@ func depAdd(cmd *cli.Command, id, dep string) error {
 	if err != nil {
 		return err
 	}
-	if _, ok := g.Nodes[id]; !ok {
-		return fmt.Errorf("unknown item %s", id)
+	// Dependency CLI inputs accept ids, aliases and external keys; the
+	// serialized edge is always the canonical AWIT ID.
+	id, err = resolveItemID(graphItems(g), id)
+	if err != nil {
+		return err
 	}
-	if _, ok := g.Nodes[dep]; !ok {
-		return fmt.Errorf("unknown item %s", dep)
+	dep, err = resolveItemID(graphItems(g), dep)
+	if err != nil {
+		return err
 	}
 	it := g.Nodes[id].Item
 	if slices.Contains(it.Deps, dep) {
@@ -95,8 +99,15 @@ func depRm(cmd *cli.Command, id, dep string) error {
 	if err != nil {
 		return err
 	}
-	if _, ok := g.Nodes[id]; !ok {
-		return fmt.Errorf("unknown item %s", id)
+	// Dependency CLI inputs accept ids, aliases and external keys; the
+	// serialized edge is always the canonical AWIT ID.
+	id, err = resolveItemID(graphItems(g), id)
+	if err != nil {
+		return err
+	}
+	dep, err = resolveItemID(graphItems(g), dep)
+	if err != nil {
+		return err
 	}
 	it := g.Nodes[id].Item
 	if !slices.Contains(it.Deps, dep) {

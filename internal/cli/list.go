@@ -12,8 +12,9 @@ import (
 )
 
 var listCmd = &cli.Command{
-	Name:  "list",
-	Usage: "List items",
+	Name:      "list",
+	Usage:     "List items, or select exactly one by id, alias or external key",
+	ArgsUsage: "[key]",
 	// urfave splits slice-flag values on "," by default, which would turn
 	// "-l auth,db" into two ANDed groups. Disable it so SplitLabels sees
 	// each -l occurrence intact (OR within a flag, AND across flags).
@@ -42,18 +43,37 @@ func listAction(_ context.Context, cmd *cli.Command) error {
 	blocked := cmd.Bool("blocked")
 	quarantined := cmd.Bool("quarantined")
 
+	if cmd.Args().Len() > 1 {
+		return cli.Exit("list takes at most one item key", 2)
+	}
+
 	var nodes []*graph.Node
-	switch {
-	case ready && !blocked && !quarantined:
-		nodes = g.Ready()
-	case ready || blocked || quarantined:
-		for _, n := range g.Order {
-			if (ready && n.Ready) || (blocked && n.Blocked) || (quarantined && n.Quarantined()) {
-				nodes = append(nodes, n)
-			}
+	if key := cmd.Args().First(); key != "" {
+		// [key] selects exactly one item before the status/label/state
+		// filters below; no key retains the full listing.
+		id, err := resolveItemID(graphItems(g), key)
+		if err != nil {
+			return err
 		}
-	default:
-		nodes = g.Order
+		n := g.Nodes[id]
+		nodes = []*graph.Node{n}
+		if (ready || blocked || quarantined) &&
+			!((ready && n.Ready) || (blocked && n.Blocked) || (quarantined && n.Quarantined())) {
+			nodes = nil
+		}
+	} else {
+		switch {
+		case ready && !blocked && !quarantined:
+			nodes = g.Ready()
+		case ready || blocked || quarantined:
+			for _, n := range g.Order {
+				if (ready && n.Ready) || (blocked && n.Blocked) || (quarantined && n.Quarantined()) {
+					nodes = append(nodes, n)
+				}
+			}
+		default:
+			nodes = g.Order
+		}
 	}
 
 	if statuses := cmd.StringSlice("status"); len(statuses) > 0 {

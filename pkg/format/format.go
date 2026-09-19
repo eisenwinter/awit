@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 
@@ -68,6 +69,7 @@ type Entry struct {
 	Labels   []string       `json:"labels"`
 	Deps     []string       `json:"deps"`
 	Assignee string         `json:"assignee,omitempty"`
+	Alias    string         `json:"alias,omitempty"`
 	Unblocks int            `json:"unblocks"` // -1 when quarantined
 	Faults   []string       `json:"faults,omitempty"`
 	External *item.External `json:"external,omitempty"`
@@ -83,6 +85,9 @@ func labelsOrDash(labels []string) string {
 
 func Line(e Entry) string {
 	s := fmt.Sprintf("[%s] %s %s | %s | Unblocks: %d", e.ID, e.Status, e.Title, labelsOrDash(e.Labels), e.Unblocks)
+	if e.Alias != "" {
+		s += " | Alias: " + e.Alias
+	}
 	if e.State == "quarantined" {
 		s += " | QUARANTINED"
 	}
@@ -135,15 +140,20 @@ func Write(w io.Writer, f Format, entries []Entry) error {
 		}
 		return nil
 	case Table:
-		hasExt := false
+		hasAlias, hasExt := false, false
 		for _, e := range entries {
+			if e.Alias != "" {
+				hasAlias = true
+			}
 			if e.External != nil {
 				hasExt = true
-				break
 			}
 		}
 		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 		header := "ID\tSTATUS\tSTATE\tTITLE\tLABELS\tUNBLOCKS"
+		if hasAlias {
+			header += "\tALIAS"
+		}
 		if hasExt {
 			header += "\tEXTERNAL"
 		}
@@ -151,13 +161,14 @@ func Write(w io.Writer, f Format, entries []Entry) error {
 			return err
 		}
 		for _, e := range entries {
+			cells := []string{e.ID, e.Status, e.State, e.Title, labelsOrDash(e.Labels), strconv.Itoa(e.Unblocks)}
+			if hasAlias {
+				cells = append(cells, e.Alias)
+			}
 			if hasExt {
-				if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%d\t%s\n",
-					e.ID, e.Status, e.State, e.Title, labelsOrDash(e.Labels), e.Unblocks, externalLabel(e.External)); err != nil {
-					return err
-				}
-			} else if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%d\n",
-				e.ID, e.Status, e.State, e.Title, labelsOrDash(e.Labels), e.Unblocks); err != nil {
+				cells = append(cells, externalLabel(e.External))
+			}
+			if _, err := fmt.Fprintln(tw, strings.Join(cells, "\t")); err != nil {
 				return err
 			}
 		}
@@ -190,6 +201,7 @@ func WriteOne(w io.Writer, f Format, e Entry) error {
 			{"Labels", strings.Join(e.Labels, ",")},
 			{"Deps", strings.Join(e.Deps, ",")},
 			{"Assignee", e.Assignee},
+			{"Alias", e.Alias},
 			{"External", externalLabel(e.External)},
 		}
 		for _, p := range pairs {

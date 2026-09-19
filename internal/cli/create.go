@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -23,6 +24,7 @@ var createCmd = &cli.Command{
 		&cli.StringSliceFlag{Name: "dep", Aliases: []string{"d"}},
 		&cli.StringSliceFlag{Name: "label", Aliases: []string{"l"}},
 		&cli.StringFlag{Name: "assign"},
+		&cli.StringFlag{Name: "alias", Usage: "short human alias (e.g. `DTRM-F21`)"},
 		&cli.StringFlag{Name: "id", Usage: "override minted id (imports)"},
 		&cli.StringFlag{Name: "external-tracker", Usage: "external tracker (`gitea`)"},
 		&cli.StringFlag{Name: "external-repo", Usage: "external repository (`owner/repo`)"},
@@ -140,18 +142,34 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 		}
 	}
 	deps := parseIDList(cmd.StringSlice("dep"))
-	for _, d := range deps {
-		if !id.Valid(s.Config.Prefix, d) {
-			return fmt.Errorf("invalid id %s", d)
+	if len(deps) > 0 {
+		items, _, err := s.LoadAll()
+		if err != nil {
+			return err
 		}
-		if !s.Exists(d) {
-			return fmt.Errorf("unknown dep %s", d)
+		for i, d := range deps {
+			cid, err := resolveItemID(items, d)
+			if err != nil {
+				if errors.Is(err, errUnknownItem) {
+					if !id.Valid(s.Config.Prefix, d) {
+						return fmt.Errorf("invalid id %s", d)
+					}
+					return fmt.Errorf("unknown dep %s", d)
+				}
+				return err
+			}
+			deps[i] = cid
 		}
 	}
 	labels := mergeLabels(s.Config.DefaultLabels, parseIDList(cmd.StringSlice("label")))
 	it := item.New(itemID, title, cmd.String("brief"), deps, labels)
 	if a := cmd.String("assign"); a != "" {
 		it.SetAssignee(a)
+	}
+	if a := cmd.String("alias"); a != "" {
+		if err := it.SetAlias(a); err != nil {
+			return cli.Exit(err.Error(), 2)
+		}
 	}
 	if ext != nil {
 		if err := it.SetExternal(ext); err != nil {
@@ -176,6 +194,7 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 		Labels:   it.Labels,
 		Deps:     it.Deps,
 		Assignee: it.Assignee,
+		Alias:    it.Alias,
 		Unblocks: 0,
 		External: it.External,
 	})

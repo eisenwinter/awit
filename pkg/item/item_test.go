@@ -619,3 +619,116 @@ func TestValidateExternalPrefixURL(t *testing.T) {
 		t.Fatalf("prefix URL rejected: %v", err)
 	}
 }
+
+func TestParseAlias(t *testing.T) {
+	it, err := Parse("/abs/AWIT-TEST0001.md", []byte(`---
+id: AWIT-TEST0001
+title: T
+status: open
+alias: DTRM-F21
+---
+
+body
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.Alias != "DTRM-F21" {
+		t.Fatalf("Alias = %q", it.Alias)
+	}
+	it2, err := Parse("/abs/AWIT-TEST0002.md", []byte("---\nid: AWIT-TEST0002\ntitle: T\nstatus: open\n---\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it2.Alias != "" {
+		t.Fatalf("missing alias must parse as empty, got %q", it2.Alias)
+	}
+}
+
+func TestParseAliasNonScalar(t *testing.T) {
+	_, err := Parse("/abs/AWIT-TEST0001.md", []byte("---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nalias: [a, b]\n---\n"))
+	if err == nil || !strings.Contains(err.Error(), "alias") {
+		t.Fatalf("err = %v, want alias must be a string", err)
+	}
+}
+
+func TestSetAliasValidation(t *testing.T) {
+	valid := []string{"DTRM-F21", "a", "a.b_c-d", "x" + strings.Repeat("y", 126)}
+	for _, v := range valid {
+		it := New("AWIT-TEST0001", "T", "B.", nil, nil)
+		if err := it.SetAlias(v); err != nil {
+			t.Fatalf("SetAlias(%q) err = %v", v, err)
+		}
+		if it.Alias != v {
+			t.Fatalf("SetAlias(%q): Alias = %q", v, it.Alias)
+		}
+	}
+	invalid := []string{
+		"1starts-digit", "-starts-dash", ".starts-dot",
+		"has space", "has/slash", "has#hash", "has\ttab",
+		"x" + strings.Repeat("y", 128), // 129 chars
+		"AWIT-TEST0001",                // canonical ID shape
+		"awit-test0001",                // case-insensitive canonical ID shape
+	}
+	for _, v := range invalid {
+		it := New("AWIT-TEST0001", "T", "B.", nil, nil)
+		if err := it.SetAlias(v); err == nil {
+			t.Fatalf("SetAlias(%q) must fail", v)
+		}
+		if it.Alias != "" {
+			t.Fatalf("SetAlias(%q) failed but Alias = %q", v, it.Alias)
+		}
+	}
+}
+
+func TestSetAliasEmptyClears(t *testing.T) {
+	it := New("AWIT-TEST0001", "T", "B.", nil, nil)
+	if err := it.SetAlias("DTRM-F21"); err != nil {
+		t.Fatal(err)
+	}
+	if err := it.SetAlias(""); err != nil {
+		t.Fatal(err)
+	}
+	if it.Alias != "" {
+		t.Fatalf("Alias = %q after clear", it.Alias)
+	}
+	b, err := it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(b, []byte("alias")) {
+		t.Fatalf("cleared alias still serialized:\n%s", b)
+	}
+}
+
+func TestSetAliasSerialization(t *testing.T) {
+	it := New("AWIT-TEST0001", "T", "B.", nil, nil)
+	if err := it.SetAlias("DTRM-F21"); err != nil {
+		t.Fatal(err)
+	}
+	b, err := it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(b, []byte("alias: DTRM-F21\n")) {
+		t.Fatalf("alias not serialized:\n%s", b)
+	}
+	back, err := Parse("/abs/AWIT-TEST0001.md", b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if back.Alias != "DTRM-F21" {
+		t.Fatalf("round-trip Alias = %q", back.Alias)
+	}
+}
+
+func TestValidateAlias(t *testing.T) {
+	if err := ValidateAlias("DTRM-F21"); err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range []string{"", "1x", "a b", "AWIT-TEST0001"} {
+		if err := ValidateAlias(v); err == nil {
+			t.Fatalf("ValidateAlias(%q) must fail", v)
+		}
+	}
+}

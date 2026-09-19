@@ -9,6 +9,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -125,6 +127,7 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *cli.Command {
 		Commands: []*cli.Command{
 			initCmd,
 			createCmd,
+			importCmd,
 			updateCmd,
 			closeCmd,
 			releaseCmd,
@@ -233,6 +236,84 @@ func SplitLabels(flags []string) [][]string {
 	return groups
 }
 
+// errUnknownItem marks the "no such key" outcome of resolveItemID so
+// callers can distinguish it from an ambiguity error.
+var errUnknownItem = errors.New("unknown item")
+
+// graphItems flattens graph order into the item slice resolveItemID scans.
+func graphItems(g *graph.Graph) []*item.Item {
+	items := make([]*item.Item, 0, len(g.Order))
+	for _, n := range g.Order {
+		items = append(items, n.Item)
+	}
+	return items
+}
+
+// resolveItemID maps a user-supplied key to a canonical item ID. Canonical
+// IDs match exactly (case-sensitive) and take precedence; then aliases
+// match case-insensitively; then external keys owner/repo#<n> or bare
+// #<n> match valid external metadata. Ambiguity is an error listing the
+// matching canonical IDs, sorted. There is no prefix, fuzzy, or title
+// matching and no bare integer shorthand. A key never becomes a
+// filesystem path.
+func resolveItemID(items []*item.Item, key string) (string, error) {
+	for _, it := range items {
+		if it.ID == key {
+			return it.ID, nil
+		}
+	}
+	var aliasHits []string
+	for _, it := range items {
+		if it.Alias != "" && strings.EqualFold(it.Alias, key) {
+			aliasHits = append(aliasHits, it.ID)
+		}
+	}
+	switch {
+	case len(aliasHits) == 1:
+		return aliasHits[0], nil
+	case len(aliasHits) > 1:
+		sort.Strings(aliasHits)
+		return "", fmt.Errorf("ambiguous alias %q matches %s", key, strings.Join(aliasHits, ", "))
+	}
+	if repo, num, ok := parseExternalKey(key); ok {
+		var hits []string
+		for _, it := range items {
+			if it.External == nil || it.External.ID != num {
+				continue
+			}
+			if repo != "" && it.External.Repo != repo {
+				continue
+			}
+			hits = append(hits, it.ID)
+		}
+		switch {
+		case len(hits) == 1:
+			return hits[0], nil
+		case len(hits) > 1:
+			sort.Strings(hits)
+			return "", fmt.Errorf("ambiguous external key %q matches %s", key, strings.Join(hits, ", "))
+		}
+	}
+	return "", fmt.Errorf("%w %s", errUnknownItem, key)
+}
+
+// parseExternalKey splits owner/repo#<n> or #<n> lookup keys.
+func parseExternalKey(key string) (repo string, num int64, ok bool) {
+	rest, found := strings.CutPrefix(key, "#")
+	if !found {
+		i := strings.LastIndex(key, "#")
+		if i <= 0 || !strings.Contains(key[:i], "/") {
+			return "", 0, false
+		}
+		repo, rest = key[:i], key[i+1:]
+	}
+	n, err := strconv.ParseInt(rest, 10, 64)
+	if err != nil || n <= 0 {
+		return "", 0, false
+	}
+	return repo, n, true
+}
+
 func toEntry(n *graph.Node) format.Entry {
 	e := format.Entry{
 		ID:       n.Item.ID,
@@ -242,6 +323,7 @@ func toEntry(n *graph.Node) format.Entry {
 		Labels:   n.Item.Labels,
 		Deps:     n.Item.Deps,
 		Assignee: n.Item.Assignee,
+		Alias:    n.Item.Alias,
 		Unblocks: n.UnblockCount,
 		External: n.Item.External,
 	}

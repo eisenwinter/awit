@@ -1,0 +1,248 @@
+package cli
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/eisenwinter/awit/internal/teax"
+	"github.com/eisenwinter/awit/pkg/format"
+	"github.com/eisenwinter/awit/pkg/item"
+	"github.com/urfave/cli/v3"
+)
+
+var importCmd = &cli.Command{
+	Name:      "import",
+	Usage:     "Mint a local item from an existing Gitea issue (one-time snapshot)",
+	ArgsUsage: "<issue-url>",
+	Flags: []cli.Flag{
+		&cli.StringFlag{Name: "brief", Usage: "one to three sentences", Required: true},
+		&cli.StringFlag{Name: "alias", Usage: "short human alias for the new item"},
+		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for the issue's instance"},
+	},
+	Action: importAction,
+}
+
+// parseIssueURL turns https://host[/prefix]/owner/repo/issues/<n> into a
+// Gitea external mapping, validated by item.ValidateExternal.
+func parseIssueURL(raw string) (item.External, error) {
+	bad := func() (item.External, error) {
+		return item.External{}, cli.Exit(fmt.Sprintf("Incorrect usage: issue URL %q must look like https://host/owner/repo/issues/123 (run \"awit --help\")", raw), 2)
+	}
+	u, err := url.Parse(raw)
+	if err != nil || !u.IsAbs() || (u.Scheme != "http" && u.Scheme != "https") {
+		return bad()
+	}
+	segs := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(segs) < 4 || segs[len(segs)-2] != "issues" {
+		return bad()
+	}
+	n, err := strconv.ParseInt(segs[len(segs)-1], 10, 64)
+	if err != nil {
+		return bad()
+	}
+	ext := item.External{
+		Tracker: "gitea",
+		Repo:    segs[len(segs)-4] + "/" + segs[len(segs)-3],
+		ID:      n,
+		URL:     raw,
+	}
+	if err := item.ValidateExternal(ext); err != nil {
+		return item.External{}, cli.Exit(err.Error(), 2)
+	}
+	return ext, nil
+}
+
+func importAction(ctx context.Context, cmd *cli.Command) error {
+	// importCmd is package-level, so urfave's Required check only fires on
+	// the first Main call per process (see createAction); enforce it here.
+	if cmd.String("brief") == "" {
+		return cli.Exit(`Incorrect usage: Required flag "brief" not set (run "awit --help")`, 2)
+	}
+	if cmd.Args().Len() != 1 {
+		return cli.Exit("import needs exactly one issue URL", 2)
+	}
+	ext, err := parseIssueURL(cmd.Args().First())
+	if err != nil {
+		return err
+	}
+	alias := cmd.String("alias")
+	if alias != "" {
+		if err := item.ValidateAlias(alias); err != nil {
+			return cli.Exit(err.Error(), 2)
+		}
+	}
+	s, err := openStore(cmd)
+	if err != nil {
+		return err
+	}
+	noteWalkedUp(cmd, s)
+	// Preflight and fetch happen before the mutation lock: no local state
+	// is touched while the network is involved.
+	client, err := teax.Open(ctx, ext, cmd.String("tea-login"))
+	if err != nil {
+		return err
+	}
+	issue, err := client.GetIssue(ctx, ext.ID)
+	if err != nil {
+		return err
+	}
+	if issue.Number != ext.ID {
+		return fmt.Errorf("issue number mismatch: the URL says %d but the server returned number %d", ext.ID, issue.Number)
+	}
+	var status item.Status
+	switch issue.State {
+	case "open":
+		status = item.StatusOpen
+	case "closed":
+		status = item.StatusClosed
+	default:
+		return fmt.Errorf("unsupported issue state %q for %s#%d (only open and closed can be imported)", issue.State, ext.Repo, ext.ID)
+	}
+	// Labels are the exact remote label names, first-seen deduplicated.
+	// Local default labels are NOT merged: an import is a historical
+	// snapshot, not a fresh create.
+	labels := []string{}
+	seen := map[string]bool{}
+	for _, l := range issue.Labels {
+		if l == "" || seen[l] {
+			continue
+		}
+		seen[l] = true
+		labels = append(labels, l)
+	}
+	release, err := s.Lock(5 * time.Second)
+	if err != nil {
+		return err
+	}
+	defer release()
+	if err := refuseDuplicateImport(s, ext); err != nil {
+		return err
+	}
+	newID, err := s.Mint(time.Now())
+	if err != nil {
+		return err
+	}
+	it := item.New(newID, issue.Title, cmd.String("brief"), nil, labels)
+	it.SetStatus(status)
+	ext.ID = issue.Number // the repository issue number, never the database id
+	if err := it.SetExternal(&ext); err != nil {
+		return err
+	}
+	if alias != "" {
+		if err := it.SetAlias(alias); err != nil {
+			return cli.Exit(err.Error(), 2)
+		}
+	}
+	it.SetBody(issue.Body)
+	if err := validateImportCandidate(it); err != nil {
+		return err
+	}
+	if err := s.Save(it); err != nil {
+		return err
+	}
+	f, err := detectFormat(cmd)
+	if err != nil {
+		return err
+	}
+	state := "ready"
+	if status == item.StatusClosed {
+		state = "closed"
+	}
+	return format.WriteOne(cmd.Root().Writer, f, format.Entry{
+		ID:       it.ID,
+		Title:    it.Title,
+		Brief:    it.Brief,
+		Status:   string(it.Status),
+		State:    state,
+		Labels:   it.Labels,
+		Deps:     []string{},
+		Alias:    it.Alias,
+		Unblocks: 0,
+		External: it.External,
+	})
+}
+
+// validateImportCandidate serializes the would-be item and refuses anything
+// that would immediately quarantine. The remote body is never altered: an
+// issue carrying conflict markers must be reconciled before import.
+func validateImportCandidate(it *item.Item) error {
+	data, err := it.Bytes()
+	if err != nil {
+		return err
+	}
+	if item.HasConflictMarkers(data) {
+		return fmt.Errorf("the issue body contains conflict markers; reconcile it on the issue before importing (local bytes are never silently altered)")
+	}
+	if _, err := item.Parse(it.ID+".md", data); err != nil {
+		return fmt.Errorf("the imported item would not parse: %w", err)
+	}
+	return nil
+}
+
+// refuseDuplicateImport enforces import identity under the store lock: the
+// same normalized installation base + repo + issue number may exist at most
+// once across active items and archived item files. A file that cannot be
+// inspected refuses the import instead of claiming uniqueness. Archived
+// items remain excluded from the graph; this scan is an import-identity
+// guard only.
+func refuseDuplicateImport(s *item.Store, ext item.External) error {
+	base, err := teax.IssueBase(ext.URL)
+	if err != nil {
+		return err
+	}
+	items, broken, err := s.LoadAll()
+	if err != nil {
+		return err
+	}
+	for _, b := range broken {
+		return fmt.Errorf("cannot verify import uniqueness: %s is broken (%s); fix it first", b.Path, b.Reason)
+	}
+	for _, it := range items {
+		if sameImportIdentity(base, ext, it.External) {
+			return fmt.Errorf("issue %s#%d was already imported as %s (%s); import is a one-time snapshot, not an update", ext.Repo, ext.ID, it.ID, it.Path)
+		}
+	}
+	ents, err := os.ReadDir(s.ArchiveDir())
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	for _, e := range ents {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
+			continue
+		}
+		p := filepath.Join(s.ArchiveDir(), e.Name())
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return fmt.Errorf("cannot verify import uniqueness: %s: %w", p, err)
+		}
+		if item.HasConflictMarkers(data) {
+			return fmt.Errorf("cannot verify import uniqueness: %s contains conflict markers", p)
+		}
+		arch, err := item.Parse(p, data)
+		if err != nil {
+			return fmt.Errorf("cannot verify import uniqueness: %s does not parse: %w", p, err)
+		}
+		if sameImportIdentity(base, ext, arch.External) {
+			return fmt.Errorf("issue %s#%d was already imported and archived as %s; import is a one-time snapshot, not an update", ext.Repo, ext.ID, p)
+		}
+	}
+	return nil
+}
+
+func sameImportIdentity(base string, want item.External, have *item.External) bool {
+	if have == nil || have.Repo != want.Repo || have.ID != want.ID {
+		return false
+	}
+	hb, err := teax.IssueBase(have.URL)
+	return err == nil && hb == base
+}

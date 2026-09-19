@@ -17,6 +17,8 @@ var updateCmd = &cli.Command{
 		&cli.StringFlag{Name: "brief"},
 		&cli.StringFlag{Name: "assign"},
 		&cli.StringFlag{Name: "title"},
+		&cli.StringFlag{Name: "alias", Usage: "short human alias (e.g. `DTRM-F21`)"},
+		&cli.BoolFlag{Name: "clear-alias", Usage: "remove the alias"},
 		&cli.StringSliceFlag{Name: "label", Aliases: []string{"l"}},
 		&cli.StringSliceFlag{Name: "unlabel"},
 		&cli.StringFlag{Name: "external-tracker", Usage: "external tracker (`gitea`)"},
@@ -49,6 +51,7 @@ func updateAction(_ context.Context, cmd *cli.Command) error {
 	// and urfave's hasBeenSet persists while values reset (see createAction),
 	// so IsSet misreports flags from earlier runs. Detect via values instead.
 	status, brief, assign, title := cmd.String("status"), cmd.String("brief"), cmd.String("assign"), cmd.String("title")
+	alias, clearAlias := cmd.String("alias"), cmd.Bool("clear-alias")
 	add, remove := splitFlagCSV(cmd.StringSlice("label")), splitFlagCSV(cmd.StringSlice("unlabel"))
 	clearExt := cmd.Bool("clear-external")
 	ext, err := parseExternalMapping(cmd)
@@ -58,7 +61,10 @@ func updateAction(_ context.Context, cmd *cli.Command) error {
 	if clearExt && ext != nil {
 		return cli.Exit(`Incorrect usage: --clear-external cannot be combined with --external-tracker, --external-repo, --external-id, or --external-url`, 2)
 	}
-	if status == "" && brief == "" && assign == "" && title == "" && len(add) == 0 && len(remove) == 0 && !clearExt && ext == nil {
+	if alias != "" && clearAlias {
+		return cli.Exit(`Incorrect usage: --alias and --clear-alias cannot be combined`, 2)
+	}
+	if status == "" && brief == "" && assign == "" && title == "" && alias == "" && !clearAlias && len(add) == 0 && len(remove) == 0 && !clearExt && ext == nil {
 		return fmt.Errorf("nothing to update")
 	}
 	s, err := openStore(cmd)
@@ -75,7 +81,7 @@ func updateAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	// Echo order is fixed: status, title, brief, assignee, labels.
+	// Echo order is fixed: status, title, brief, assignee, labels, alias, external.
 	var changed []string
 	if status != "" {
 		st, err := item.ParseStatus(status)
@@ -125,6 +131,18 @@ func updateAction(_ context.Context, cmd *cli.Command) error {
 		}
 		it.SetLabels(kept)
 		changed = append(changed, "labels="+strings.Join(kept, ","))
+	}
+	if clearAlias {
+		if err := it.SetAlias(""); err != nil {
+			return err
+		}
+		changed = append(changed, "alias=-")
+	}
+	if alias != "" {
+		if err := it.SetAlias(alias); err != nil {
+			return cli.Exit(err.Error(), 2)
+		}
+		changed = append(changed, "alias="+alias)
 	}
 	if clearExt {
 		if err := it.SetExternal(nil); err != nil {

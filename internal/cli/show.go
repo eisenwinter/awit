@@ -37,7 +37,7 @@ type showJSON struct {
 	Refs []showRefJSON `json:"refs,omitempty"`
 }
 
-func showOne(cmd *cli.Command, id string) error {
+func showOne(cmd *cli.Command, key string) error {
 	s, err := openStore(cmd)
 	if err != nil {
 		return err
@@ -50,44 +50,52 @@ func showOne(cmd *cli.Command, id string) error {
 	if err != nil {
 		return err
 	}
-	if n, ok := g.Nodes[id]; ok {
-		itemsDir := s.ItemsDir()
-		refsOnly := cmd.Bool("refs-only")
-		full := cmd.Bool("full")
-		if refsOnly && full {
-			return cli.Exit("Error: pass either --full or --refs-only", 2)
-		}
-		if f == format.JSON {
-			out, err := json.MarshalIndent(fullJSON(g, n, itemsDir, full), "", "  ")
-			if err != nil {
-				return err
+	id, err := resolveItemID(graphItems(g), key)
+	if err != nil {
+		// Broken files have no resolvable alias or external metadata; the
+		// exact canonical stem still shows the quarantine view.
+		var matches []item.Broken
+		for _, br := range g.Broken {
+			if br.ID == key {
+				matches = append(matches, br)
 			}
-			fmt.Fprintf(cmd.Root().Writer, "%s\n", out)
+		}
+		if len(matches) > 0 {
+			// Broken files always render the text view, even as json.
+			fmt.Fprint(cmd.Root().Writer, brokenView(key, matches))
 			return nil
 		}
-		if refsOnly {
-			fmt.Fprint(cmd.Root().Writer, refsOnlyView(itemsDir, n.Item.Refs))
-			return nil
+		return err
+	}
+	n := g.Nodes[id]
+	itemsDir := s.ItemsDir()
+	baseDir := itemsDir
+	if n.Item.RefsBase == "repo" {
+		baseDir = s.Root
+	}
+	refsOnly := cmd.Bool("refs-only")
+	full := cmd.Bool("full")
+	if refsOnly && full {
+		return cli.Exit("Error: pass either --full or --refs-only", 2)
+	}
+	if f == format.JSON {
+		out, err := json.MarshalIndent(fullJSON(g, n, baseDir, itemsDir, full), "", "  ")
+		if err != nil {
+			return err
 		}
-		if full {
-			fmt.Fprint(cmd.Root().Writer, fullView(g, n, itemsDir))
-			return nil
-		}
-		fmt.Fprint(cmd.Root().Writer, defaultView(n))
+		fmt.Fprintf(cmd.Root().Writer, "%s\n", out)
 		return nil
 	}
-	var matches []item.Broken
-	for _, br := range g.Broken {
-		if br.ID == id {
-			matches = append(matches, br)
-		}
-	}
-	if len(matches) > 0 {
-		// Broken files always render the text view, even as json.
-		fmt.Fprint(cmd.Root().Writer, brokenView(id, matches))
+	if refsOnly {
+		fmt.Fprint(cmd.Root().Writer, refsOnlyView(baseDir, n.Item.Refs))
 		return nil
 	}
-	return fmt.Errorf("unknown item %s", id)
+	if full {
+		fmt.Fprint(cmd.Root().Writer, fullView(g, n, baseDir, itemsDir))
+		return nil
+	}
+	fmt.Fprint(cmd.Root().Writer, defaultView(n))
+	return nil
 }
 
 // defaultView renders the core item: header, status, faults, deps,
@@ -122,6 +130,9 @@ func defaultView(n *graph.Node) string {
 	if n.Item.External != nil {
 		x := n.Item.External
 		fmt.Fprintf(&b, "external: %s %s#%d %s\n", x.Tracker, x.Repo, x.ID, x.URL)
+	}
+	if n.Item.Alias != "" {
+		fmt.Fprintf(&b, "alias: %s\n", n.Item.Alias)
 	}
 	fmt.Fprintf(&b, "refs: %d (use --full)\n", len(n.Item.Refs))
 	body := n.Item.Body()
