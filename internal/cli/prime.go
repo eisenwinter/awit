@@ -19,6 +19,9 @@ var primeCmd = &cli.Command{
 		&cli.StringSliceFlag{Name: "label", Aliases: []string{"l"}, Usage: "filter ready+blocked by label (repeatable)"},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) error {
+		if max := cmd.Int("max-tokens"); max < 0 {
+			return cli.Exit(`Incorrect usage: --max-tokens must be >= 0 (run "awit --help")`, 2)
+		}
 		s, err := openStore(cmd)
 		if err != nil {
 			return err
