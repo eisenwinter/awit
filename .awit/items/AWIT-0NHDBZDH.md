@@ -3,10 +3,10 @@ id: AWIT-0NHDBZDH
 title: 'release: confirm reopening and describe both supported source states'
 brief: >-
   Make release visibly confirm successful persistence and clarify that it reopens closed as well as in-progress items while clearing the claim.
-status: open
+status: closed
 deps: [AWIT-0ND56M3G, AWIT-0NF68SDS, AWIT-0NF3RZDP]
 labels: [phase1, p1]
-refs: []
+refs: [../comments/AWIT-0NHDBZDH/20260919T114205Z-jan.md]
 ---
 ## Summary
 
