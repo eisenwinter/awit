@@ -3,10 +3,11 @@ id: AWIT-0NHDC5DZ
 title: 'config: control claim commits with commit and explicit overrides'
 brief: >-
   Support commit:false as the repository default for claim commits while keeping explicit per-invocation overrides. Retain --no-commit compatibility but recommend config or --commit=false for new workflows.
-status: open
+status: closed
 deps: [AWIT-0ND56A3G, AWIT-0ND56X3G, AWIT-0NFAW5DT]
 labels: [phase5, p1]
-refs: []
+refs_base: repo
+refs: [.awit/comments/AWIT-0NHDC5DZ/20260919T152555Z-orchestrator.md]
 ---
 ## Summary
 
