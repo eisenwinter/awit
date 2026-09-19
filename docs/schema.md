@@ -48,8 +48,9 @@ struct and extra keys are dropped on the next `Write`. Do not put
 Filename: `.awit/items/<id>.md`. The stem **must** equal the `id` key
 (case-sensitive match after parse; a case-insensitive stem collision with
 another file is `DUPLICATE ID`). The file is YAML frontmatter fenced by
-`---` lines, then a Markdown body. `Bytes()` always writes `\n`; `Split`
-also accepts `\r\n`.
+`---` lines, then a Markdown body. `Parse` then `Bytes()` with no setter is
+byte-identical, including CRLF. After a setter, `Bytes()` writes `\n` fences
+and the exact body. `Split` also accepts `\r\n`.
 
 ```markdown
 ---
@@ -86,33 +87,52 @@ Missing required keys or an unknown status → parse error → quarantine
 | `brief` | string | One to three sentences. `create` requires `--brief`. `validate` warns when missing or longer |
 | `deps` | list of ids | Unknown id → `DANGLING DEP` on this item. Written flow style `[a, b]` |
 | `labels` | list of strings | Free-form. `p0`–`p4` recommended for priority. Flow style |
-| `assignee` | string | `human/<name>` or `agent/<id>`. Omitted when empty; `SetAssignee("")` deletes the key |
+| `assignee` | string | `human/<name>` or `agent/<id>`. Omitted when empty. Deleted by `release`; kept by `close` as the audit trail |
 | `claimed_at` | RFC3339 UTC | Seconds precision. Set by `--claim`; deleted by `release` and `close` |
 | `refs` | list of paths | Relative to `.awit/items/`, forward slashes. Block style. Always present, `[]` when empty |
+| `external` | mapping | Optional Gitea issue link (see below). Missing is valid |
 
 New items written by `awit create` use key order
 `id, title, brief, status, deps, labels, refs` and omit empty
-`assignee` / `claimed_at`.
+`assignee` / `claimed_at`. `external` is appended when `--external-*` flags are set.
 
-### Reserved key: `external`
+### Optional key: `external`
 
 ```yaml
-external: gitlab#42
+external:
+  tracker: gitea
+  repo: owner/repo
+  id: 127
+  url: https://forge.example/owner/repo/issues/127
 ```
 
-Form: `external: <provider>#<number>` (examples: `gitlab#42`,
-`github#99`). Reserved for a future GitLab/GitHub mirror. **v1 never
-reads this key**: no struct field, no getter, no validate rule, no
-fetch. `Parse` keeps it on the YAML node; `SetStatus` and every other
-setter leave it in place; `Bytes()` emits it. Do not add `External` to
-`pkg/item.Item`.
+`id` is the repository issue **number**, not Gitea's database-wide issue ID.
+All four subkeys are required for a valid mapping. Extra nested keys are
+kept. `tracker` must be exactly `gitea`. `repo` is `owner/name` (two
+nonempty segments; no whitespace, control characters, `.`/`..`, or URL
+delimiters). `url` is absolute HTTP(S) with a host, no userinfo, query, or
+fragment; its decoded path must end in `/<owner>/<repo>/issues/<id>`
+(an installation prefix before that suffix is allowed).
+
+`awit create` and `awit update` take `--external-tracker`, `--external-repo`,
+`--external-id`, and `--external-url` together; a partial set is a usage
+error (exit 2) and writes nothing. `awit update --clear-external` removes
+the field and cannot be combined with those flags. An unchanged identical
+mapping is a no-op.
+
+A missing `external` key is valid. An invalid mapping, unsupported tracker,
+or the old reserved scalar form (`external: gitlab#42`) does **not**
+quarantine the item: Parse keeps the YAML, `External` is nil, and
+`validate` prints `WARN  <id>: invalid external: <reason>` (exit 0 unless
+there are graph faults). JSON `validate` writes that advisory on stderr
+without changing the fault-array schema. Show, list, and compact output
+display only a valid link (`gitea owner/repo#127`).
 
 ### Unknown keys
 
-Any other frontmatter key is preserved the same way as `external`.
-Teams may add their own fields without a schema change. `validate`
-does not FAIL on unknown keys. A setter that does not own the key
-must not delete it.
+Any other frontmatter key is preserved on the YAML node. Teams may add
+their own fields without a schema change. `validate` does not FAIL on
+unknown keys. A setter that does not own the key must not delete it.
 
 ### Body
 
@@ -195,4 +215,5 @@ They are project config and are meant to be committed; unlike `.awit/.lock`,
 
 These are not extra keys; they are reasons a file fails to become a
 healthy item: `PARSE ERROR`, `CONFLICT MARKERS`, `ID MISMATCH`,
-`DUPLICATE ID`, `DANGLING DEP`, `CYCLE`. `external:` is none of these.
+`DUPLICATE ID`, `DANGLING DEP`, `CYCLE`. Invalid `external:` metadata is
+none of these — it is a `validate` WARN only.

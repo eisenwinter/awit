@@ -51,7 +51,7 @@ git add .awit && git commit -m "awit: close <id>"                      # 9. unle
 
 Decisions the baseline agent had to guess, resolved:
 
-- **Finished = `close`.** `release` means "I give up the claim, someone else take it" and sets it back to `open`.
+- **Finished = `close`.** `release` means "I give up the claim, someone else take it": it returns an in-progress **or closed** item to `open`, clears `assignee` and `claimed_at`, and confirms with a plain `reopened <id>` line (never JSON, even under `--format json`).
 - **Notes go in `comment`.** `close --reason` is a one-line why, not the report; both create a comment file, so writing the same text in both duplicates it.
 - **Only `next --claim` commits** (so a double claim becomes a merge conflict, which quarantine surfaces). `comment`, `close`, `release`, `create`, `update`, `dep` leave the tree dirty — commit `.awit/` together with your code when you are done: `awit: close <id>` after a close, `awit: release <id>` after a release (otherwise Git still shows your claim to everyone else). If an orchestrator owns commits in this project (see `.omp/agents/orchestrator.md`), do not commit; report instead.
 - **`.awit/.lock` is never committed.** `awit init` gitignores it; if `git status` shows it untracked, add `.awit/.lock` to `.gitignore` first, then `git add .awit`. `init` can also seed this skill into `.claude`, `.omp`, `.opencode`, `.agents` and `.pi` (`--skills` to skip the prompts); unlike the lock, those files are project config and belong in the commit.
@@ -83,7 +83,7 @@ Work items without `## Steps` (short items): todo list = `Read refs and deps; ch
 A -> B -> C                     # longest open chain; finishing A moves the whole project
 ```
 
-`prime` is deterministic (same state → same bytes) and safe to paste into a prompt. `--max-tokens N` trims READY then BLOCKED, never warnings. `-l p0` restricts READY/BLOCKED to items with that label; `-l p0 -l auth` = both labels, `-l p0,p1` = either. `awit next -l p0` (without `--claim`) answers "is anything critical ready?" without side effects.
+`prime` is deterministic (same state → same bytes) and safe to paste into a prompt. `--max-tokens N` is a soft budget: it sheds BLOCKED rows from the end, then READY rows from the end (never the top line), then the critical path, then headings — warning details and the top READY line always survive, even over budget. `-l p0` restricts READY/BLOCKED to items with that label; `-l p0 -l auth` = both labels, `-l p0,p1` = either. `awit next -l p0` (without `--claim`) answers "is anything critical ready?" without side effects.
 
 ## Adding work items
 
@@ -139,10 +139,10 @@ When you dispatch workers instead of working yourself:
 | Take work                         | `awit next --claim` (`--no-commit` in tests)                             |
 | Read a work item                     | `awit show <id>` (~200 tokens) / `--full` (refs inlined) / `--refs-only` |
 | Record progress                   | `awit comment <id> "…"` / `--file report.log`                            |
-| Change fields                     | `awit update <id> --status                                               | --brief        | --title | --assign | -l  | --unlabel` |
-| Finish / give back                | `awit close <id> --reason "…"` / `awit release <id>`                     |
+| Change fields                     | `awit update <id> --status                                               | --brief        | --title | --assign | -l  | --unlabel | --external-* | --clear-external` |
+| Finish / give back / reopen     | `awit close <id> --reason "…"` / `awit release <id>` (prints `reopened <id>`) |
 | Dependencies                      | `awit dep add                                                            | rm <id> <dep>` |
-| Integrity                         | `awit validate [--stale-claims]` (exit 1 on FAIL)                        |
+| Integrity                         | `awit validate [--stale-claims]` (exit 1 on FAIL; invalid external is WARN)                        |
 | Everything, filtered              | `awit list -s open -l auth --ready --format json`                        |
 | Label vocabulary                  | `awit label [--state open                                                | closed         | all]`   |
 

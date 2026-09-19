@@ -31,17 +31,17 @@ prints `awit dev`.
 | Command | Flags | Purpose |
 | --- | --- | --- |
 | `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
-| `awit create <title>` | `--brief`, `-d` deps, `-l` labels, `--assign`, `--id` | Mint a snowflake ID, write a lean item |
+| `awit create <title>` | `--brief`, `-d` deps, `-l` labels, `--assign`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Mint a snowflake ID, write a lean item; optional Gitea mapping |
 | `awit list` | `-s` status, `-l` label, `--ready`, `--blocked`, `--quarantined`, `--format` | Index view |
 | `awit label` | `--state open\|closed\|all`, `--format` | Label vocabulary with usage counts |
 | `awit show <id>` | `--full`, `--refs-only` | Core item or full resolved ref tree |
 | `awit comment <id> [text]` | `--file <path>`, `--author` | Timestamped comment or attached file; append to `refs` |
-| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title` | Mutate frontmatter with a minimal diff |
+| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external` | Mutate frontmatter with a minimal diff |
 | `awit close <id>` | `--reason`, `--author` | Set `closed`, clear `claimed_at`; does not git-commit |
-| `awit release <id>` | — | Set `open`, clear `assignee` and `claimed_at` |
+| `awit release <id>` | — | Reopen an in-progress or closed item as `open`, clear `assignee` and `claimed_at`; prints `reopened <id>` (plain line, ignores `--format`) |
 | `awit dep add\|rm <id> <dep>` | — | Edit `deps` with cycle pre-check |
-| `awit validate` | `--stale-claims` | Integrity report; non-zero exit on `FAIL` |
-| `awit prime` | `--max-tokens`, `-l` label | Deterministic state graph for prompt injection |
+| `awit validate` | `--stale-claims` | Integrity report; non-zero exit on `FAIL`; invalid `external` is a WARN |
+| `awit prime` | `--max-tokens`, `-l` label | Deterministic state graph for prompt injection; `--max-tokens` is a soft budget that never sheds warnings or the top ready row |
 | `awit next` | `-l` label, `--claim`, `--no-commit`, `--seed` | Top unblocked item; optional claim |
 
 Global flags: `--format compact|table|json`, `--repo <path>` (directory that
@@ -107,10 +107,10 @@ commit.
 ```
 
 An item is YAML frontmatter (`id`, `title`, `brief`, `status`, `deps`,
-`labels`, `assignee`, `claimed_at`, `refs`) followed by a Markdown body.
+`labels`, `assignee`, `claimed_at`, `refs`, optional `external`) followed by a Markdown body.
 Priority is a label by convention (`p0`…`p4`). Blocked is derived, never
-stored. The on-disk schema, including the reserved `external:` key, is
-documented in [docs/schema.md](docs/schema.md).
+stored. The on-disk schema, including the optional Gitea `external:` mapping,
+is documented in [docs/schema.md](docs/schema.md).
 
 ## Contributing
 

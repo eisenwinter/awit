@@ -40,7 +40,7 @@ The spec left six questions open. They are decided here so that no work item has
 | 2 | Worker hash input | **hostname + worktree absolute path + branch name**, FNV-1a 32-bit, `% 64`. `AWIT_WORKER` (0–63) overrides. Branch missing (not a git repo) → empty string, still hashed. |
 | 3 | Does `close` commit? | **No.** Only `next --claim` commits. `close` is a plain file write; the human or agent commits when they are done. |
 | 4 | Comment author source | `--author` flag → `AWIT_AGENT` env → `config.agent_id` → `git config user.name` (spaces replaced by `-`, lowercased) → error `Error: no author; pass --author or set AWIT_AGENT`. Agents get `agent/<name>` prefix only when the value came from `AWIT_AGENT`/`agent_id`; `--author` and git name are used verbatim. |
-| 5 | Token estimate for `--max-tokens` | **`len(bytes)/4`**, integer division. Documented as approximate. No tokenizer dependency. |
+| 5 | Token estimate for `--max-tokens` | **`len(bytes)/4`**, integer division. Documented as approximate. No tokenizer dependency. The budget is **soft with a mandatory floor**: warning detail lines and the top ready row (when one exists after filtering) are never shed; when even they exceed N, `prime` emits them anyway. |
 | 6 | ID epoch and width | **Keep**: epoch `2026-01-01T00:00:00Z`, 30-bit seconds, 6-bit worker, 4-bit random, 8 Crockford chars. Rolls over in 2060. `Encode` returns an error if timestamp exceeds 30 bits. |
 
 Additional decisions made while writing work items:
@@ -68,6 +68,9 @@ Additional decisions made while writing work items:
 | Comment vs attachment | A file under `comments/<id>/` is a **comment** when `Split` succeeds and the frontmatter has `author` and `created`; every other file is an **attachment** (verbatim `--file` copy) and is moved, never inlined. No MIME sniffing. |
 | Archive write order | Per item: write `archive/<id>.md` atomically → move attachments (`os.Rename`, atomic write fallback on cross-device) → `os.Remove(items/<id>.md)` → `os.RemoveAll(comments/<id>)`. Idempotent: if both `archive/<id>.md` and `items/<id>.md` exist (crash between steps) the archive file is rebuilt from `items/` and overwritten. |
 | Does `archive` commit? | **No**, same as `close`. Holds `Store.Lock`. Output ignores `--format` (like `close`): one `archived <id>` line per item, sorted by ID, then `Archived N items`. `--dry-run` writes nothing, prints `would archive <id>` lines and `skip <id>: dependant <dep-id> not archivable` for every closed item left behind, then `Would archive N items`. Exit 0 even when N = 0. |
+| Release output | **No commit**, same as `close`. Holds `Store.Lock`. Every source state — `open`, `in_progress`, `closed` — ends `open` with `assignee`/`claimed_at` deleted, so release is an idempotent visible action. Output ignores `--format` (like `close` and `archive`): exactly one `reopened <id>` line, printed only after `Store.Save` succeeds; load/write failures print no success line. |
+| `external` mapping | Optional Gitea link: `{tracker: gitea, repo: owner/repo, id: <issue number>, url: <http(s)>}`. `id` is the repository issue number. `create`/`update` require `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` together (partial → exit 2, no write). `update --clear-external` is mutually exclusive with those flags. Invalid or legacy scalar `external:` values set `ExternalProblem` and are **not** quarantined; `validate` prints `WARN  <id>: invalid external: <reason>` (JSON: that line on stderr; fault-array schema unchanged). Exit 0 unless graph faults exist. |
+| `Bytes()` dirty tracking | `Parse` keeps the original source bytes. `Bytes()` returns them unchanged until a setter runs. After any setter, `Bytes()` re-encodes the YAML node with `\n` fences and the exact body. `New` starts dirty. `SetBody` stores a copy with no newline conversion. An identical `SetExternal` is a no-op. |
 
 ## 3. Repository layout
 
@@ -214,18 +217,28 @@ type Broken struct {
 }
 
 type Item struct {
-    ID        string
-    Title     string
-    Brief     string
-    Status    Status
-    Deps      []string
-    Labels    []string
-    Assignee  string     // "" = absent
-    ClaimedAt *time.Time // nil = absent
-    Refs      []string   // forward-slash relative to .awit/items/
-    Path      string     // absolute path on disk, "" for unsaved
-    // unexported: doc *yaml.Node (the mapping node), body []byte (everything after the closing ---\n), extra keys preserved inside doc
+    ID              string
+    Title           string
+    Brief           string
+    Status          Status
+    Deps            []string
+    Labels          []string
+    Assignee        string     // "" = absent
+    ClaimedAt       *time.Time // nil = absent
+    Refs            []string   // forward-slash relative to .awit/items/
+    Path            string     // absolute path on disk, "" for unsaved
+    External        *External  // nil when missing or invalid
+    ExternalProblem string     // derived diagnostic; never serialized
+    // unexported: doc *yaml.Node (the mapping node), body []byte (everything after the closing ---\n), raw []byte (original source), dirty bool, extra keys preserved inside doc
 }
+
+type External struct {
+    Tracker string `json:"tracker"`
+    Repo    string `json:"repo"`
+    ID      int64  `json:"id"`
+    URL     string `json:"url"`
+}
+func ValidateExternal(e External) error
 
 // Split separates frontmatter and body. data must start with "---\n" (or "---\r\n").
 // Returns the YAML bytes between the fences and the raw body bytes after the closing fence line.
@@ -237,9 +250,10 @@ func HasConflictMarkers(data []byte) bool
 
 // Parse decodes an item. path is stored on the Item; the caller checks ID vs filename.
 // Missing required keys (id, title, status) → error. Unknown status → error. Unknown keys are kept.
+// Invalid optional `external` populates ExternalProblem and leaves the YAML intact; Parse still succeeds.
 func Parse(path string, data []byte) (*Item, error)
 
-// New builds an unsaved item with canonical key order and the body template.
+// New builds an unsaved item with canonical key order and the body template. Starts dirty.
 func New(id, title, brief string, deps, labels []string) *Item
 
 // Setters update both the struct field and the yaml node (creating or deleting the key).
@@ -251,10 +265,11 @@ func (it *Item) SetClaimedAt(t *time.Time)   // nil deletes the key
 func (it *Item) SetDeps(v []string)
 func (it *Item) SetLabels(v []string)
 func (it *Item) SetRefs(v []string)
+func (it *Item) SetExternal(e *External) error // nil removes external; identical mapping is a no-op
+func (it *Item) SetBody(body []byte)          // owns a copy; no normalization
 func (it *Item) HasLabel(l string) bool
 
-// Bytes renders "---\n<yaml>---\n<body>". Round-trip of a parsed file must be byte-identical
-// when no setter was called.
+// Bytes returns the original source when no setter has run; otherwise "---\n<yaml>---\n<body>".
 func (it *Item) Bytes() ([]byte, error)
 
 // Body returns the raw markdown body (read-only view).
@@ -429,24 +444,27 @@ func IsTerminal(f *os.File) bool  // os.ModeCharDevice check
 
 // Entry is the format-neutral row. graph → Entry conversion lives in internal/cli.
 type Entry struct {
-    ID       string   `json:"id"`
-    Title    string   `json:"title"`
-    Brief    string   `json:"brief,omitempty"`
-    Status   string   `json:"status"`
-    State    string   `json:"state"`       // ready | blocked | closed | quarantined
-    Labels   []string `json:"labels"`
-    Deps     []string `json:"deps"`
-    Assignee string   `json:"assignee,omitempty"`
-    Unblocks int      `json:"unblocks"`    // -1 when quarantined
-    Faults   []string `json:"faults,omitempty"` // "[CYCLE] ...", only when quarantined
+    ID       string         `json:"id"`
+    Title    string         `json:"title"`
+    Brief    string         `json:"brief,omitempty"`
+    Status   string         `json:"status"`
+    State    string         `json:"state"`       // ready | blocked | closed | quarantined
+    Labels   []string       `json:"labels"`
+    Deps     []string       `json:"deps"`
+    Assignee string         `json:"assignee,omitempty"`
+    Unblocks int            `json:"unblocks"`    // -1 when quarantined
+    Faults   []string       `json:"faults,omitempty"` // "[CYCLE] ...", only when quarantined
+    External *item.External `json:"external,omitempty"`
 }
 
 // Line renders the one-line compact form used by list, next and prime:
 // "[ID] Title | label1,label2 | Unblocks: N"; labels part is "-" when empty; quarantined appends " | QUARANTINED".
+// A valid External appends " | External: gitea owner/repo#127".
 func Line(e Entry) string
 
 // Write renders entries in the given format. JSON is an array, indented two spaces, trailing newline.
-// Table columns: ID, STATE, TITLE, LABELS, UNBLOCKS — left aligned, two-space gutter, header row uppercase.
+// Table columns: ID, STATUS, STATE, TITLE, LABELS, UNBLOCKS — left aligned, two-space gutter, header row uppercase.
+// An EXTERNAL column is added only when any displayed row has a valid External link.
 func Write(w io.Writer, f Format, entries []Entry) error
 // WriteOne renders a single entry: compact → Line; table → key/value block; json → object.
 func WriteOne(w io.Writer, f Format, e Entry) error
@@ -475,6 +493,19 @@ func Render(w io.Writer, g *graph.Graph, opts Options) error
 // EstimateTokens = len(b)/4.
 func EstimateTokens(b []byte) int
 ```
+
+Truncation contract (`Render` with `MaxTokens > 0`): the budget is soft
+with a mandatory floor. Shed richest-first — BLOCKED rows from the end,
+then READY rows from the end (never the first; kept rows are prefixes),
+then the CRITICAL PATH section as a whole, then scaffolding (empty
+sections, the `(+N more)` notice, READY/BLOCKED headers, finally the
+warnings heading). Warning detail lines and the top ready row (when one
+exists after filtering) are never shed; when even they exceed N, emit
+them anyway. Counts stay post-filter/pre-truncation; `(+N more)` counts
+shed ready+blocked rows only. Negative CLI budgets are usage errors
+(exit 2). Candidate costs are computed arithmetically from precomputed
+lengths (rows as prefix sums, separators, headers, the notice); the
+retained form is chosen before writing once.
 
 ### 4.9 `pkg/resolver`
 
@@ -587,7 +618,7 @@ costs one string rather than a second copy of the skill.
 - **Command tests** in `internal/cli/*_test.go` call `Main([]string{...}, strings.NewReader(""), &out, &errb)` against a copy of a fixture (`copyFixture(t, "clean") string` helper in `internal/cli/helpers_test.go` returns the temp repo root; always pass `--repo`).
 - **Golden files**: `testdata/golden/<name>.golden`; compare with `bytes.Equal`; on mismatch print a unified-ish diff (`t.Errorf("got:\n%s\nwant:\n%s")`) and hint `go test ./... -update`.
 - **Fixtures** are complete `.awit/` trees committed to git. Because `config.yaml` is required, every fixture has one with `prefix: AWIT`. Fixture item IDs are `AWIT-TEST0001`..`AWIT-TEST00NN` — valid Crockford, readable in assertions. The `conflicted` fixture contains literal `<<<<<<< HEAD` lines, so `.gitattributes` must mark `testdata/fixtures/conflicted/** -merge` to keep Git from mangling it.
-- **Windows**: any test comparing paths uses `filepath.Join`; any test comparing frontmatter refs expects forward slashes. Only the ref itself is forward-slash — a resolved on-disk path (`resolver.Resolved.Path`, the right-hand side of `show --refs-only`) carries OS separators, so never assert "no backslash" on a whole line that contains one. Line endings: `Split` accepts `\r\n`; `Bytes()` writes `\n`.
+- **Windows**: any test comparing paths uses `filepath.Join`; any test comparing frontmatter refs expects forward slashes. Only the ref itself is forward-slash — a resolved on-disk path (`resolver.Resolved.Path`, the right-hand side of `show --refs-only`) carries OS separators, so never assert "no backslash" on a whole line that contains one. Line endings: `Split` accepts `\r\n`; `Bytes()` returns the original source (including CRLF) when no setter has run, and writes `\n` fences after a mutation.
 - **Never commit two paths that differ only in case.** Windows and default macOS fold them into one file: git checks out whichever comes last and then reports the survivor as permanently modified in every clone. A test that needs such a pair builds it in `t.TempDir()` and `t.Skip`s when the filesystem folds it (see `duplicateIDRoot` in `pkg/graph/graph_test.go`). CI enforces this in the `lint` job.
 - **Determinism test** (`prime`): render twice on the same graph, `bytes.Equal`; also compare against the golden file, which CI runs on both OSes.
 - **Commands that prompt** read one line from `cmd.Root().Reader`, so a test drives them with `runStdin(t, "y\n", …)`. Do not gate a prompt on `format.IsTerminal`: the harness passes a `strings.Reader`, so the prompt path would never be exercised. The hazard `IsTerminal` guards in `readStdinText` is reading to **EOF**, which blocks on a TTY; reading a single line does not, and an exhausted or closed stdin simply reads EOF, which must mean "no". `IsTerminal` is still right for deciding whether to echo a newline after the answer, which is display, not control flow.
@@ -700,6 +731,18 @@ Phase order is dependency order; within a phase, work items without mutual deps 
 | `AWIT-0NEZV7T2` | Rename ticket to work item across living docs and open items | — | phase5, p1 |
 | `AWIT-0NEX14T9` | skill: correct author resolution in driving-awit | — | phase5, p1 |
 | `AWIT-0NEWKJTD` | init: seed the driving-awit skill into detected agent dirs | X14T9, ZV7T2 | phase5, p1 |
+| `AWIT-0NHDBCDN` | Structured Gitea external metadata | 5753G, 56H3G, 56M3G, 56F3G, 56S3G | phase5, p0 |
+| `AWIT-0NHDBJDR` | Import Gitea issues through tea, alias lookup | 56E3G, FAW5DT, 56K3G, 56J3G, HBCDN | phase5, p0 |
+| `AWIT-0NHDBNDS` | External body drift check + byte-exact push | 56S3G, 5753G, HBCDN, HBJDR | phase5, p1 |
+| `AWIT-0NHDBQDT` | Push close/reopen state to Gitea, one-way | 56M3G, F68SDS, F68SDG, HBCDN, HBJDR | phase5, p1 |
+| `AWIT-0NHDBSDQ` | Warn once on quarantined graph reads | 56S3G, 56J3G, 56W3G, 56X3G, 56R3G, E610DS | phase5, p1 |
+| `AWIT-0NHDBWDM` | Prime payload-preserving truncation | 56W3G, 56V3G | phase3, p1 |
+| `AWIT-0NHDBZDH` | Release confirmation + reopen docs | 56M3G, F68SDS, F3RZDP | phase1, p1 |
+| `AWIT-0NHDC2DN` | Ref add/rm, repo-root base migration | 56Z3G, 5703G, 56Y3G, E610DS | phase4, p1 |
+| `AWIT-0NHDC5DZ` | Claim commit policy (commit:false) | 56A3G, 56X3G, FAW5DT | phase5, p1 |
+| `AWIT-0NHDC7DK` | Configured item-body template | 56A3G, 56H3G, HBCDN | phase1, p1 |
+| `AWIT-0NHDC9DT` | Advisory label vocabulary warning | 56A3G, 56H3G, F68SDG, 65763G | phase5, p2 |
+| `AWIT-0NHDCDDZ` | Next --why selection explanation | 56X3G, 56V3G, FAW5DT | phase3, p2 |
 
 Short forms in the Deps column are the last four characters of the ID; the work item files use full IDs.
 

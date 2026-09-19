@@ -110,6 +110,7 @@ refs:
 | `assignee` | string | `human/<name>` or `agent/<id>`; set by `--claim` or `--assign` |
 | `claimed_at` | RFC 3339 | Set by `--claim`, cleared by `release` and `close`; drives stale-claim check |
 | `refs` | list | Paths relative to `.awit/items/`, forward slashes only |
+| `external` | mapping | Optional Gitea link `{tracker, repo, id, url}`. `id` is the repository issue number. Invalid or legacy scalar values warn on `validate` and do not quarantine |
 
 Unknown keys are preserved on write so teams can add their own fields without a schema change. `config.yaml` holds `prefix`, optional `default_labels`, `stale_claim` (duration, default `2h`), and `agent_id` (overridden by `AWIT_AGENT`).
 
@@ -168,16 +169,16 @@ Fourteen commands; `-p` is gone everywhere, `release`, `validate`, `label` and `
 | Command | Flags | User | Purpose |
 | --- | --- | --- | --- |
 | `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Human | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
-| `awit create <title>` | `--brief`, `-d deps`, `-l labels`, `--assign`, `--id` | Both | Mint a snowflake ID, write a lean item |
+| `awit create <title>` | `--brief`, `-d deps`, `-l labels`, `--assign`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Both | Mint a snowflake ID, write a lean item; optional Gitea mapping |
 | `awit list` | `-s status`, `-l label`, `--ready`, `--blocked`, `--quarantined`, `--format` | Both | Index view |
 | `awit label` | `--state open\|closed\|all`, `--format` | Both | Label vocabulary with usage counts; answers "what labels exist and how busy are they" |
 | `awit show <id>` | `--full`, `--refs-only` | Agent | Core item (~200 tokens) or full resolved ref tree |
 | `awit comment <id> [text]` | `--file <path>`, `--author` | Both | Write a timestamped comment or attach an external file; append to `refs` |
-| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title` | Both | Mutate frontmatter with a minimal diff |
+| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external` | Both | Mutate frontmatter with a minimal diff |
 | `awit close <id>` | `--reason` | Both | Set `closed`, clear `claimed_at`, append reason as a comment |
-| `awit release <id>` | — | Both | Set `open`, clear `assignee` and `claimed_at` |
+| `awit release <id>` | — | Both | Reopen an in-progress or closed item to `open`, clear `assignee` and `claimed_at`; prints `reopened <id>` (plain line, ignores `--format`) |
 | `awit dep add\|rm <id> <dep>` | — | Both | Edit `deps` with cycle pre-check |
-| `awit validate` | `--stale-claims` | Both | Integrity report; non-zero exit on `FAIL` |
+| `awit validate` | `--stale-claims` | Both | Integrity report; non-zero exit on `FAIL`; invalid `external` is a WARN |
 | `awit archive` | `--dry-run` | Human | Move the fixed-point set of closed items to `.awit/archive/`, one collapsed file each |
 | `awit prime` | `--max-tokens`, `-l label` | Agent | Deterministic state graph for prompt injection |
 | `awit next` | `-l label`, `--claim`, `--no-commit`, `--seed` | Agent | Top unblocked item; optional claim |
@@ -212,7 +213,7 @@ Rules:
 
 - Ready sorted by unblocks desc, then ID asc; blocked sorted by ID. No timestamps, no randomness, so identical state yields identical bytes.
 - Warnings section is omitted when empty; counts in headers let the agent see truncation.
-- `--max-tokens N` budgets at ~4 chars per token: warnings and critical path always fit, then ready items drop from the bottom, then blocked, ending with `(+N more)`.
+- `--max-tokens N` budgets at ~4 chars per token (soft budget with a mandatory floor): shed BLOCKED rows from the end, then READY rows from the end (never the first), then the critical-path section as a whole, then scaffolding (empty sections, the `(+N more)` notice, READY/BLOCKED headers, finally the warnings heading). Kept rows are prefixes; counts stay post-filter/pre-truncation. Warning detail lines and the top READY row are never shed — when even they exceed N, `prime` emits them anyway. Negative budgets are usage errors (exit 2).
 - `-l label` restricts ready and blocked to items carrying that label (repeatable).
 
 ### `awit next`
@@ -291,7 +292,7 @@ Six phases; phases 1–2 set the codebase's shape, and the agent surface waits u
 - [ ] Documented pre-commit hook running `awit validate`
 - [ ] goreleaser config, version embedding, `README` with the agent loop
 - [ ] `init --skills`: detect `.claude`, `.omp`, `.opencode`, `.agents`, `.pi` and offer to seed the driving-awit skill from an embedded asset
-- [ ] Reserve `external:` frontmatter key (unused) for a future GitLab/GitHub mirror
+- [ ] Structured `external:` Gitea mapping (`tracker`, `repo`, issue `id`, `url`); invalid values warn, do not quarantine
 - [ ] `archive`: fixed-point eligibility, comment collapse, attachment move, `--dry-run`; `validate` stays `PASS` afterwards
 
 ## Open questions
