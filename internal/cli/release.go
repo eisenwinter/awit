@@ -12,6 +12,7 @@ import (
 var releaseCmd = &cli.Command{
 	Name: "release", Usage: "Return an in-progress or closed item to open and clear its claim", ArgsUsage: "<id>",
 	Flags: []cli.Flag{
+		&cli.StringFlag{Name: "push", Usage: "`true|false` overrides the external-push policy (config.yaml external_push:, default true)"},
 		&cli.BoolFlag{Name: "no-push", Usage: "skip pushing the reopened state to the linked external issue"},
 		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for a Gitea issue; ignored for GitLab"},
 	},
@@ -28,6 +29,10 @@ func releaseAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	noteWalkedUp(cmd, s)
+	push, err := externalPushPolicy(cmd, s.Config)
+	if err != nil {
+		return err
+	}
 	release, err := s.Lock(5 * time.Second)
 	if err != nil {
 		return err
@@ -45,9 +50,9 @@ func releaseAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	fmt.Fprintf(cmd.Root().Writer, "reopened %s\n", it.ID)
 	if items, _, err := s.LoadAll(); err == nil {
-		maybePushExternalState(ctx, cmd, items, it, "open")
+		maybePushExternalState(ctx, cmd, items, it, "open", push)
 	} else {
-		maybePushExternalState(ctx, cmd, []*item.Item{it}, it, "open")
+		maybePushExternalState(ctx, cmd, []*item.Item{it}, it, "open", push)
 	}
 	return nil
 }

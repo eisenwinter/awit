@@ -243,6 +243,122 @@ func TestCommitPolicyWriteRoundTrip(t *testing.T) {
 	}
 }
 
+func TestExternalPushShouldPushExternal(t *testing.T) {
+	no, yes := false, true
+	tests := []struct {
+		name string
+		c    Config
+		want bool
+	}{
+		{"zero config pushes", Config{}, true},
+		{"nil external_push pushes", Config{ExternalPush: nil}, true},
+		{"explicit false skips", Config{ExternalPush: &no}, false},
+		{"explicit true pushes", Config{ExternalPush: &yes}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.c.ShouldPushExternal(); got != tt.want {
+				t.Fatalf("ShouldPushExternal() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExternalPushLoad(t *testing.T) {
+	tests := []struct {
+		name string
+		yaml string
+		want bool
+	}{
+		{"absent key means push", "prefix: AWIT\n", true},
+		{"external_push false", "prefix: AWIT\nexternal_push: false\n", false},
+		{"external_push true", "prefix: AWIT\nexternal_push: true\n", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, FileName), []byte(tt.yaml), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			c, err := Load(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c.ShouldPushExternal() != tt.want {
+				t.Fatalf("ShouldPushExternal() = %v, want %v", c.ShouldPushExternal(), tt.want)
+			}
+			if c.ShouldCommit() != true {
+				t.Fatal("external_push must not change ShouldCommit")
+			}
+		})
+	}
+}
+
+func TestExternalPushWriteRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	c := Default("AWIT")
+	if err := c.Write(dir); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "external_push") {
+		t.Fatalf("Default config must not write an external_push key: %q", data)
+	}
+
+	no := false
+	c.ExternalPush = &no
+	if err := c.Write(dir); err != nil {
+		t.Fatal(err)
+	}
+	data, err = os.ReadFile(filepath.Join(dir, FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "external_push: false") {
+		t.Fatalf("Write must keep external_push: false: %q", data)
+	}
+	loaded, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.ShouldPushExternal() {
+		t.Fatal("external_push: false must survive Write -> Load")
+	}
+
+	yes := true
+	c.ExternalPush = &yes
+	if err := c.Write(dir); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err = Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !loaded.ShouldPushExternal() {
+		t.Fatal("external_push: true must survive Write -> Load")
+	}
+}
+
+func TestExternalPushIndependentOfCommit(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte("prefix: AWIT\ncommit: false\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.ShouldCommit() {
+		t.Fatal("commit: false must skip claims")
+	}
+	if !c.ShouldPushExternal() {
+		t.Fatal("omitted external_push must still push")
+	}
+}
+
 func TestTemplateLoadAbsent(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, FileName), []byte("prefix: AWIT\n"), 0o644); err != nil {

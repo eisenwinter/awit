@@ -14,6 +14,7 @@ var closeCmd = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "reason"},
 		&cli.StringFlag{Name: "author"},
+		&cli.StringFlag{Name: "push", Usage: "`true|false` overrides the external-push policy (config.yaml external_push:, default true)"},
 		&cli.BoolFlag{Name: "no-push", Usage: "skip pushing the closed state to the linked external issue"},
 		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for a Gitea issue; ignored for GitLab"},
 	},
@@ -30,6 +31,10 @@ func closeAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	noteWalkedUp(cmd, s)
+	push, err := externalPushPolicy(cmd, s.Config)
+	if err != nil {
+		return err
+	}
 	release, err := s.Lock(5 * time.Second)
 	if err != nil {
 		return err
@@ -54,9 +59,9 @@ func closeAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	fmt.Fprintf(cmd.Root().Writer, "closed %s\n", it.ID)
 	if items, _, err := s.LoadAll(); err == nil {
-		maybePushExternalState(ctx, cmd, items, it, "closed")
+		maybePushExternalState(ctx, cmd, items, it, "closed", push)
 	} else {
-		maybePushExternalState(ctx, cmd, []*item.Item{it}, it, "closed")
+		maybePushExternalState(ctx, cmd, []*item.Item{it}, it, "closed", push)
 	}
 	return nil
 }

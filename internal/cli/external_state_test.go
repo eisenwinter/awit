@@ -717,3 +717,581 @@ func TestExternalStateGitLabNoPushSkipsAll(t *testing.T) {
 		t.Fatalf("--no-push must skip even malformed metadata: %q", stderr)
 	}
 }
+
+func writeExternalPushConfig(t *testing.T, repo, extra string) {
+	t.Helper()
+	writeDefaultLabels(t, repo, []byte("prefix: AWIT\nstale_claim: 2h\n"+extra))
+}
+
+func TestExternalPushPolicyConfigFalseKeepsCloseLocal(t *testing.T) {
+	repo, stub := externalRepo(t)
+	writeDefaultLabels(t, repo, []byte("prefix: AWIT\nstale_claim: 2h\nexternal_push: false\n"))
+	writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+	writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"body\n"}`)
+	code, _, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--tea-login", "sandbox")
+	if code != 0 || readItem(t, repo, "AWIT-TEST0001").Status != item.StatusClosed {
+		t.Fatalf("local close failed: exit %d, stderr %q", code, stderr)
+	}
+	if len(stubArgvLog(t, stub)) != 0 {
+		t.Fatal("config-disabled close executed tea")
+	}
+	if !strings.Contains(stderr, "skipped by config external_push: false") {
+		t.Fatalf("missing config skip diagnostic: %q", stderr)
+	}
+}
+
+func TestExternalPushPolicyConfigFalseKeepsReleaseAndUpdateLocal(t *testing.T) {
+	t.Run("release", func(t *testing.T) {
+		repo, stub := externalRepo(t)
+		writeExternalPushConfig(t, repo, "external_push: false\n")
+		writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+		writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"closed","body":"body\n"}`)
+		code, _, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--no-push")
+		if code != 0 {
+			t.Fatalf("setup close --no-push: exit %d stderr %q", code, stderr)
+		}
+		code, stdout, stderr := run(t, "--repo", repo, "release", "AWIT-TEST0001", "--tea-login", "sandbox")
+		if code != 0 {
+			t.Fatalf("exit %d stderr %q", code, stderr)
+		}
+		if stdout != "reopened AWIT-TEST0001\n" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if got := readItem(t, repo, "AWIT-TEST0001"); got.Status != item.StatusOpen || got.Assignee != "" {
+			t.Fatalf("release must still clear the claim: status=%q assignee=%q", got.Status, got.Assignee)
+		}
+		if len(stubArgvLog(t, stub)) != 0 {
+			t.Fatalf("config-disabled release executed tea: %v", stubArgvLog(t, stub))
+		}
+		if !strings.Contains(stderr, "skipped by config external_push: false") {
+			t.Fatalf("missing config skip diagnostic: %q", stderr)
+		}
+		if !strings.Contains(stderr, "push with awit update AWIT-TEST0001 --status open --push=true") {
+			t.Fatalf("skip hint = %q", stderr)
+		}
+		if got := stubIssueState(t, stub, 127); got != "closed" {
+			t.Fatalf("remote state = %q, want unchanged closed", got)
+		}
+	})
+	t.Run("update status closed", func(t *testing.T) {
+		repo, stub := externalRepo(t)
+		writeExternalPushConfig(t, repo, "external_push: false\n")
+		writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+		writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"body\n"}`)
+		code, stdout, stderr := run(t, "--repo", repo, "update", "AWIT-TEST0001", "--status", "closed", "--tea-login", "sandbox")
+		if code != 0 {
+			t.Fatalf("exit %d stderr %q", code, stderr)
+		}
+		if stdout != "updated AWIT-TEST0001: status=closed\n" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if got := readItem(t, repo, "AWIT-TEST0001"); got.Status != item.StatusClosed {
+			t.Fatalf("local status = %q", got.Status)
+		}
+		if len(stubArgvLog(t, stub)) != 0 {
+			t.Fatalf("config-disabled update executed tea: %v", stubArgvLog(t, stub))
+		}
+		want := "warning: AWIT-TEST0001 saved locally; external state push skipped by config external_push: false; push with awit update AWIT-TEST0001 --status closed --push=true\n"
+		if stderr != want {
+			t.Fatalf("stderr = %q, want %q", stderr, want)
+		}
+		if got := stubIssueState(t, stub, 127); got != "open" {
+			t.Fatalf("remote state = %q, want unchanged open", got)
+		}
+	})
+}
+
+func TestExternalPushPolicyExplicitTrueOverridesConfigFalse(t *testing.T) {
+	repo, stub := externalRepo(t)
+	writeExternalPushConfig(t, repo, "external_push: false\n")
+	writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+	writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"body\n"}`)
+	code, stdout, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--push=true", "--no-push=false", "--tea-login", "sandbox")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if stdout != "closed AWIT-TEST0001\n" {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want no skip warning when --push=true", stderr)
+	}
+	if got := stubIssueState(t, stub, 127); got != "closed" {
+		t.Fatalf("remote state = %q, want closed", got)
+	}
+}
+
+func TestExternalPushPolicySameStatusOverrideRetry(t *testing.T) {
+	repo, stub := externalRepo(t)
+	writeExternalPushConfig(t, repo, "external_push: false\n")
+	writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+	writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"body\n"}`)
+	code, _, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--tea-login", "sandbox")
+	if code != 0 {
+		t.Fatalf("config-disabled close: exit %d stderr %q", code, stderr)
+	}
+	if got := stubIssueState(t, stub, 127); got != "open" {
+		t.Fatalf("remote state = %q after skipped close", got)
+	}
+	code, stdout, stderr := run(t, "--repo", repo, "update", "AWIT-TEST0001", "--status", "closed", "--push=true", "--tea-login", "sandbox")
+	if code != 0 {
+		t.Fatalf("override retry: exit %d stderr %q", code, stderr)
+	}
+	if stdout != "updated AWIT-TEST0001: status=closed\n" {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want no warning on explicit retry", stderr)
+	}
+	if got := stubIssueState(t, stub, 127); got != "closed" {
+		t.Fatalf("remote state = %q, want closed after --push=true retry", got)
+	}
+}
+
+func TestExternalPushPolicyExplicitFalseAndNoPushAreSilent(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"push false", []string{"--push=false"}},
+		{"no-push", []string{"--no-push"}},
+		{"push false with config false", []string{"--push=false"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo, stub := externalRepo(t)
+			if strings.Contains(tc.name, "config false") {
+				writeExternalPushConfig(t, repo, "external_push: false\n")
+			}
+			writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+			writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"body\n"}`)
+			args := append([]string{"--repo", repo, "close", "AWIT-TEST0001", "--tea-login", "sandbox"}, tc.args...)
+			code, stdout, stderr := run(t, args...)
+			if code != 0 {
+				t.Fatalf("exit %d stderr %q", code, stderr)
+			}
+			if stdout != "closed AWIT-TEST0001\n" {
+				t.Fatalf("stdout = %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("explicit disable must be silent: %q", stderr)
+			}
+			if len(stubArgvLog(t, stub)) != 0 {
+				t.Fatalf("explicit disable executed tea: %v", stubArgvLog(t, stub))
+			}
+			if got := readItem(t, repo, "AWIT-TEST0001"); got.Status != item.StatusClosed {
+				t.Fatalf("local status = %q", got.Status)
+			}
+		})
+	}
+}
+
+func TestExternalPushPolicyNoPushFalseIsNeutral(t *testing.T) {
+	repo, stub := externalRepo(t)
+	writeExternalPushConfig(t, repo, "external_push: false\n")
+	writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+	writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"body\n"}`)
+	code, _, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--no-push=false", "--tea-login", "sandbox")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if len(stubArgvLog(t, stub)) != 0 {
+		t.Fatalf("--no-push=false must not override config false: %v", stubArgvLog(t, stub))
+	}
+	if !strings.Contains(stderr, "skipped by config external_push: false") {
+		t.Fatalf("neutral --no-push=false must keep the config skip: %q", stderr)
+	}
+}
+
+func TestExternalPushPolicyOmittedAndTrueStillPush(t *testing.T) {
+	for _, extra := range []string{"", "external_push: true\n"} {
+		name := "omitted"
+		if extra != "" {
+			name = "true"
+		}
+		t.Run(name, func(t *testing.T) {
+			repo, stub := externalRepo(t)
+			if extra != "" {
+				writeExternalPushConfig(t, repo, extra)
+			}
+			writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+			writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"body\n"}`)
+			code, stdout, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--tea-login", "sandbox")
+			if code != 0 {
+				t.Fatalf("exit %d stderr %q", code, stderr)
+			}
+			if stdout != "closed AWIT-TEST0001\n" || stderr != "" {
+				t.Fatalf("stdout = %q stderr = %q", stdout, stderr)
+			}
+			if got := stubIssueState(t, stub, 127); got != "closed" {
+				t.Fatalf("remote state = %q, want closed", got)
+			}
+		})
+	}
+}
+
+func TestExternalPushPolicyFlagConflicts(t *testing.T) {
+	tests := []struct {
+		name   string
+		args   []string
+		stderr string
+	}{
+		{"push true plus no-push", []string{"close", "AWIT-TEST0001", "--push=true", "--no-push"}, "--push and --no-push cannot be combined\n"},
+		{"push false plus no-push", []string{"close", "AWIT-TEST0001", "--push=false", "--no-push"}, "--push and --no-push cannot be combined\n"},
+		{"invalid value", []string{"close", "AWIT-TEST0001", "--push=yes"}, "invalid --push value \"yes\": use --push=true or --push=false\n"},
+		{"invalid on status update", []string{"update", "AWIT-TEST0001", "--status", "closed", "--push=bogus"}, "invalid --push value \"bogus\": use --push=true or --push=false\n"},
+		{"invalid on non-status update", []string{"update", "AWIT-TEST0001", "--title", "New", "--push=yes"}, "invalid --push value \"yes\": use --push=true or --push=false\n"},
+		{"conflict on non-status update", []string{"update", "AWIT-TEST0001", "--title", "New", "--push=true", "--no-push"}, "--push and --no-push cannot be combined\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo, stub := externalRepo(t)
+			writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+			writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"body\n"}`)
+			before := itemFileBytes(t, repo)
+			args := append([]string{"--repo", repo}, tc.args...)
+			args = append(args, "--tea-login", "sandbox")
+			code, stdout, stderr := run(t, args...)
+			if code != 2 {
+				t.Fatalf("exit %d, want 2 (stdout %q stderr %q)", code, stdout, stderr)
+			}
+			if stderr != tc.stderr {
+				t.Fatalf("stderr = %q, want %q", stderr, tc.stderr)
+			}
+			after := itemFileBytes(t, repo)
+			if after["AWIT-TEST0001.md"] != before["AWIT-TEST0001.md"] {
+				t.Fatal("usage error must precede any item write")
+			}
+			if len(stubArgvLog(t, stub)) != 0 {
+				t.Fatalf("usage error executed tea: %v", stubArgvLog(t, stub))
+			}
+		})
+	}
+}
+
+func TestExternalPushPolicyNoLeakAcrossMainCalls(t *testing.T) {
+	t.Run("explicit --push=false does not leak", func(t *testing.T) {
+		repo, stub := externalRepo(t)
+		writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+		writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"body\n"}`)
+		code, _, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--push=false", "--tea-login", "sandbox")
+		if code != 0 {
+			t.Fatalf("first close: exit %d stderr %q", code, stderr)
+		}
+		if got := stubIssueState(t, stub, 127); got != "open" {
+			t.Fatalf("first close must skip the push: remote=%q", got)
+		}
+		code, _, stderr = run(t, "--repo", repo, "update", "AWIT-TEST0001", "--status", "closed", "--tea-login", "sandbox")
+		if code != 0 {
+			t.Fatalf("second update: exit %d stderr %q", code, stderr)
+		}
+		if got := stubIssueState(t, stub, 127); got != "closed" {
+			t.Fatalf("second call must push; remote=%q", got)
+		}
+	})
+	t.Run("--no-push does not leak", func(t *testing.T) {
+		repo, stub := externalRepo(t)
+		writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+		writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"body\n"}`)
+		code, _, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--no-push", "--tea-login", "sandbox")
+		if code != 0 {
+			t.Fatalf("first close: exit %d stderr %q", code, stderr)
+		}
+		code, _, stderr = run(t, "--repo", repo, "update", "AWIT-TEST0001", "--status", "closed", "--tea-login", "sandbox")
+		if code != 0 {
+			t.Fatalf("second update: exit %d stderr %q", code, stderr)
+		}
+		if got := stubIssueState(t, stub, 127); got != "closed" {
+			t.Fatalf("second call must push; remote=%q", got)
+		}
+	})
+	t.Run("--push=true does not override config false later", func(t *testing.T) {
+		repo, stub := externalRepo(t)
+		writeExternalPushConfig(t, repo, "external_push: false\n")
+		writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("one\n"))
+		writeExternalItem(t, repo, "AWIT-TEST0002", giteaExt("owner/repo", 128), []byte("two\n"))
+		writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"one\n"}`)
+		writeTeaIssue(t, stub, 128, `{"number":128,"title":"U","state":"open","body":"two\n"}`)
+		code, _, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--push=true", "--tea-login", "sandbox")
+		if code != 0 {
+			t.Fatalf("first close: exit %d stderr %q", code, stderr)
+		}
+		if got := stubIssueState(t, stub, 127); got != "closed" {
+			t.Fatalf("explicit true must push; remote=%q", got)
+		}
+		code, _, stderr = run(t, "--repo", repo, "close", "AWIT-TEST0002", "--tea-login", "sandbox")
+		if code != 0 {
+			t.Fatalf("second close: exit %d stderr %q", code, stderr)
+		}
+		if !strings.Contains(stderr, "skipped by config external_push: false") {
+			t.Fatalf("second close must follow config: %q", stderr)
+		}
+		if got := stubIssueState(t, stub, 128); got != "open" {
+			t.Fatalf("second close must not push; remote=%q", got)
+		}
+	})
+}
+
+func TestExternalPushPolicyUnlinkedAndNonStatusStaySilent(t *testing.T) {
+	t.Run("unlinked close", func(t *testing.T) {
+		repo, stub := externalRepo(t)
+		writeExternalPushConfig(t, repo, "external_push: false\n")
+		writeExternalItem(t, repo, "AWIT-TEST0001", "", []byte("body\n"))
+		writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"x"}`)
+		code, stdout, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--tea-login", "sandbox")
+		if code != 0 {
+			t.Fatalf("exit %d stderr %q", code, stderr)
+		}
+		if stdout != "closed AWIT-TEST0001\n" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if stderr != "" {
+			t.Fatalf("unlinked close must not emit a skip warning: %q", stderr)
+		}
+		if len(stubArgvLog(t, stub)) != 0 {
+			t.Fatalf("unlinked close executed tea: %v", stubArgvLog(t, stub))
+		}
+	})
+	t.Run("non-status update", func(t *testing.T) {
+		repo, stub := externalRepo(t)
+		writeExternalPushConfig(t, repo, "external_push: false\n")
+		writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+		writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"body\n"}`)
+		code, stdout, stderr := run(t, "--repo", repo, "update", "AWIT-TEST0001", "--title", "New", "--push=true", "--tea-login", "sandbox")
+		if code != 0 {
+			t.Fatalf("exit %d stderr %q", code, stderr)
+		}
+		if stdout != "updated AWIT-TEST0001: title=New\n" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if stderr != "" {
+			t.Fatalf("non-status update must not emit a skip warning: %q", stderr)
+		}
+		if len(stubArgvLog(t, stub)) != 0 {
+			t.Fatalf("--push=true must not turn a title update into a push: %v", stubArgvLog(t, stub))
+		}
+		if got := stubIssueState(t, stub, 127); got != "open" {
+			t.Fatalf("remote state changed to %q", got)
+		}
+	})
+}
+
+func TestExternalPushPolicyMalformedAndAmbiguousConfigSkip(t *testing.T) {
+	t.Run("malformed", func(t *testing.T) {
+		repo, stub := externalRepo(t)
+		writeExternalPushConfig(t, repo, "external_push: false\n")
+		writeExternalItem(t, repo, "AWIT-TEST0001", "external: gitlab#42\n", []byte("body\n"))
+		code, stdout, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--tea-login", "sandbox")
+		if code != 0 {
+			t.Fatalf("exit %d stderr %q", code, stderr)
+		}
+		if stdout != "closed AWIT-TEST0001\n" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if !strings.Contains(stderr, "skipped by config external_push: false") {
+			t.Fatalf("stderr = %q, want config skip", stderr)
+		}
+		if strings.Contains(stderr, "push failed") {
+			t.Fatalf("config skip must not emit a second failure warning: %q", stderr)
+		}
+		if len(stubArgvLog(t, stub)) != 0 {
+			t.Fatalf("config skip executed tea: %v", stubArgvLog(t, stub))
+		}
+	})
+	t.Run("ambiguous", func(t *testing.T) {
+		repo, stub := externalRepo(t)
+		writeExternalPushConfig(t, repo, "external_push: false\n")
+		writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("one\n"))
+		writeExternalItem(t, repo, "AWIT-TEST0002", giteaExt("owner/repo", 127), []byte("two\n"))
+		writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"x"}`)
+		code, stdout, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--tea-login", "sandbox")
+		if code != 0 {
+			t.Fatalf("exit %d stderr %q", code, stderr)
+		}
+		if stdout != "closed AWIT-TEST0001\n" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+		if !strings.Contains(stderr, "skipped by config external_push: false") {
+			t.Fatalf("stderr = %q, want config skip before duplicate-link validation", stderr)
+		}
+		if strings.Contains(stderr, "ambiguous") {
+			t.Fatalf("config skip must precede duplicate-link validation: %q", stderr)
+		}
+		if len(stubArgvLog(t, stub)) != 0 {
+			t.Fatalf("config skip executed tea: %v", stubArgvLog(t, stub))
+		}
+	})
+}
+
+func TestExternalPushPolicyCloseReasonPreserved(t *testing.T) {
+	repo, stub := externalRepo(t)
+	writeExternalPushConfig(t, repo, "external_push: false\n")
+	writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+	writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"body\n"}`)
+	code, stdout, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001",
+		"--reason", "done", "--author", "jane", "--tea-login", "sandbox")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if stdout != "closed AWIT-TEST0001\n" {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	got := readItem(t, repo, "AWIT-TEST0001")
+	if got.Status != item.StatusClosed || len(got.Refs) != 1 {
+		t.Fatalf("status=%q refs=%v, want closed with one comment ref", got.Status, got.Refs)
+	}
+	if !strings.Contains(stderr, "skipped by config external_push: false") {
+		t.Fatalf("stderr = %q, want config skip", stderr)
+	}
+	if len(stubArgvLog(t, stub)) != 0 {
+		t.Fatalf("config-disabled close-with-reason executed tea: %v", stubArgvLog(t, stub))
+	}
+}
+
+func TestExternalPushPolicyGitLabConfigFalseAndOverride(t *testing.T) {
+	repo, _, glab := gitlabCheckRepo(t)
+	writeExternalPushConfig(t, repo, "external_push: false\n")
+	writeExternalItem(t, repo, "AWIT-TEST0001", gitlabExtYAML(gitlabSubProject, 127, gitlabIssuesURL), []byte("body\n"))
+	writeGitLabIssue(t, glab, gitlabSubIssueKey, gitlabIssueJSON("T", quote("body\n"), "opened", gitlabIssuesURL, `[]`))
+
+	code, stdout, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001")
+	if code != 0 {
+		t.Fatalf("config-disabled close: exit %d stderr %q", code, stderr)
+	}
+	if stdout != "closed AWIT-TEST0001\n" {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if !strings.Contains(stderr, "skipped by config external_push: false") {
+		t.Fatalf("stderr = %q, want config skip", stderr)
+	}
+	if len(stubArgvLog(t, glab)) != 0 {
+		t.Fatalf("config-disabled close executed glab: %v", stubArgvLog(t, glab))
+	}
+	if got := readGlabStubIssue(t, glab, gitlabSubIssueKey); got.State != "opened" {
+		t.Fatalf("remote state = %q, want opened", got.State)
+	}
+
+	code, stdout, stderr = run(t, "--repo", repo, "update", "AWIT-TEST0001", "--status", "closed", "--push=true")
+	if code != 0 {
+		t.Fatalf("override retry: exit %d stderr %q", code, stderr)
+	}
+	if stdout != "updated AWIT-TEST0001: status=closed\n" {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want no warning on explicit retry", stderr)
+	}
+	if got := readGlabStubIssue(t, glab, gitlabSubIssueKey); got.State != "closed" {
+		t.Fatalf("remote state = %q, want closed after --push=true", got.State)
+	}
+
+	writeGitLabIssue(t, glab, gitlabSubIssueKey, gitlabIssueJSON("T", quote("body\n"), "closed", gitlabIssuesURL, `[]`))
+	puts := countGlabPUTs(t, glab)
+	code, _, stderr = run(t, "--repo", repo, "update", "AWIT-TEST0001", "--title", "New")
+	if code != 0 {
+		t.Fatalf("title update: exit %d stderr %q", code, stderr)
+	}
+	if stderr != "" {
+		t.Fatalf("non-status update must stay silent: %q", stderr)
+	}
+	if n := countGlabPUTs(t, glab); n != puts {
+		t.Fatalf("non-status update performed a remote PUT (%d -> %d)", puts, n)
+	}
+}
+
+func TestExternalPushPolicyGitLabExplicitFalseSilent(t *testing.T) {
+	repo, _, glab := gitlabCheckRepo(t)
+	writeExternalItem(t, repo, "AWIT-TEST0001", gitlabExtYAML(gitlabSubProject, 127, gitlabIssuesURL), []byte("body\n"))
+	writeGitLabIssue(t, glab, gitlabSubIssueKey, gitlabIssueJSON("T", quote("body\n"), "opened", gitlabIssuesURL, `[]`))
+	code, stdout, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--push=false")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if stdout != "closed AWIT-TEST0001\n" {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("--push=false must be silent: %q", stderr)
+	}
+	if len(stubArgvLog(t, glab)) != 0 {
+		t.Fatalf("--push=false executed glab: %v", stubArgvLog(t, glab))
+	}
+	if got := readGlabStubIssue(t, glab, gitlabSubIssueKey); got.State != "opened" {
+		t.Fatalf("remote state = %q, want opened", got.State)
+	}
+}
+
+func TestExternalPushPolicyCommitFalseStillPushes(t *testing.T) {
+	repo, stub := externalRepo(t)
+	writeExternalPushConfig(t, repo, "commit: false\n")
+	writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+	writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"body\n"}`)
+	code, stdout, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--tea-login", "sandbox")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if stdout != "closed AWIT-TEST0001\n" || stderr != "" {
+		t.Fatalf("stdout = %q stderr = %q", stdout, stderr)
+	}
+	if got := stubIssueState(t, stub, 127); got != "closed" {
+		t.Fatalf("commit: false must not disable state pushing; remote=%q", got)
+	}
+}
+
+func TestExternalPushPolicyDoesNotAffectClaimCommit(t *testing.T) {
+	gitLookPath(t)
+	dir := gitClaimRepo(t, "external_push: false\n")
+	code, _, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--agent", "test", "--seed", "1")
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if subject := gitRun(t, dir, "log", "-1", "--pretty=%s"); subject != "awit: claim AWIT-TEST0001" {
+		t.Fatalf("external_push: false must not alter claim commits; HEAD = %q", subject)
+	}
+}
+
+func TestExternalPushPolicyPushBodyUnaffected(t *testing.T) {
+	repo, stub := externalRepo(t)
+	writeExternalPushConfig(t, repo, "external_push: false\n")
+	body := []byte("keep me\n")
+	writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), body)
+	writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"old"}`)
+	code, stdout, stderr := run(t, "--repo", repo, "external", "push-body", "AWIT-TEST0001", "--tea-login", "sandbox")
+	if code != 0 {
+		t.Fatalf("push-body: exit %d stderr %q", code, stderr)
+	}
+	want := fmt.Sprintf("pushed body for AWIT-TEST0001 to https://forge.example/owner/repo/issues/127 (%d bytes)\n", len(body))
+	if stdout != want {
+		t.Fatalf("stdout = %q, want %q", stdout, want)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
+func TestExternalPushPolicyLocalSaveFailureNeverPushes(t *testing.T) {
+	repo, stub := externalRepo(t)
+	writeExternalPushConfig(t, repo, "external_push: false\n")
+	writeExternalItem(t, repo, "AWIT-TEST0001", giteaExt("owner/repo", 127), []byte("body\n"))
+	writeTeaIssue(t, stub, 127, `{"number":127,"title":"T","state":"open","body":"body\n"}`)
+	itemsDir := filepath.Join(repo, ".awit", "items")
+	if err := os.Chmod(itemsDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(itemsDir, 0o755) })
+	probe, err := os.CreateTemp(itemsDir, ".probe-*")
+	if err == nil {
+		_ = probe.Close()
+		_ = os.Remove(probe.Name())
+		t.Skip("filesystem does not honour read-only directory")
+	}
+	code, stdout, stderr := run(t, "--repo", repo, "close", "AWIT-TEST0001", "--push=true", "--tea-login", "sandbox")
+	if code != 1 {
+		t.Fatalf("exit %d, want 1; stdout %q stderr %q", code, stdout, stderr)
+	}
+	if strings.Contains(stdout, "closed") {
+		t.Fatalf("must not confirm success: %q", stdout)
+	}
+	if len(stubArgvLog(t, stub)) != 0 {
+		t.Fatalf("failed local save must never push: %v", stubArgvLog(t, stub))
+	}
+}

@@ -26,6 +26,11 @@ type Config struct {
 	// nil (the key is absent) means the documented default: commit. Only
 	// next --claim reads it; no other command's behaviour depends on it.
 	Commit *bool `yaml:"commit,omitempty"`
+	// ExternalPush is the repository default for automatic linked-issue
+	// state pushes from close, release, and explicit update --status.
+	// nil (the key is absent) means the documented default: push. It is
+	// independent of Commit and does not govern push-body, import, or check.
+	ExternalPush *bool `yaml:"external_push,omitempty"`
 	// Template is a repo-root-relative forward-slash path to a body-only
 	// file used by create. Empty means the built-in skeleton. Only create
 	// reads the file.
@@ -123,6 +128,16 @@ func (c Config) Agent(flag string) string {
 // controls pushing or any other command.
 func (c Config) ShouldCommit() bool {
 	return c.Commit == nil || *c.Commit
+}
+
+// ShouldPushExternal reports the config-only answer to "does a status
+// mutation push to the linked issue?": an absent external_push key
+// pushes, only an explicit external_push: false skips. Per-invocation
+// --push / a true --no-push override this in close, release, and
+// update --status; the policy never controls claim commits, push-body,
+// import, or check.
+func (c Config) ShouldPushExternal() bool {
+	return c.ExternalPush == nil || *c.ExternalPush
 }
 
 func validateTemplatePath(p string) error {

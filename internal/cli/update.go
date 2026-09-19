@@ -26,6 +26,7 @@ var updateCmd = &cli.Command{
 		&cli.StringFlag{Name: "external-id", Usage: "Gitea issue number or GitLab iid"},
 		&cli.StringFlag{Name: "external-url", Usage: "external issue URL"},
 		&cli.BoolFlag{Name: "clear-external", Usage: "remove external metadata"},
+		&cli.StringFlag{Name: "push", Usage: "`true|false` overrides the external-push policy (config.yaml external_push:, default true)"},
 		&cli.BoolFlag{Name: "no-push", Usage: "skip pushing a status change to the linked external issue"},
 		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for a Gitea issue; ignored for GitLab"},
 	},
@@ -74,6 +75,10 @@ func updateAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	noteWalkedUp(cmd, s)
+	push, err := externalPushPolicy(cmd, s.Config)
+	if err != nil {
+		return err
+	}
 	release, err := s.Lock(5 * time.Second)
 	if err != nil {
 		return err
@@ -185,9 +190,9 @@ func updateAction(ctx context.Context, cmd *cli.Command) error {
 			remote = "closed"
 		}
 		if items, _, err := s.LoadAll(); err == nil {
-			maybePushExternalState(ctx, cmd, items, it, remote)
+			maybePushExternalState(ctx, cmd, items, it, remote, push)
 		} else {
-			maybePushExternalState(ctx, cmd, []*item.Item{it}, it, remote)
+			maybePushExternalState(ctx, cmd, []*item.Item{it}, it, remote, push)
 		}
 	}
 	return nil
