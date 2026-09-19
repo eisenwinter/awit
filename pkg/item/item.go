@@ -28,6 +28,7 @@ type Item struct {
 	Assignee        string
 	ClaimedAt       *time.Time
 	Refs            []string
+	RefsBase        string // "repo" or empty (historical .awit/items/ base)
 	Path            string
 	External        *External
 	ExternalProblem string // derived diagnostic; never serialized
@@ -105,8 +106,23 @@ func Parse(path string, data []byte) (*Item, error) {
 		case "claimed_at":
 			claimedRaw = v.Value
 			haveClaimed = true
+		case "refs_base":
+			if v.Kind != yaml.ScalarNode {
+				return nil, fmt.Errorf("item: refs_base must be a string")
+			}
+			switch v.Value {
+			case "", "repo":
+				it.RefsBase = v.Value
+			default:
+				return nil, fmt.Errorf(`item: refs_base must be "repo" or empty`)
+			}
 		case "refs":
 			it.Refs = seqStrings(v)
+		case "alias":
+			if v.Kind != yaml.ScalarNode {
+				return nil, fmt.Errorf("item: alias must be a string")
+			}
+			it.Alias = v.Value
 		}
 	}
 	for _, req := range []struct {
@@ -187,21 +203,24 @@ func New(id, title, brief string, deps, labels []string) *Item {
 			seqNode(depsCopy, yaml.FlowStyle),
 			{Kind: yaml.ScalarNode, Tag: "!!str", Value: "labels"},
 			seqNode(labelsCopy, yaml.FlowStyle),
+			{Kind: yaml.ScalarNode, Tag: "!!str", Value: "refs_base"},
+			{Kind: yaml.ScalarNode, Tag: "!!str", Value: "repo"},
 			{Kind: yaml.ScalarNode, Tag: "!!str", Value: "refs"},
 			seqNode(nil, 0),
 		},
 	}
 	return &Item{
-		ID:     id,
-		Title:  title,
-		Brief:  brief,
-		Status: StatusOpen,
-		Deps:   depsCopy,
-		Labels: labelsCopy,
-		Refs:   []string{},
-		doc:    doc,
-		body:   []byte("\n## Summary\n\n## Acceptance Criteria\n\n"),
-		dirty:  true,
+		ID:       id,
+		Title:    title,
+		Brief:    brief,
+		Status:   StatusOpen,
+		Deps:     depsCopy,
+		Labels:   labelsCopy,
+		Refs:     []string{},
+		RefsBase: "repo",
+		doc:      doc,
+		body:     []byte("\n## Summary\n\n## Acceptance Criteria\n\n"),
+		dirty:    true,
 	}
 }
 
@@ -237,6 +256,27 @@ func (it *Item) setScalar(key, value string) {
 		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
 		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: value},
 	)
+}
+
+func (it *Item) setScalarBefore(before, key, value string) {
+	_, val, idx := it.findKey(key)
+	if idx >= 0 {
+		val.Kind = yaml.ScalarNode
+		val.Tag = "!!str"
+		val.Value = value
+		val.Content = nil
+		return
+	}
+	pair := []*yaml.Node{
+		{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
+		{Kind: yaml.ScalarNode, Tag: "!!str", Value: value},
+	}
+	_, _, beforeIdx := it.findKey(before)
+	if beforeIdx < 0 {
+		it.doc.Content = append(it.doc.Content, pair...)
+		return
+	}
+	it.doc.Content = append(it.doc.Content[:beforeIdx:beforeIdx], append(pair, it.doc.Content[beforeIdx:]...)...)
 }
 
 func (it *Item) deleteKey(key string) {
@@ -334,6 +374,31 @@ func (it *Item) SetRefs(v []string) {
 	it.Refs = append([]string(nil), v...)
 	it.setSeq("refs", v, 0)
 	it.markDirty()
+}
+
+// SetRefsBase records whether Refs are repo-root relative ("repo") or
+// historical items-relative (empty). Only those two values are allowed.
+func (it *Item) SetRefsBase(base string) error {
+	if base != "" && base != "repo" {
+		return fmt.Errorf(`item: refs_base must be "repo" or empty`)
+	}
+	if it.RefsBase == base {
+		_, _, idx := it.findKey("refs_base")
+		if base == "" && idx < 0 {
+			return nil
+		}
+		if base == "repo" && idx >= 0 {
+			return nil
+		}
+	}
+	it.RefsBase = base
+	if base == "" {
+		it.deleteKey("refs_base")
+	} else {
+		it.setScalarBefore("refs", "refs_base", base)
+	}
+	it.markDirty()
+	return nil
 }
 
 func (it *Item) HasLabel(l string) bool {

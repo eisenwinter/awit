@@ -5,8 +5,9 @@ brief: The middleware rejects URL-safe bearer tokens before signature checks.
 status: closed
 deps: []
 labels: []
+refs_base: repo
 refs:
-  - ../archive/AWIT-TEST0004/20260916T091500Z-jan.log
+  - .awit/archive/AWIT-TEST0004/20260916T091500Z-jan.log
 ---
 
 ## Summary

@@ -25,9 +25,9 @@ func commentFiles(t *testing.T, repo, id string) []string {
 	return names
 }
 
-// refFile turns a printed ref ("../comments/<id>/<file>") into the file's path under repo.
+// refFile turns a printed root-relative ref into the file's path under repo.
 func refFile(repo, ref string) string {
-	return filepath.Join(repo, ".awit", "items", filepath.FromSlash(ref))
+	return filepath.Join(repo, filepath.FromSlash(ref))
 }
 
 func TestCommentInline(t *testing.T) {
@@ -39,8 +39,8 @@ func TestCommentInline(t *testing.T) {
 		t.Fatalf("exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
 	ref := strings.TrimSuffix(stdout, "\n")
-	if !strings.HasPrefix(ref, "../comments/"+id+"/") || !strings.HasSuffix(ref, "-jan.md") {
-		t.Fatalf("ref = %q, want ../comments/%s/<stamp>-jan.md", ref, id)
+	if !strings.HasPrefix(ref, ".awit/comments/"+id+"/") || !strings.HasSuffix(ref, "-jan.md") {
+		t.Fatalf("ref = %q, want .awit/comments/%s/<stamp>-jan.md", ref, id)
 	}
 	if strings.Contains(ref, "\\") {
 		t.Fatalf("ref %q contains a backslash", ref)
@@ -79,8 +79,8 @@ func TestCommentFile(t *testing.T) {
 		t.Fatalf("exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
 	ref := strings.TrimSuffix(stdout, "\n")
-	if !strings.HasPrefix(ref, "../comments/"+id+"/") || !strings.HasSuffix(ref, "-jan.txt") {
-		t.Fatalf("ref = %q, want ../comments/%s/<stamp>-jan.txt (extension kept)", ref, id)
+	if !strings.HasPrefix(ref, ".awit/comments/"+id+"/") || !strings.HasSuffix(ref, "-jan.txt") {
+		t.Fatalf("ref = %q, want .awit/comments/%s/<stamp>-jan.txt (extension kept)", ref, id)
 	}
 	got, err := os.ReadFile(refFile(dir, ref))
 	if err != nil {
@@ -200,7 +200,7 @@ func TestCommentJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("stdout %q is not JSON: %v", stdout, err)
 	}
-	if got.ID != "AWIT-TEST0001" || !strings.HasPrefix(got.Ref, "../comments/AWIT-TEST0001/") {
+	if got.ID != "AWIT-TEST0001" || !strings.HasPrefix(got.Ref, ".awit/comments/AWIT-TEST0001/") {
 		t.Fatalf("json = %+v", got)
 	}
 	if !strings.HasSuffix(stdout, "\n") || !strings.Contains(stdout, "\n  \"id\"") {

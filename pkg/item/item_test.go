@@ -162,7 +162,7 @@ func TestNewBytesGolden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []byte("---\nid: AWIT-TEST0001\ntitle: Title\nbrief: Brief.\nstatus: open\ndeps: [AWIT-TEST0002]\nlabels: [auth, p1]\nrefs: []\n---\n\n## Summary\n\n## Acceptance Criteria\n\n")
+	want := []byte("---\nid: AWIT-TEST0001\ntitle: Title\nbrief: Brief.\nstatus: open\ndeps: [AWIT-TEST0002]\nlabels: [auth, p1]\nrefs_base: repo\nrefs: []\n---\n\n## Summary\n\n## Acceptance Criteria\n\n")
 	if !bytes.Equal(got, want) {
 		t.Fatalf("New Bytes mismatch\ngot:\n%s\nwant:\n%s", got, want)
 	}

@@ -61,6 +61,9 @@ func uniqueCommentFile(dir, stampAuthor, ext string) (string, error) {
 }
 
 func (s *Store) AddComment(it *Item, author string, now time.Time, text string) (string, error) {
+	if err := s.NormalizeRefs(it); err != nil {
+		return "", err
+	}
 	dir := s.CommentsDir(it.ID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
@@ -75,7 +78,7 @@ func (s *Store) AddComment(it *Item, author string, now time.Time, text string) 
 	if err := config.WriteAtomic(filepath.Join(dir, filename), []byte(body)); err != nil {
 		return "", err
 	}
-	ref := path.Join("../comments", it.ID, filename)
+	ref := path.Join(".awit/comments", it.ID, filename)
 	refs := append(append([]string{}, it.Refs...), ref)
 	it.SetRefs(refs)
 	if err := s.Save(it); err != nil {
@@ -85,6 +88,9 @@ func (s *Store) AddComment(it *Item, author string, now time.Time, text string) 
 }
 
 func (s *Store) AttachFile(it *Item, author string, now time.Time, src string) (string, error) {
+	if err := s.NormalizeRefs(it); err != nil {
+		return "", err
+	}
 	dir := s.CommentsDir(it.ID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
@@ -102,7 +108,7 @@ func (s *Store) AttachFile(it *Item, author string, now time.Time, src string) (
 	if err := config.WriteAtomic(filepath.Join(dir, filename), data); err != nil {
 		return "", err
 	}
-	ref := path.Join("../comments", it.ID, filename)
+	ref := path.Join(".awit/comments", it.ID, filename)
 	refs := append(append([]string{}, it.Refs...), ref)
 	it.SetRefs(refs)
 	if err := s.Save(it); err != nil {

@@ -78,10 +78,13 @@ func TestAgentLoop(t *testing.T) {
 
 	_ = loopMustRun(t, append(repo, "comment", "--author", "claude", "AWIT-TEST0001", "loop", "research")...)
 	refsOnly := loopMustRun(t, append(repo, "show", "--refs-only", "AWIT-TEST0001")...)
-	if !strings.Contains(refsOnly, "../../docs/spec.md") {
+	if strings.Contains(refsOnly, "../../docs/spec.md") {
+		t.Fatalf("comment must migrate the spec ref off the items base:\n%s", refsOnly)
+	}
+	if !strings.Contains(refsOnly, "docs/spec.md ->") {
 		t.Fatalf("refs-only missing spec ref:\n%s", refsOnly)
 	}
-	if !strings.Contains(refsOnly, "../comments/AWIT-TEST0001/") {
+	if !strings.Contains(refsOnly, ".awit/comments/AWIT-TEST0001/") {
 		t.Fatalf("refs-only missing comment ref:\n%s", refsOnly)
 	}
 	// Only the ref column is forward-slash: frontmatter refs are stored with
@@ -97,10 +100,10 @@ func TestAgentLoop(t *testing.T) {
 		}
 	}
 	nRefs := 0
-	if strings.Contains(refsOnly, "../../docs/spec.md") {
+	if strings.Contains(refsOnly, "docs/spec.md ->") {
 		nRefs++
 	}
-	if strings.Contains(refsOnly, "../comments/AWIT-TEST0001/") {
+	if strings.Contains(refsOnly, ".awit/comments/AWIT-TEST0001/") {
 		nRefs++
 	}
 	if nRefs != 2 {

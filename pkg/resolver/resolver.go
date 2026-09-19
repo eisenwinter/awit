@@ -1,7 +1,6 @@
 // Package resolver maps the forward-slash refs stored in item frontmatter to
-// files on disk. Refs are relative to the .awit/items/ directory of the repo
-// that owns the item, so "../../docs/spec.md" is <repo>/docs/spec.md and
-// "../comments/<id>/<file>" is <repo>/.awit/comments/<id>/<file>.
+// files on disk. The caller chooses the base directory: Store.Root for items
+// with refs_base: repo, or ItemsDir() for historical items-relative refs.
 package resolver
 
 import (
@@ -19,13 +18,13 @@ type Resolved struct {
 	Err     error  // os.ErrNotExist etc.
 }
 
-// Resolve maps every ref relative to itemsDir (FromSlash applied) and reads
+// Resolve maps every ref relative to baseDir (FromSlash applied) and reads
 // it. The result has exactly one element per ref, in input order. Resolve
 // never returns an error itself; per-ref failures live in Resolved.Err.
-func Resolve(itemsDir string, refs []string) []Resolved {
+func Resolve(baseDir string, refs []string) []Resolved {
 	out := make([]Resolved, 0, len(refs))
 	for _, ref := range refs {
-		p := filepath.Clean(filepath.Join(itemsDir, filepath.FromSlash(ref)))
+		p := filepath.Clean(filepath.Join(baseDir, filepath.FromSlash(ref)))
 		abs, err := filepath.Abs(p)
 		if err != nil {
 			out = append(out, Resolved{Ref: ref, Path: p, Err: err})

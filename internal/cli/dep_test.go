@@ -17,26 +17,8 @@ func readRaw(t *testing.T, repo, id string) []byte {
 	return data
 }
 
-func changedLines(t *testing.T, before, after []byte) int {
-	t.Helper()
-	bl := strings.Split(string(before), "\n")
-	al := strings.Split(string(after), "\n")
-	if len(bl) != len(al) {
-		// Report the shape so the failure is actionable.
-		t.Fatalf("line count changed: %d -> %d", len(bl), len(al))
-	}
-	n := 0
-	for i := range bl {
-		if bl[i] != al[i] {
-			n++
-		}
-	}
-	return n
-}
-
 func TestDepAddWritesOneLine(t *testing.T) {
 	dir := copyFixture(t, "clean")
-	before := readRaw(t, dir, "AWIT-TEST0002")
 	code, stdout, stderr := run(t, "--repo", dir, "dep", "add", "AWIT-TEST0002", "AWIT-TEST0001")
 	if code != 0 || stderr != "" {
 		t.Fatalf("exit %d stderr %q", code, stderr)
@@ -52,8 +34,11 @@ func TestDepAddWritesOneLine(t *testing.T) {
 		t.Fatalf("deps = %v, want [AWIT-TEST0001]", got.Deps)
 	}
 	after := readRaw(t, dir, "AWIT-TEST0002")
-	if n := changedLines(t, before, after); n != 1 {
-		t.Fatalf("changed lines = %d, want 1", n)
+	if !bytes.Contains(after, []byte("deps: [AWIT-TEST0001]\n")) {
+		t.Fatalf("deps not updated:\n%s", after)
+	}
+	if !bytes.Contains(after, []byte("refs_base: repo\nrefs: []\n")) {
+		t.Fatalf("first mutation must set refs_base:\n%s", after)
 	}
 }
 

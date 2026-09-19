@@ -232,6 +232,9 @@ func (s *Store) LoadAll() ([]*Item, []Broken, error) {
 }
 
 func (s *Store) Save(it *Item) error {
+	if err := s.NormalizeRefs(it); err != nil {
+		return err
+	}
 	data, err := it.Bytes()
 	if err != nil {
 		return err
@@ -245,6 +248,27 @@ func (s *Store) Save(it *Item) error {
 	}
 	it.Path = p
 	return nil
+}
+
+// NormalizeRefs rewrites historical items-relative refs to repo-root
+// relative paths and sets refs_base: repo. Already-marked items are
+// left untouched. Conversion is mathematical (filepath.Rel) with no
+// existence check.
+func (s *Store) NormalizeRefs(it *Item) error {
+	if it.RefsBase == "repo" {
+		return nil
+	}
+	newRefs := make([]string, len(it.Refs))
+	for i, ref := range it.Refs {
+		joined := filepath.Join(s.ItemsDir(), filepath.FromSlash(ref))
+		rel, err := filepath.Rel(s.Root, joined)
+		if err != nil {
+			return fmt.Errorf("item: cannot represent ref %q relative to repo root: %w", ref, err)
+		}
+		newRefs[i] = filepath.ToSlash(rel)
+	}
+	it.SetRefs(newRefs)
+	return it.SetRefsBase("repo")
 }
 
 func (s *Store) Mint(now time.Time) (string, error) {

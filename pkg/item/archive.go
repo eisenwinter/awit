@@ -24,8 +24,11 @@ func (s *Store) Archive(it *Item) error {
 	if err != nil {
 		return err
 	}
+	if err := s.NormalizeRefs(it); err != nil {
+		return err
+	}
 	// 1. rewrite refs: drop comment refs, redirect attachment refs.
-	prefix := path.Join("../comments", it.ID) + "/"
+	prefix := path.Join(".awit/comments", it.ID) + "/"
 	byFile := make(map[string]Comment, len(comments))
 	for _, c := range comments {
 		byFile[c.File] = c
@@ -37,7 +40,7 @@ func (s *Store) Archive(it *Item) error {
 			continue
 		}
 		if c, ok := byFile[strings.TrimPrefix(r, prefix)]; ok && c.Attachment {
-			refs = append(refs, path.Join("../archive", it.ID, c.File))
+			refs = append(refs, path.Join(".awit/archive", it.ID, c.File))
 		}
 		// comment refs and refs to missing files are dropped
 	}

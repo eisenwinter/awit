@@ -170,7 +170,7 @@ func TestCloseWithReasonWritesComment(t *testing.T) {
 		t.Fatalf("stdout = %q, want %q", stdout, "closed "+id+"\n")
 	}
 	got := readItem(t, dir, id)
-	if got.Status != item.StatusClosed || len(got.Refs) != 1 || !strings.HasPrefix(got.Refs[0], "../comments/"+id+"/") || strings.Contains(got.Refs[0], "\\") {
+	if got.Status != item.StatusClosed || len(got.Refs) != 1 || !strings.HasPrefix(got.Refs[0], ".awit/comments/"+id+"/") || strings.Contains(got.Refs[0], "\\") {
 		t.Fatalf("status=%q refs=%v", got.Status, got.Refs)
 	}
 	ents, err := os.ReadDir(filepath.Join(dir, ".awit", "comments", id))

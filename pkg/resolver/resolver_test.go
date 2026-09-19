@@ -137,6 +137,29 @@ func TestResolveForwardSlashOnAllOS(t *testing.T) {
 	}
 }
 
+func TestResolveRepoRootBase(t *testing.T) {
+	tmp, itemsDir := layout(t)
+	itemsNotes := filepath.Join(itemsDir, "notes.md")
+	rootNotes := filepath.Join(tmp, "notes.md")
+	writeFile(t, itemsNotes, "ITEMS\n")
+	writeFile(t, rootNotes, "ROOT\n")
+
+	legacy := Resolve(itemsDir, []string{"notes.md"})
+	if string(legacy[0].Content) != "ITEMS\n" {
+		t.Fatalf("items-base notes.md = %q, want ITEMS", legacy[0].Content)
+	}
+	migrated := Resolve(tmp, []string{".awit/items/notes.md"})
+	if migrated[0].Err != nil {
+		t.Fatalf("repo-base resolve: %v", migrated[0].Err)
+	}
+	if migrated[0].Path != legacy[0].Path {
+		t.Fatalf("target changed: %q -> %q", legacy[0].Path, migrated[0].Path)
+	}
+	if string(migrated[0].Content) != "ITEMS\n" {
+		t.Fatalf("repo-base content = %q, want ITEMS not ROOT", migrated[0].Content)
+	}
+}
+
 func TestIsItemRef(t *testing.T) {
 	tmp, itemsDir := layout(t)
 	cases := []struct {

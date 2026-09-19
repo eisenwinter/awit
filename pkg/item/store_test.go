@@ -299,7 +299,7 @@ func TestAddCommentWritesFileAndRef(t *testing.T) {
 	if !strings.Contains(ref, "/") {
 		t.Fatalf("ref missing /: %q", ref)
 	}
-	if ref != "../comments/AWIT-TEST0001/20260917T143205Z-jan.md" {
+	if ref != ".awit/comments/AWIT-TEST0001/20260917T143205Z-jan.md" {
 		t.Fatalf("ref = %q", ref)
 	}
 	p := filepath.Join(s.CommentsDir("AWIT-TEST0001"), "20260917T143205Z-jan.md")

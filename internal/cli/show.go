@@ -161,9 +161,9 @@ type showRefJSON struct {
 
 // refsOnlyView prints one "<ref> -> <abs> (<N> bytes)" line per ref,
 // or "<ref> -> [missing]" when the file cannot be read.
-func refsOnlyView(itemsDir string, refs []string) string {
+func refsOnlyView(baseDir string, refs []string) string {
 	var b strings.Builder
-	for _, r := range resolver.Resolve(itemsDir, refs) {
+	for _, r := range resolver.Resolve(baseDir, refs) {
 		if r.Err != nil {
 			fmt.Fprintf(&b, "%s -> [missing]\n", r.Ref)
 			continue
@@ -175,10 +175,10 @@ func refsOnlyView(itemsDir string, refs []string) string {
 
 // fullView is the default view plus one delimited block per ref. Item
 // refs render the target's default view; their refs are not followed.
-func fullView(g *graph.Graph, n *graph.Node, itemsDir string) string {
+func fullView(g *graph.Graph, n *graph.Node, baseDir, itemsDir string) string {
 	var b strings.Builder
 	b.WriteString(defaultView(n))
-	resolved := resolver.Resolve(itemsDir, n.Item.Refs)
+	resolved := resolver.Resolve(baseDir, n.Item.Refs)
 	for i, r := range resolved {
 		fmt.Fprintf(&b, "===== REF %d/%d: %s =====\n", i+1, len(resolved), r.Ref)
 		b.WriteString(refBody(g, itemsDir, r))
@@ -218,12 +218,12 @@ func refBody(g *graph.Graph, itemsDir string, r resolver.Resolved) string {
 	return s
 }
 
-func fullJSON(g *graph.Graph, n *graph.Node, itemsDir string, full bool) showJSON {
+func fullJSON(g *graph.Graph, n *graph.Node, baseDir, itemsDir string, full bool) showJSON {
 	out := showJSON{Entry: toEntry(n), Body: string(n.Item.Body())}
 	if !full {
 		return out
 	}
-	for _, r := range resolver.Resolve(itemsDir, n.Item.Refs) {
+	for _, r := range resolver.Resolve(baseDir, n.Item.Refs) {
 		jr := showRefJSON{Ref: r.Ref, Path: r.Path}
 		if r.Err != nil {
 			jr.Missing = true

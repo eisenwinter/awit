@@ -77,7 +77,7 @@ func TestShowFullMissingRef(t *testing.T) {
 	if code != 0 || stderr != "" {
 		t.Fatalf("exit %d stderr %q, missing refs must not fail", code, stderr)
 	}
-	if !strings.Contains(stdout, "===== REF 1/1: nope.md =====\n[missing]\n===== END REF 1/1 =====\n") {
+	if !strings.Contains(stdout, "===== REF 1/1: .awit/items/nope.md =====\n[missing]\n===== END REF 1/1 =====\n") {
 		t.Fatalf("missing block wrong:\n%s", stdout)
 	}
 }
@@ -101,7 +101,7 @@ func TestShowFullItemRefNoRecursion(t *testing.T) {
 	if n := strings.Count(stdout, "===== END REF "); n != 1 {
 		t.Fatalf("want exactly one ref end marker, got %d:\n%s", n, stdout)
 	}
-	if !strings.Contains(stdout, "===== REF 1/1: AWIT-TEST0002.md =====\n[AWIT-TEST0002] Add E2E auth tests\n") {
+	if !strings.Contains(stdout, "===== REF 1/1: .awit/items/AWIT-TEST0002.md =====\n[AWIT-TEST0002] Add E2E auth tests\n") {
 		t.Fatalf("item ref must render the target default view:\n%s", stdout)
 	}
 	if strings.Contains(stdout, "../../docs/spec.md") {

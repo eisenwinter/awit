@@ -131,7 +131,7 @@ func TestArchiveMovesEverything(t *testing.T) {
 	if err != nil {
 		t.Fatalf("archive file must still parse: %v", err)
 	}
-	wantRefs := []string{"../archive/AWIT-TEST0004/20260916T091500Z-jan.log"}
+	wantRefs := []string{".awit/archive/AWIT-TEST0004/20260916T091500Z-jan.log"}
 	if !slices.Equal(arch.Refs, wantRefs) {
 		t.Fatalf("refs = %v, want %v", arch.Refs, wantRefs)
 	}
