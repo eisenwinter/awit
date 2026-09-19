@@ -31,6 +31,7 @@ var nextCmd = &cli.Command{
 		&cli.StringFlag{Name: "commit", Usage: "with --claim, `true|false` overrides the commit policy (config.yaml commit:, default true)"},
 		&cli.BoolFlag{Name: "no-commit", Usage: "deprecated: with --claim, skip the git commit; prefer --commit=false or commit: false in config.yaml"},
 		&cli.Int64Flag{Name: "seed", Usage: "tie-break RNG seed; 0 (default) uses time.Now().UnixNano()"},
+		&cli.BoolFlag{Name: "why", Usage: "explain the pick on stderr: unblocks, critical-path membership, selection and tie-break"},
 		&cli.StringFlag{
 			Name:    "agent",
 			Usage:   "agent identity for --claim",
@@ -133,11 +134,16 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 	}
 	warnQuarantined(cmd, g)
 	var n *graph.Node
+	selection := "max-unblocks"
+	tieBreak := "none"
 	if id := cmd.Args().First(); id != "" {
 		n, err = nextNode(g, id)
 		if err != nil {
 			return err
 		}
+		// An exact lookup is never a ranking win, even when the item
+		// happens to be ready: report it as an explicit selection.
+		selection = "explicit"
 		// Without --claim the exact item prints as-is, whatever its
 		// state; with --claim it must be ready and unclaimed.
 		if cmd.Bool("claim") {
@@ -156,6 +162,17 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 			seed = time.Now().UnixNano()
 		}
 		n = pickNext(cands, seed)
+		// K is the equal-maximum group after label filtering: the
+		// leading run of cands sharing the top UnblockCount. Counted
+		// here from the already-ranked slice, never via a second
+		// pickNext call. K == 1 means no tie-break ran.
+		k := 1
+		for k < len(cands) && cands[k].UnblockCount == cands[0].UnblockCount {
+			k++
+		}
+		if k > 1 {
+			tieBreak = fmt.Sprintf("pcg(seed=%d,candidates=%d)", seed, k)
+		}
 	}
 
 	if cmd.Bool("claim") {
@@ -181,12 +198,32 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 			}
 		}
 	}
-
 	f, err := detectFormat(cmd)
 	if err != nil {
 		return err
 	}
-	return format.WriteOne(cmd.Root().Writer, f, toEntry(n))
+	if err := format.WriteOne(cmd.Root().Writer, f, toEntry(n)); err != nil {
+		return err
+	}
+	// The explanation goes to stderr only after the selection or claim
+	// and the entry write all succeeded. CriticalPath is whole-graph
+	// context, not a ranking input: it is computed here, only for --why.
+	if cmd.Bool("why") {
+		onPath := false
+		for _, cp := range g.CriticalPath() {
+			if cp.Item.ID == n.Item.ID {
+				onPath = true
+				break
+			}
+		}
+		cp := "no"
+		if onPath {
+			cp = "yes"
+		}
+		fmt.Fprintf(cmd.Root().ErrWriter, "why: %s; unblocks=%d; critical-path=%s; selection=%s; tie-break=%s\n",
+			n.Item.ID, n.UnblockCount, cp, selection, tieBreak)
+	}
+	return nil
 }
 
 // nextNode resolves the positional form of next — canonical id, alias, or

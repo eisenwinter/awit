@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -478,5 +479,205 @@ func TestCommitPolicyWithoutClaimWritesNothing(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".git")); !os.IsNotExist(err) {
 		t.Fatalf("fixture must stay git-free: %v", err)
+	}
+}
+
+func TestNextWhyUniqueMax(t *testing.T) {
+	dir := copyFixture(t, "clean")
+	code, stdout, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--seed", "1", "--why")
+	if code != 0 {
+		t.Fatalf("exit %d, want 0 (stdout %q stderr %q)", code, stdout, stderr)
+	}
+	if !strings.HasPrefix(stdout, "[AWIT-TEST0001]") {
+		t.Fatalf("stdout = %q, want the TEST0001 pick", stdout)
+	}
+	want := "why: AWIT-TEST0001; unblocks=2; critical-path=yes; selection=max-unblocks; tie-break=none\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+}
+
+func TestNextWhySeededTie(t *testing.T) {
+	dir := initRepo(t)
+	seedItem(t, dir, "AWIT-TEST0001", "Alpha", "A.", nil)
+	seedItem(t, dir, "AWIT-TEST0002", "Beta", "B.", nil)
+
+	code, stdout, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--seed", "1", "--why")
+	if code != 0 {
+		t.Fatalf("exit %d, want 0 (stdout %q stderr %q)", code, stdout, stderr)
+	}
+	if !strings.HasPrefix(stdout, "[AWIT-TEST") {
+		t.Fatalf("stdout = %q, want a pick", stdout)
+	}
+	winner := strings.SplitN(strings.TrimPrefix(stdout, "["), "]", 2)[0]
+	// Whole-graph critical path over two independent roots is the
+	// smaller-ID node alone, so only TEST0001 is a member.
+	cp := "no"
+	if winner == "AWIT-TEST0001" {
+		cp = "yes"
+	}
+	want := "why: " + winner + "; unblocks=0; critical-path=" + cp + "; selection=max-unblocks; tie-break=pcg(seed=1,candidates=2)\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+}
+
+func TestNextWhyLabelFilteredTieSize(t *testing.T) {
+	dir := initRepo(t)
+	seedItem(t, dir, "AWIT-TEST0001", "Alpha", "A.", []string{"a"})
+	seedItem(t, dir, "AWIT-TEST0002", "Beta", "B.", []string{"a"})
+	seedItem(t, dir, "AWIT-TEST0003", "Gamma", "C.", []string{"b"})
+
+	code, stdout, stderr := run(t, "--repo", dir, "--format", "compact", "next", "-l", "a", "--seed", "1", "--why")
+	if code != 0 {
+		t.Fatalf("exit %d, want 0 (stdout %q stderr %q)", code, stdout, stderr)
+	}
+	if !strings.HasPrefix(stdout, "[AWIT-TEST0001]") && !strings.HasPrefix(stdout, "[AWIT-TEST0002]") {
+		t.Fatalf("stdout = %q, want 0001 or 0002", stdout)
+	}
+	winner := strings.SplitN(strings.TrimPrefix(stdout, "["), "]", 2)[0]
+	cp := "no"
+	if winner == "AWIT-TEST0001" {
+		cp = "yes"
+	}
+	want := "why: " + winner + "; unblocks=0; critical-path=" + cp + "; selection=max-unblocks; tie-break=pcg(seed=1,candidates=2)\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+}
+
+func TestNextWhyCriticalMembership(t *testing.T) {
+	dir := copyFixture(t, "clean")
+	// 0002 is ready but off the 0001 -> 0003 -> 0004 critical path.
+	code, stdout, stderr := run(t, "--repo", dir, "--format", "compact", "next", "-l", "db", "--seed", "1", "--why")
+	if code != 0 {
+		t.Fatalf("exit %d, want 0 (stdout %q stderr %q)", code, stdout, stderr)
+	}
+	if !strings.HasPrefix(stdout, "[AWIT-TEST0002]") {
+		t.Fatalf("stdout = %q, want the TEST0002 pick", stdout)
+	}
+	want := "why: AWIT-TEST0002; unblocks=0; critical-path=no; selection=max-unblocks; tie-break=none\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+}
+
+func TestNextWhyExplicitBlocked(t *testing.T) {
+	dir := copyFixture(t, "clean")
+	code, stdout, stderr := run(t, "--repo", dir, "--format", "compact", "next", "AWIT-TEST0003", "--why")
+	if code != 0 {
+		t.Fatalf("exit %d, want 0 (stdout %q stderr %q)", code, stdout, stderr)
+	}
+	if !strings.HasPrefix(stdout, "[AWIT-TEST0003]") {
+		t.Fatalf("stdout = %q, want the TEST0003 line", stdout)
+	}
+	// Exact lookup never claims a ranking win, even for a blocked item.
+	want := "why: AWIT-TEST0003; unblocks=1; critical-path=yes; selection=explicit; tie-break=none\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+}
+
+func TestNextWhyNoCandidates(t *testing.T) {
+	dir := copyFixture(t, "clean")
+	code, stdout, stderr := run(t, "--repo", dir, "--format", "compact", "next", "-l", "p0", "--seed", "1", "--why")
+	if code != 1 || stdout != "" {
+		t.Fatalf("exit %d stdout %q, want 1 and empty", code, stdout)
+	}
+	if stderr != "No ready items (labels: p0)\n" {
+		t.Fatalf("stderr = %q, want no why line", stderr)
+	}
+}
+
+func TestNextWhyFailedClaim(t *testing.T) {
+	dir := copyFixture(t, "clean")
+	code, stdout, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--no-commit", "--agent", "claude", "AWIT-TEST0003", "--why")
+	if code != 1 || stdout != "" {
+		t.Fatalf("exit %d stdout %q, want 1 and empty", code, stdout)
+	}
+	if stderr != "AWIT-TEST0003 is blocked by AWIT-TEST0001\n" {
+		t.Fatalf("stderr = %q, want the refusal with no why line", stderr)
+	}
+}
+
+func TestNextWhyJSONStdoutIdentical(t *testing.T) {
+	dir := copyFixture(t, "clean")
+	code1, out1, err1 := run(t, "--repo", dir, "--format", "json", "next", "--seed", "42")
+	if code1 != 0 || err1 != "" {
+		t.Fatalf("plain: exit %d stderr %q", code1, err1)
+	}
+	code2, out2, err2 := run(t, "--repo", dir, "--format", "json", "next", "--seed", "42", "--why")
+	if code2 != 0 {
+		t.Fatalf("why: exit %d stderr %q", code2, err2)
+	}
+	if out2 != out1 {
+		t.Fatalf("--why changed JSON stdout:\n%s\nvs\n%s", out2, out1)
+	}
+	var row struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal([]byte(out2), &row); err != nil {
+		t.Fatalf("json: %v\n%s", err, out2)
+	}
+	if row.ID != "AWIT-TEST0001" {
+		t.Fatalf("row.ID = %q, want AWIT-TEST0001", row.ID)
+	}
+	want := "why: AWIT-TEST0001; unblocks=2; critical-path=yes; selection=max-unblocks; tie-break=none\n"
+	if err2 != want {
+		t.Fatalf("stderr = %q, want %q", err2, want)
+	}
+}
+
+func TestNextWhySeedReplay(t *testing.T) {
+	dir := initRepo(t)
+	seedItem(t, dir, "AWIT-TEST0001", "Alpha", "A.", nil)
+	seedItem(t, dir, "AWIT-TEST0002", "Beta", "B.", nil)
+
+	code, out1, err1 := run(t, "--repo", dir, "--format", "compact", "next", "--why")
+	if code != 0 {
+		t.Fatalf("exit %d, want 0 (stdout %q stderr %q)", code, out1, err1)
+	}
+	si := strings.Index(err1, "seed=")
+	cj := strings.Index(err1, ",candidates=")
+	end := strings.Index(err1, ")\n")
+	if si < 0 || cj < 0 || end < 0 || !strings.Contains(err1, "selection=max-unblocks; tie-break=pcg(") {
+		t.Fatalf("cannot parse seed from %q", err1)
+	}
+	seed, serr := strconv.ParseInt(err1[si+len("seed="):cj], 10, 64)
+	if serr != nil {
+		t.Fatalf("cannot parse seed from %q: %v", err1, serr)
+	}
+	k, kerr := strconv.Atoi(err1[cj+len(",candidates=") : end])
+	if kerr != nil {
+		t.Fatalf("cannot parse candidates from %q: %v", err1, kerr)
+	}
+	if seed == 0 || k != 2 {
+		t.Fatalf("seed=%d candidates=%d, want nonzero seed and 2", seed, k)
+	}
+	code, out2, err2 := run(t, "--repo", dir, "--format", "compact", "next", "--seed", strconv.FormatInt(seed, 10))
+	if code != 0 || err2 != "" {
+		t.Fatalf("replay: exit %d stderr %q", code, err2)
+	}
+	if out2 != out1 {
+		t.Fatalf("replay with seed %d picked %q, want %q", seed, out2, out1)
+	}
+}
+
+func TestNextWhyClaim(t *testing.T) {
+	dir := copyFixture(t, "clean")
+	code, stdout, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--no-commit", "--agent", "claude", "--seed", "1", "--why")
+	if code != 0 {
+		t.Fatalf("exit %d, want 0 (stdout %q stderr %q)", code, stdout, stderr)
+	}
+	if !strings.HasPrefix(stdout, "[AWIT-TEST0001]") {
+		t.Fatalf("stdout = %q, want the TEST0001 pick", stdout)
+	}
+	want := "why: AWIT-TEST0001; unblocks=2; critical-path=yes; selection=max-unblocks; tie-break=none\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+	got := readItem(t, dir, "AWIT-TEST0001")
+	if got.Status != item.StatusInProgress || got.Assignee != "agent/claude" {
+		t.Fatalf("claim missing: status=%q assignee=%q", got.Status, got.Assignee)
 	}
 }
