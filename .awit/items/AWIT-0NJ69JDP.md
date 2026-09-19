@@ -3,11 +3,11 @@ id: AWIT-0NJ69JDP
 title: 'item: accept additive GitLab issue metadata and subgroup URLs'
 brief: >-
   Extend structured external metadata to GitLab issues while preserving valid Gitea files and behavior. Accept subgroup projects and both GitLab issue URL shapes without migrating existing items or weakening optional-metadata handling.
-status: open
+status: closed
 deps: []
 labels: [phase5, p0]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NJ69JDP/20260919T182922Z-orchestrator.md]
 ---
 ## Summary
 
