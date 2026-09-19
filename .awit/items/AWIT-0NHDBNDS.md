@@ -3,10 +3,11 @@ id: AWIT-0NHDBNDS
 title: 'external: check body drift and push byte-exact bodies through tea'
 brief: >-
   Add explicit external body checks and local-to-remote body push for linked Gitea issues. Compare raw body bytes and account for tea's file-field newline behavior instead of passing Markdown through --body.
-status: open
+status: closed
 deps: [AWIT-0ND56S3G, AWIT-0ND5753G, AWIT-0NHDBCDN, AWIT-0NHDBJDR]
 labels: [phase5, p1]
-refs: []
+refs_base: repo
+refs: [.awit/comments/AWIT-0NHDBNDS/20260919T164324Z-orchestrator.md]
 ---
 ## Summary
 
