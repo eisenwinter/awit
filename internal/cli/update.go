@@ -26,6 +26,8 @@ var updateCmd = &cli.Command{
 		&cli.StringFlag{Name: "external-id", Usage: "external issue number"},
 		&cli.StringFlag{Name: "external-url", Usage: "external issue URL"},
 		&cli.BoolFlag{Name: "clear-external", Usage: "remove external metadata"},
+		&cli.BoolFlag{Name: "no-push", Usage: "skip pushing a status change to the linked Gitea issue"},
+		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for the issue's instance"},
 	},
 	Action: updateAction,
 }
@@ -42,7 +44,7 @@ func splitFlagCSV(values []string) []string {
 	return out
 }
 
-func updateAction(_ context.Context, cmd *cli.Command) error {
+func updateAction(ctx context.Context, cmd *cli.Command) error {
 	id := cmd.Args().First()
 	if id == "" {
 		return fmt.Errorf("update needs an item id")
@@ -176,6 +178,17 @@ func updateAction(_ context.Context, cmd *cli.Command) error {
 	w := cmd.Root().Writer
 	for _, c := range changed {
 		fmt.Fprintf(w, "updated %s: %s\n", it.ID, c)
+	}
+	if status != "" {
+		remote := "open"
+		if it.Status == item.StatusClosed {
+			remote = "closed"
+		}
+		if items, _, err := s.LoadAll(); err == nil {
+			maybePushExternalState(ctx, cmd, items, it, remote)
+		} else {
+			maybePushExternalState(ctx, cmd, []*item.Item{it}, it, remote)
+		}
 	}
 	return nil
 }

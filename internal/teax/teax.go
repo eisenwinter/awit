@@ -387,3 +387,68 @@ func (c *Client) verifyBody(ctx context.Context, number int64, want, respBody []
 	}
 	return nil
 }
+
+// SetState replaces the state of the given repository issue number with
+// exactly "open" or "closed" (PATCH -f state=<want>). It never touches
+// title, labels, or body. A 2xx status is required (tea exits zero on HTTP
+// errors), the response must confirm the issue number (and installation,
+// when it carries a URL), and the remote state must equal the pushed
+// state — verified against the PATCH response, or with a GET of the same
+// issue when the response omits the state. A mismatch is an error, never
+// success. The remote is never read to decide what to write.
+func (c *Client) SetState(ctx context.Context, number int64, state string) error {
+	if state != "open" && state != "closed" {
+		return fmt.Errorf("invalid state %q: must be open or closed", state)
+	}
+	owner, name, _ := strings.Cut(c.Repo, "/")
+	endpoint := "repos/" + url.PathEscape(owner) + "/" + url.PathEscape(name) + "/issues/" + strconv.FormatInt(number, 10)
+	status, respBody, err := c.api(ctx, "PATCH", endpoint, "-f", "state="+state)
+	if err != nil {
+		return err
+	}
+	if status < 200 || status > 299 {
+		return fmt.Errorf("tea api PATCH %s: HTTP %d", endpoint, status)
+	}
+	return c.verifyState(ctx, number, state, respBody)
+}
+
+// verifyState confirms the remote took exactly the pushed state. A response
+// without a state field falls back to a GET of the same issue.
+func (c *Client) verifyState(ctx context.Context, number int64, want string, respBody []byte) error {
+	if len(bytes.TrimSpace(respBody)) > 0 {
+		var raw struct {
+			Number  *int64  `json:"number"`
+			State   *string `json:"state"`
+			HTMLURL string  `json:"html_url"`
+		}
+		if err := json.Unmarshal(respBody, &raw); err != nil {
+			return fmt.Errorf("malformed issue response: %w", err)
+		}
+		if raw.Number == nil || *raw.Number != number {
+			return fmt.Errorf("push verification failed for issue #%d: the response did not confirm the issue number", number)
+		}
+		if raw.HTMLURL != "" {
+			base, err := IssueBase(raw.HTMLURL)
+			if err != nil || base != c.BaseURL {
+				return fmt.Errorf("push verification failed for issue #%d: response URL %q is not on %s", number, raw.HTMLURL, c.BaseURL)
+			}
+		}
+		if raw.State != nil {
+			if *raw.State != want {
+				return fmt.Errorf("push verification failed for issue #%d: remote state %q does not equal %q", number, *raw.State, want)
+			}
+			return nil
+		}
+	}
+	iss, err := c.GetIssue(ctx, number)
+	if err != nil {
+		return fmt.Errorf("push verification failed for issue #%d: %w", number, err)
+	}
+	if iss.Number != number {
+		return fmt.Errorf("push verification failed for issue #%d: GET returned issue #%d", number, iss.Number)
+	}
+	if iss.State != want {
+		return fmt.Errorf("push verification failed for issue #%d: remote state %q does not equal %q", number, iss.State, want)
+	}
+	return nil
+}

@@ -14,11 +14,13 @@ var closeCmd = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "reason"},
 		&cli.StringFlag{Name: "author"},
+		&cli.BoolFlag{Name: "no-push", Usage: "skip pushing the closed state to the linked Gitea issue"},
+		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for the issue's instance"},
 	},
 	Action: closeAction,
 }
 
-func closeAction(_ context.Context, cmd *cli.Command) error {
+func closeAction(ctx context.Context, cmd *cli.Command) error {
 	id := cmd.Args().First()
 	if id == "" {
 		return fmt.Errorf("close needs an item id")
@@ -51,5 +53,10 @@ func closeAction(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	fmt.Fprintf(cmd.Root().Writer, "closed %s\n", it.ID)
+	if items, _, err := s.LoadAll(); err == nil {
+		maybePushExternalState(ctx, cmd, items, it, "closed")
+	} else {
+		maybePushExternalState(ctx, cmd, []*item.Item{it}, it, "closed")
+	}
 	return nil
 }

@@ -11,10 +11,14 @@ import (
 
 var releaseCmd = &cli.Command{
 	Name: "release", Usage: "Return an in-progress or closed item to open and clear its claim", ArgsUsage: "<id>",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{Name: "no-push", Usage: "skip pushing the reopened state to the linked Gitea issue"},
+		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for the issue's instance"},
+	},
 	Action: releaseAction,
 }
 
-func releaseAction(_ context.Context, cmd *cli.Command) error {
+func releaseAction(ctx context.Context, cmd *cli.Command) error {
 	id := cmd.Args().First()
 	if id == "" {
 		return fmt.Errorf("release needs an item id")
@@ -40,5 +44,10 @@ func releaseAction(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	fmt.Fprintf(cmd.Root().Writer, "reopened %s\n", it.ID)
+	if items, _, err := s.LoadAll(); err == nil {
+		maybePushExternalState(ctx, cmd, items, it, "open")
+	} else {
+		maybePushExternalState(ctx, cmd, []*item.Item{it}, it, "open")
+	}
 	return nil
 }
