@@ -3,10 +3,11 @@ id: AWIT-0NHDBQDT
 title: 'external: push local close and reopen state to Gitea'
 brief: >-
   Push linked issue state after successful local close/release and explicit status updates, with local state remaining canonical. Remote failure warns without rolling back local work; --no-push provides an explicit offline path.
-status: open
+status: closed
 deps: [AWIT-0ND56M3G, AWIT-0NF68SDS, AWIT-0NF68SDG, AWIT-0NHDBCDN, AWIT-0NHDBJDR]
 labels: [phase5, p1]
-refs: []
+refs_base: repo
+refs: [.awit/comments/AWIT-0NHDBQDT/20260919T165543Z-orchestrator.md]
 ---
 ## Summary
 
