@@ -3,10 +3,11 @@ id: AWIT-0NHDCDDZ
 title: 'next: explain the selected item on stderr with --why'
 brief: >-
   Add an optional one-line explanation of next's selected item, including unblock score, critical-path membership, and the actual tie-break or explicit-selection reason. Preserve existing selection and structured stdout.
-status: open
+status: closed
 deps: [AWIT-0ND56X3G, AWIT-0ND56V3G, AWIT-0NFAW5DT]
 labels: [phase3, p2]
-refs: []
+refs_base: repo
+refs: [.awit/comments/AWIT-0NHDCDDZ/20260919T154852Z-orchestrator.md]
 ---
 ## Summary
 
