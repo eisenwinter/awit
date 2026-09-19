@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/eisenwinter/awit/pkg/item"
 )
 
 // nonTTY returns an open handle to a regular file inside t.TempDir().
@@ -344,5 +347,80 @@ func TestWriteUnknownFormat(t *testing.T) {
 	}
 	if err := WriteLabels(&buf, Format("yaml"), sampleLabels()); err == nil || err.Error() != want {
 		t.Fatalf("WriteLabels error = %v, want %q", err, want)
+	}
+}
+
+func sampleExternal() *item.External {
+	return &item.External{
+		Tracker: "gitea",
+		Repo:    "owner/repo",
+		ID:      127,
+		URL:     "https://forge.example/owner/repo/issues/127",
+	}
+}
+
+func TestLineExternal(t *testing.T) {
+	e := sampleEntries()[0]
+	e.External = sampleExternal()
+	want := "[AWIT-TEST0001] open Implement OAuth2 token extraction | auth,p1 | Unblocks: 2 | External: gitea owner/repo#127"
+	if got := Line(e); got != want {
+		t.Fatalf("Line() =\n%q\nwant\n%q", got, want)
+	}
+}
+
+func TestWriteTableExternalColumn(t *testing.T) {
+	entries := sampleEntries()
+	entries[0].External = sampleExternal()
+	var buf bytes.Buffer
+	if err := Write(&buf, Table, entries); err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+	if !strings.Contains(got, "EXTERNAL") {
+		t.Fatalf("missing EXTERNAL column:\n%s", got)
+	}
+	if !strings.Contains(got, "gitea owner/repo#127") {
+		t.Fatalf("missing link:\n%s", got)
+	}
+}
+
+func TestWriteTableOmitsExternalColumnWhenUnused(t *testing.T) {
+	var buf bytes.Buffer
+	if err := Write(&buf, Table, sampleEntries()); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), "EXTERNAL") {
+		t.Fatalf("unexpected EXTERNAL column:\n%s", buf.String())
+	}
+}
+
+func TestWriteJSONExternal(t *testing.T) {
+	e := sampleEntries()[0]
+	e.External = sampleExternal()
+	var buf bytes.Buffer
+	if err := Write(&buf, JSON, []Entry{e}); err != nil {
+		t.Fatal(err)
+	}
+	var back []Entry
+	if err := json.Unmarshal(buf.Bytes(), &back); err != nil {
+		t.Fatalf("unmarshal: %v\n%s", err, buf.Bytes())
+	}
+	if len(back) != 1 || back[0].External == nil {
+		t.Fatalf("decoded = %#v", back)
+	}
+	if *back[0].External != *e.External {
+		t.Fatalf("external = %+v, want %+v", back[0].External, e.External)
+	}
+}
+
+func TestWriteOneTableExternal(t *testing.T) {
+	e := sampleEntries()[1]
+	e.External = sampleExternal()
+	var buf bytes.Buffer
+	if err := WriteOne(&buf, Table, e); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "External: gitea owner/repo#127") {
+		t.Fatalf("WriteOne table =\n%s", buf.String())
 	}
 }

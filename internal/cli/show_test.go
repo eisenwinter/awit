@@ -99,3 +99,33 @@ func TestShowJSON(t *testing.T) {
 		t.Fatal("json output must end with a single newline")
 	}
 }
+
+func TestShowExternalLine(t *testing.T) {
+	dir := initRepo(t)
+	code, _, stderr := run(t, "--repo", dir, "create",
+		"--brief", "A linked issue.",
+		"--id", "AWIT-TEST0001",
+		"--external-tracker", "gitea",
+		"--external-repo", "owner/repo",
+		"--external-id", "127",
+		"--external-url", "https://forge.example/owner/repo/issues/127",
+		"Linked")
+	if code != 0 {
+		t.Fatalf("create exit %d stderr %q", code, stderr)
+	}
+	code, stdout, stderr := run(t, "--repo", dir, "show", "AWIT-TEST0001")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	want := "external: gitea owner/repo#127 https://forge.example/owner/repo/issues/127"
+	if !strings.Contains(stdout, want) {
+		t.Fatalf("show stdout missing %q:\n%s", want, stdout)
+	}
+	code, stdout, stderr = run(t, "--repo", dir, "--format", "json", "show", "AWIT-TEST0001")
+	if code != 0 {
+		t.Fatalf("json show exit %d stderr %q", code, stderr)
+	}
+	if !strings.Contains(stdout, `"tracker": "gitea"`) || !strings.Contains(stdout, `"id": 127`) {
+		t.Fatalf("json show missing external:\n%s", stdout)
+	}
+}

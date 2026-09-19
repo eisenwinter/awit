@@ -242,6 +242,7 @@ func toEntry(n *graph.Node) format.Entry {
 		Deps:     n.Item.Deps,
 		Assignee: n.Item.Assignee,
 		Unblocks: n.UnblockCount,
+		External: n.Item.External,
 	}
 	if e.Labels == nil {
 		e.Labels = []string{}

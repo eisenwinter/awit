@@ -3,8 +3,11 @@ package item
 import (
 	"bytes"
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"gopkg.in/yaml.v3"
 )
@@ -13,23 +16,35 @@ import (
 //
 // Known frontmatter keys map to the exported fields below. Unknown keys are
 // kept on the unexported YAML mapping node and survive Bytes() after any
-// setter. The key "external" is reserved for a future GitLab/GitHub mirror
-// (value form "external: <provider>#<number>", e.g. gitlab#42) and is never
-// read in v1 — do not add an External field.
+// setter. Optional `external` is a Gitea issue mapping; invalid or legacy
+// scalar values populate ExternalProblem and leave the YAML intact.
 type Item struct {
-	ID        string
-	Title     string
-	Brief     string
-	Status    Status
-	Deps      []string
-	Labels    []string
-	Assignee  string
-	ClaimedAt *time.Time
-	Refs      []string
-	Path      string
+	ID              string
+	Title           string
+	Brief           string
+	Status          Status
+	Deps            []string
+	Labels          []string
+	Assignee        string
+	ClaimedAt       *time.Time
+	Refs            []string
+	Path            string
+	External        *External
+	ExternalProblem string // derived diagnostic; never serialized
 
-	doc  *yaml.Node
-	body []byte
+	doc   *yaml.Node
+	body  []byte
+	raw   []byte
+	dirty bool
+}
+
+// External is a Gitea issue linked from an item. ID is the repository
+// issue number, not Gitea's database-wide issue id.
+type External struct {
+	Tracker string `json:"tracker"`
+	Repo    string `json:"repo"`
+	ID      int64  `json:"id"`
+	URL     string `json:"url"`
 }
 
 func seqStrings(v *yaml.Node) []string {
@@ -59,7 +74,7 @@ func Parse(path string, data []byte) (*Item, error) {
 		return nil, fmt.Errorf("item: frontmatter is not a mapping")
 	}
 	doc := root.Content[0]
-	it := &Item{Path: path, doc: doc, body: body}
+	it := &Item{Path: path, doc: doc, body: append([]byte(nil), body...), raw: append([]byte(nil), data...)}
 	var (
 		haveID, haveTitle, haveStatus bool
 		statusRaw                     string
@@ -118,10 +133,20 @@ func Parse(path string, data []byte) (*Item, error) {
 		}
 		it.ClaimedAt = &tm
 	}
+	if _, v, idx := it.findKey("external"); idx >= 0 {
+		ext, problem := parseExternalNode(v)
+		it.External = ext
+		it.ExternalProblem = problem
+	}
 	return it, nil
 }
 
 func (it *Item) Bytes() ([]byte, error) {
+	if !it.dirty && it.raw != nil {
+		out := make([]byte, len(it.raw))
+		copy(out, it.raw)
+		return out, nil
+	}
 	var yb bytes.Buffer
 	enc := yaml.NewEncoder(&yb)
 	enc.SetIndent(2)
@@ -176,6 +201,7 @@ func New(id, title, brief string, deps, labels []string) *Item {
 		Refs:   []string{},
 		doc:    doc,
 		body:   []byte("\n## Summary\n\n## Acceptance Criteria\n\n"),
+		dirty:  true,
 	}
 }
 
@@ -240,9 +266,14 @@ func (it *Item) setSeq(key string, values []string, defaultStyle yaml.Style) {
 	)
 }
 
+func (it *Item) markDirty() {
+	it.dirty = true
+}
+
 func (it *Item) SetTitle(s string) {
 	it.Title = s
 	it.setScalar("title", s)
+	it.markDirty()
 }
 
 func (it *Item) SetBrief(s string) {
@@ -254,46 +285,55 @@ func (it *Item) SetBrief(s string) {
 	} else {
 		val.Style = 0
 	}
+	it.markDirty()
 }
 
 func (it *Item) SetStatus(s Status) {
 	it.Status = s
 	it.setScalar("status", string(s))
+	it.markDirty()
 }
 
 func (it *Item) SetAssignee(s string) {
 	it.Assignee = s
 	if s == "" {
 		it.deleteKey("assignee")
+		it.markDirty()
 		return
 	}
 	it.setScalar("assignee", s)
+	it.markDirty()
 }
 
 func (it *Item) SetClaimedAt(t *time.Time) {
 	if t == nil {
 		it.ClaimedAt = nil
 		it.deleteKey("claimed_at")
+		it.markDirty()
 		return
 	}
 	cp := t.UTC().Truncate(time.Second)
 	it.ClaimedAt = &cp
 	it.setScalar("claimed_at", cp.Format(time.RFC3339))
+	it.markDirty()
 }
 
 func (it *Item) SetDeps(v []string) {
 	it.Deps = append([]string(nil), v...)
 	it.setSeq("deps", v, yaml.FlowStyle)
+	it.markDirty()
 }
 
 func (it *Item) SetLabels(v []string) {
 	it.Labels = append([]string(nil), v...)
 	it.setSeq("labels", v, yaml.FlowStyle)
+	it.markDirty()
 }
 
 func (it *Item) SetRefs(v []string) {
 	it.Refs = append([]string(nil), v...)
 	it.setSeq("refs", v, 0)
+	it.markDirty()
 }
 
 func (it *Item) HasLabel(l string) bool {
@@ -307,4 +347,271 @@ func (it *Item) HasLabel(l string) bool {
 
 func (it *Item) Body() []byte {
 	return it.body
+}
+
+// SetBody replaces the markdown body with a copy of body. No newline
+// conversion or other normalization is applied.
+func (it *Item) SetBody(body []byte) {
+	it.body = append([]byte(nil), body...)
+	it.markDirty()
+}
+
+func invalidExternal(reason string) error {
+	return fmt.Errorf("invalid external: %s", reason)
+}
+
+func validRepoSegment(s string) error {
+	if s == "" || s == "." || s == ".." {
+		return invalidExternal("repo must have two nonempty path segments")
+	}
+	for _, r := range s {
+		if r <= 0x20 || r == 0x7F || unicode.IsControl(r) {
+			return invalidExternal("repo contains whitespace or control characters")
+		}
+		if strings.ContainsRune(`\/:?#@[]%`, r) {
+			return invalidExternal("repo contains a URL delimiter")
+		}
+	}
+	return nil
+}
+
+func parseRepo(repo string) (owner, name string, err error) {
+	owner, name, ok := strings.Cut(repo, "/")
+	if !ok || strings.Contains(name, "/") {
+		return "", "", invalidExternal("repo must have two nonempty path segments")
+	}
+	if err := validRepoSegment(owner); err != nil {
+		return "", "", err
+	}
+	if err := validRepoSegment(name); err != nil {
+		return "", "", err
+	}
+	return owner, name, nil
+}
+
+func validateExternalURL(raw, owner, name string, id int64) error {
+	u, err := url.Parse(raw)
+	if err != nil || !u.IsAbs() {
+		return invalidExternal("url must be an absolute HTTP(S) URL")
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return invalidExternal("url must be an absolute HTTP(S) URL")
+	}
+	if u.Host == "" {
+		return invalidExternal("url must include a host")
+	}
+	if u.User != nil {
+		return invalidExternal("url must not include userinfo")
+	}
+	if u.RawQuery != "" || u.ForceQuery {
+		return invalidExternal("url must not include a query")
+	}
+	if u.Fragment != "" || strings.Contains(raw, "#") {
+		return invalidExternal("url must not include a fragment")
+	}
+	escaped := u.EscapedPath()
+	lower := strings.ToLower(escaped)
+	if strings.Contains(lower, "%2f") || strings.Contains(lower, "%5c") {
+		return invalidExternal("url path contains an encoded separator")
+	}
+	if strings.Contains(lower, "%2e") {
+		return invalidExternal("url path contains an encoded dot")
+	}
+	path := u.Path
+	if path == "" || path[0] != '/' {
+		return invalidExternal("url path must end in /owner/repo/issues/id")
+	}
+	segs := strings.Split(path, "/")
+	for _, seg := range segs {
+		if seg == "." || seg == ".." {
+			return invalidExternal("url path contains a dot segment")
+		}
+	}
+	if segs[len(segs)-1] == "" || len(segs) < 5 {
+		return invalidExternal("url path must end in /owner/repo/issues/id")
+	}
+	want := []string{owner, name, "issues", strconv.FormatInt(id, 10)}
+	got := segs[len(segs)-4:]
+	for i := range want {
+		if got[i] != want[i] {
+			return invalidExternal("url path must end in /owner/repo/issues/id")
+		}
+	}
+	return nil
+}
+
+// ValidateExternal reports whether e is a complete, well-formed Gitea mapping.
+func ValidateExternal(e External) error {
+	if e.Tracker != "gitea" {
+		return invalidExternal("tracker must be gitea")
+	}
+	owner, name, err := parseRepo(e.Repo)
+	if err != nil {
+		return err
+	}
+	if e.ID <= 0 {
+		return invalidExternal("id must be a positive integer")
+	}
+	return validateExternalURL(e.URL, owner, name, e.ID)
+}
+
+func scalarString(n *yaml.Node, name string) (string, error) {
+	if n.Kind != yaml.ScalarNode {
+		return "", invalidExternal(name + " must be a scalar")
+	}
+	switch n.ShortTag() {
+	case "!!int", "!!float", "!!bool", "!!null", "!!seq", "!!map":
+		return "", invalidExternal(name + " must be a string")
+	}
+	return n.Value, nil
+}
+
+func parseExternalID(n *yaml.Node) (int64, error) {
+	if n.Kind != yaml.ScalarNode {
+		return 0, invalidExternal("id must be a scalar")
+	}
+	switch n.ShortTag() {
+	case "!!float", "!!bool", "!!null", "!!seq", "!!map":
+		return 0, invalidExternal("id must be a positive integer")
+	}
+	if strings.ContainsAny(n.Value, ".eE+") {
+		return 0, invalidExternal("id must be a positive integer")
+	}
+	id, err := strconv.ParseInt(n.Value, 10, 64)
+	if err != nil {
+		return 0, invalidExternal("id must be a positive integer")
+	}
+	return id, nil
+}
+
+func parseExternalNode(n *yaml.Node) (*External, string) {
+	if n == nil || n.Kind != yaml.MappingNode {
+		return nil, invalidExternal("expected a mapping").Error()
+	}
+	type hit struct {
+		node *yaml.Node
+		n    int
+	}
+	seen := map[string]*hit{}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		k := n.Content[i].Value
+		h := seen[k]
+		if h == nil {
+			h = &hit{}
+			seen[k] = h
+		}
+		h.node = n.Content[i+1]
+		h.n++
+	}
+	for _, name := range []string{"tracker", "repo", "id", "url"} {
+		h := seen[name]
+		if h == nil {
+			return nil, invalidExternal("missing " + name).Error()
+		}
+		if h.n > 1 {
+			return nil, invalidExternal("duplicate key " + name).Error()
+		}
+	}
+	tracker, err := scalarString(seen["tracker"].node, "tracker")
+	if err != nil {
+		return nil, err.Error()
+	}
+	repo, err := scalarString(seen["repo"].node, "repo")
+	if err != nil {
+		return nil, err.Error()
+	}
+	id, err := parseExternalID(seen["id"].node)
+	if err != nil {
+		return nil, err.Error()
+	}
+	u, err := scalarString(seen["url"].node, "url")
+	if err != nil {
+		return nil, err.Error()
+	}
+	ext := External{Tracker: tracker, Repo: repo, ID: id, URL: u}
+	if err := ValidateExternal(ext); err != nil {
+		return nil, err.Error()
+	}
+	cp := ext
+	return &cp, ""
+}
+
+func newExternalMapping(e *External) *yaml.Node {
+	return &yaml.Node{
+		Kind: yaml.MappingNode,
+		Tag:  "!!map",
+		Content: []*yaml.Node{
+			{Kind: yaml.ScalarNode, Tag: "!!str", Value: "tracker"},
+			{Kind: yaml.ScalarNode, Tag: "!!str", Value: e.Tracker},
+			{Kind: yaml.ScalarNode, Tag: "!!str", Value: "repo"},
+			{Kind: yaml.ScalarNode, Tag: "!!str", Value: e.Repo},
+			{Kind: yaml.ScalarNode, Tag: "!!str", Value: "id"},
+			{Kind: yaml.ScalarNode, Tag: "!!int", Value: strconv.FormatInt(e.ID, 10)},
+			{Kind: yaml.ScalarNode, Tag: "!!str", Value: "url"},
+			{Kind: yaml.ScalarNode, Tag: "!!str", Value: e.URL},
+		},
+	}
+}
+
+func (it *Item) setExternalNode(e *External) {
+	_, val, idx := it.findKey("external")
+	if idx < 0 {
+		it.doc.Content = append(it.doc.Content,
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "external"},
+			newExternalMapping(e),
+		)
+		return
+	}
+	if val.Kind != yaml.MappingNode {
+		*val = *newExternalMapping(e)
+		return
+	}
+	setOwned := func(key, tag, value string) {
+		for i := 0; i+1 < len(val.Content); i += 2 {
+			if val.Content[i].Value == key {
+				n := val.Content[i+1]
+				n.Kind = yaml.ScalarNode
+				n.Tag = tag
+				n.Value = value
+				n.Content = nil
+				return
+			}
+		}
+		val.Content = append(val.Content,
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: tag, Value: value},
+		)
+	}
+	setOwned("tracker", "!!str", e.Tracker)
+	setOwned("repo", "!!str", e.Repo)
+	setOwned("id", "!!int", strconv.FormatInt(e.ID, 10))
+	setOwned("url", "!!str", e.URL)
+}
+
+// SetExternal writes a validated Gitea mapping, or removes the field when e
+// is nil. An identical mapping is a no-op. Extra nested keys are retained.
+func (it *Item) SetExternal(e *External) error {
+	if e == nil {
+		_, _, idx := it.findKey("external")
+		if idx < 0 && it.External == nil && it.ExternalProblem == "" {
+			return nil
+		}
+		it.External = nil
+		it.ExternalProblem = ""
+		it.deleteKey("external")
+		it.markDirty()
+		return nil
+	}
+	if err := ValidateExternal(*e); err != nil {
+		return err
+	}
+	if it.External != nil && *it.External == *e {
+		return nil
+	}
+	cp := *e
+	it.External = &cp
+	it.ExternalProblem = ""
+	it.setExternalNode(&cp)
+	it.markDirty()
+	return nil
 }

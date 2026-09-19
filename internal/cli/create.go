@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,8 +24,40 @@ var createCmd = &cli.Command{
 		&cli.StringSliceFlag{Name: "label", Aliases: []string{"l"}},
 		&cli.StringFlag{Name: "assign"},
 		&cli.StringFlag{Name: "id", Usage: "override minted id (imports)"},
+		&cli.StringFlag{Name: "external-tracker", Usage: "external tracker (`gitea`)"},
+		&cli.StringFlag{Name: "external-repo", Usage: "external repository (`owner/repo`)"},
+		&cli.StringFlag{Name: "external-id", Usage: "external issue number"},
+		&cli.StringFlag{Name: "external-url", Usage: "external issue URL"},
 	},
 	Action: createAction,
+}
+
+func parseExternalMapping(cmd *cli.Command) (*item.External, error) {
+	tracker := cmd.String("external-tracker")
+	repo := cmd.String("external-repo")
+	idStr := cmd.String("external-id")
+	rawURL := cmd.String("external-url")
+	n := 0
+	for _, s := range []string{tracker, repo, idStr, rawURL} {
+		if s != "" {
+			n++
+		}
+	}
+	if n == 0 {
+		return nil, nil
+	}
+	if n != 4 {
+		return nil, cli.Exit(`Incorrect usage: --external-tracker, --external-repo, --external-id, and --external-url must be set together`, 2)
+	}
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return nil, cli.Exit("invalid external: id must be a positive integer", 2)
+	}
+	ext := item.External{Tracker: tracker, Repo: repo, ID: id, URL: rawURL}
+	if err := item.ValidateExternal(ext); err != nil {
+		return nil, cli.Exit(err.Error(), 2)
+	}
+	return &ext, nil
 }
 
 func parseIDList(values []string) []string {
@@ -78,6 +111,10 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 	if title == "" {
 		return fmt.Errorf("create needs a title")
 	}
+	ext, err := parseExternalMapping(cmd)
+	if err != nil {
+		return err
+	}
 	s, err := openStore(cmd)
 	if err != nil {
 		return err
@@ -116,6 +153,11 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 	if a := cmd.String("assign"); a != "" {
 		it.SetAssignee(a)
 	}
+	if ext != nil {
+		if err := it.SetExternal(ext); err != nil {
+			return cli.Exit(err.Error(), 2)
+		}
+	}
 	if err := s.Save(it); err != nil {
 		return err
 	}
@@ -135,5 +177,6 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 		Deps:     it.Deps,
 		Assignee: it.Assignee,
 		Unblocks: 0,
+		External: it.External,
 	})
 }

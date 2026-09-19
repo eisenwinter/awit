@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/eisenwinter/awit/pkg/item"
 )
 
 type Format string
@@ -58,16 +60,17 @@ func IsTerminal(f *os.File) bool {
 // Entry is the format-neutral row. The graph → Entry conversion lives in
 // internal/cli; this package never imports pkg/graph.
 type Entry struct {
-	ID       string   `json:"id"`
-	Title    string   `json:"title"`
-	Brief    string   `json:"brief,omitempty"`
-	Status   string   `json:"status"`
-	State    string   `json:"state"` // ready | blocked | closed | quarantined
-	Labels   []string `json:"labels"`
-	Deps     []string `json:"deps"`
-	Assignee string   `json:"assignee,omitempty"`
-	Unblocks int      `json:"unblocks"` // -1 when quarantined
-	Faults   []string `json:"faults,omitempty"`
+	ID       string         `json:"id"`
+	Title    string         `json:"title"`
+	Brief    string         `json:"brief,omitempty"`
+	Status   string         `json:"status"`
+	State    string         `json:"state"` // ready | blocked | closed | quarantined
+	Labels   []string       `json:"labels"`
+	Deps     []string       `json:"deps"`
+	Assignee string         `json:"assignee,omitempty"`
+	Unblocks int            `json:"unblocks"` // -1 when quarantined
+	Faults   []string       `json:"faults,omitempty"`
+	External *item.External `json:"external,omitempty"`
 }
 
 func labelsOrDash(labels []string) string {
@@ -78,15 +81,22 @@ func labelsOrDash(labels []string) string {
 	return s
 }
 
-// Line renders the one-line compact form used by list, next and prime:
-// "[ID] status Title | label1,label2 | Unblocks: N", with "-" for no labels
-// and a " | QUARANTINED" suffix for quarantined entries.
 func Line(e Entry) string {
 	s := fmt.Sprintf("[%s] %s %s | %s | Unblocks: %d", e.ID, e.Status, e.Title, labelsOrDash(e.Labels), e.Unblocks)
 	if e.State == "quarantined" {
 		s += " | QUARANTINED"
 	}
+	if label := externalLabel(e.External); label != "" {
+		s += " | External: " + label
+	}
 	return s
+}
+
+func externalLabel(e *item.External) string {
+	if e == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s %s#%d", e.Tracker, e.Repo, e.ID)
 }
 
 func normalise(e Entry) Entry {
@@ -125,12 +135,28 @@ func Write(w io.Writer, f Format, entries []Entry) error {
 		}
 		return nil
 	case Table:
+		hasExt := false
+		for _, e := range entries {
+			if e.External != nil {
+				hasExt = true
+				break
+			}
+		}
 		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-		if _, err := fmt.Fprintln(tw, "ID\tSTATUS\tSTATE\tTITLE\tLABELS\tUNBLOCKS"); err != nil {
+		header := "ID\tSTATUS\tSTATE\tTITLE\tLABELS\tUNBLOCKS"
+		if hasExt {
+			header += "\tEXTERNAL"
+		}
+		if _, err := fmt.Fprintln(tw, header); err != nil {
 			return err
 		}
 		for _, e := range entries {
-			if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%d\n",
+			if hasExt {
+				if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%d\t%s\n",
+					e.ID, e.Status, e.State, e.Title, labelsOrDash(e.Labels), e.Unblocks, externalLabel(e.External)); err != nil {
+					return err
+				}
+			} else if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%d\n",
 				e.ID, e.Status, e.State, e.Title, labelsOrDash(e.Labels), e.Unblocks); err != nil {
 				return err
 			}
@@ -164,6 +190,7 @@ func WriteOne(w io.Writer, f Format, e Entry) error {
 			{"Labels", strings.Join(e.Labels, ",")},
 			{"Deps", strings.Join(e.Deps, ",")},
 			{"Assignee", e.Assignee},
+			{"External", externalLabel(e.External)},
 		}
 		for _, p := range pairs {
 			if p.val == "" {

@@ -194,6 +194,89 @@ func TestCreateJSON(t *testing.T) {
 	}
 }
 
+func TestCreateExternalMapping(t *testing.T) {
+	dir := initRepo(t)
+	code, stdout, stderr := run(t, "--repo", dir, "create",
+		"--brief", "A linked issue.",
+		"--id", "AWIT-TEST0001",
+		"--external-tracker", "gitea",
+		"--external-repo", "owner/repo",
+		"--external-id", "127",
+		"--external-url", "https://forge.example/owner/repo/issues/127",
+		"Linked")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q stdout %q", code, stderr, stdout)
+	}
+	it := readItem(t, dir, "AWIT-TEST0001")
+	if it.External == nil {
+		t.Fatal("External is nil")
+	}
+	if it.External.Tracker != "gitea" || it.External.Repo != "owner/repo" || it.External.ID != 127 {
+		t.Fatalf("External = %+v", it.External)
+	}
+	if it.External.URL != "https://forge.example/owner/repo/issues/127" {
+		t.Fatalf("URL = %q", it.External.URL)
+	}
+	code, stdout, stderr = run(t, "--repo", dir, "show", "AWIT-TEST0001")
+	if code != 0 {
+		t.Fatalf("show exit %d stderr %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "external: gitea owner/repo#127 https://forge.example/owner/repo/issues/127") {
+		t.Fatalf("show stdout = %q", stdout)
+	}
+	code, stdout, stderr = run(t, "--repo", dir, "--format", "json", "list")
+	if code != 0 {
+		t.Fatalf("list exit %d stderr %q", code, stderr)
+	}
+	var entries []format.Entry
+	if err := json.Unmarshal([]byte(stdout), &entries); err != nil {
+		t.Fatalf("list json: %v\n%s", err, stdout)
+	}
+	if len(entries) != 1 || entries[0].External == nil || entries[0].External.ID != 127 {
+		t.Fatalf("list json = %s", stdout)
+	}
+}
+
+func TestCreatePartialExternalDoesNotWrite(t *testing.T) {
+	dir := initRepo(t)
+	code, _, stderr := run(t, "--repo", dir, "create",
+		"--brief", "A linked issue.",
+		"--external-tracker", "gitea",
+		"--external-repo", "owner/repo",
+		"Linked")
+	if code != 2 {
+		t.Fatalf("exit %d, want 2 stderr %q", code, stderr)
+	}
+	ents, err := os.ReadDir(filepath.Join(dir, ".awit", "items"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ents) != 0 {
+		t.Fatalf("partial mapping wrote %d items", len(ents))
+	}
+}
+
+func TestCreateInvalidExternalDoesNotWrite(t *testing.T) {
+	dir := initRepo(t)
+	code, _, stderr := run(t, "--repo", dir, "create",
+		"--brief", "A linked issue.",
+		"--external-tracker", "github",
+		"--external-repo", "owner/repo",
+		"--external-id", "127",
+		"--external-url", "https://forge.example/owner/repo/issues/127",
+		"Linked")
+	if code != 2 {
+		t.Fatalf("exit %d, want 2 stderr %q", code, stderr)
+	}
+	ents, err := os.ReadDir(filepath.Join(dir, ".awit", "items"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ents) != 0 {
+		t.Fatalf("invalid mapping wrote %d items", len(ents))
+	}
+}
+
 func createOne(t *testing.T, repo, title, brief string) *item.Item {
 	t.Helper()
 	code, stdout, stderr := run(t, "--repo", repo, "create", "--brief", brief, title)

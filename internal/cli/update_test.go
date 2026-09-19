@@ -313,3 +313,156 @@ func TestUpdateEchoesMultipleFieldsInOrder(t *testing.T) {
 		t.Fatalf("stdout = %q, want %q", stdout, want)
 	}
 }
+
+func TestUpdateClearExternal(t *testing.T) {
+	dir := initRepo(t)
+	code, _, stderr := run(t, "--repo", dir, "create",
+		"--brief", "A linked issue.",
+		"--id", "AWIT-TEST0001",
+		"--external-tracker", "gitea",
+		"--external-repo", "owner/repo",
+		"--external-id", "127",
+		"--external-url", "https://forge.example/owner/repo/issues/127",
+		"Linked")
+	if code != 0 {
+		t.Fatalf("create exit %d stderr %q", code, stderr)
+	}
+	path := filepath.Join(dir, ".awit", "items", "AWIT-TEST0001.md")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := readItem(t, dir, "AWIT-TEST0001").Body()
+	code, stdout, stderr := run(t, "--repo", dir, "update", "AWIT-TEST0001", "--clear-external")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q stdout %q", code, stdout, stderr)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(after, []byte("external:")) {
+		t.Fatalf("external still present:\n%s", after)
+	}
+	if !bytes.Contains(after, []byte("title: Linked")) {
+		t.Fatalf("unrelated keys changed:\n%s", after)
+	}
+	got := readItem(t, dir, "AWIT-TEST0001")
+	if !bytes.Equal(got.Body(), body) {
+		t.Fatalf("body changed: %q -> %q", body, got.Body())
+	}
+	if bytes.Equal(before, after) {
+		t.Fatal("file unchanged after --clear-external")
+	}
+}
+
+func TestUpdatePartialExternalDoesNotWrite(t *testing.T) {
+	dir := initRepo(t)
+	seedItem(t, dir, "AWIT-TEST0001", "T", "B.", nil)
+	path := filepath.Join(dir, ".awit", "items", "AWIT-TEST0001.md")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, _, stderr := run(t, "--repo", dir, "update", "AWIT-TEST0001",
+		"--external-tracker", "gitea", "--external-repo", "owner/repo")
+	if code != 2 {
+		t.Fatalf("exit %d, want 2 stderr %q", code, stderr)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatalf("partial mapping wrote:\n%s", after)
+	}
+}
+
+func TestUpdateInvalidExternalDoesNotWrite(t *testing.T) {
+	dir := initRepo(t)
+	seedItem(t, dir, "AWIT-TEST0001", "T", "B.", nil)
+	path := filepath.Join(dir, ".awit", "items", "AWIT-TEST0001.md")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, _, stderr := run(t, "--repo", dir, "update", "AWIT-TEST0001",
+		"--external-tracker", "gitea",
+		"--external-repo", "owner/repo",
+		"--external-id", "127",
+		"--external-url", "https://forge.example/owner/repo/issues/999")
+	if code != 2 {
+		t.Fatalf("exit %d, want 2 stderr %q", code, stderr)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatalf("invalid mapping wrote:\n%s", after)
+	}
+}
+
+func TestUpdateClearExternalMutuallyExclusive(t *testing.T) {
+	dir := initRepo(t)
+	seedItem(t, dir, "AWIT-TEST0001", "T", "B.", nil)
+	path := filepath.Join(dir, ".awit", "items", "AWIT-TEST0001.md")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, _, stderr := run(t, "--repo", dir, "update", "AWIT-TEST0001",
+		"--clear-external",
+		"--external-tracker", "gitea",
+		"--external-repo", "owner/repo",
+		"--external-id", "127",
+		"--external-url", "https://forge.example/owner/repo/issues/127")
+	if code != 2 {
+		t.Fatalf("exit %d, want 2 stderr %q", code, stderr)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatalf("mutually exclusive flags wrote:\n%s", after)
+	}
+}
+
+func TestUpdateIdenticalExternalNoop(t *testing.T) {
+	dir := initRepo(t)
+	code, _, stderr := run(t, "--repo", dir, "create",
+		"--brief", "A linked issue.",
+		"--id", "AWIT-TEST0001",
+		"--external-tracker", "gitea",
+		"--external-repo", "owner/repo",
+		"--external-id", "127",
+		"--external-url", "https://forge.example/owner/repo/issues/127",
+		"Linked")
+	if code != 0 {
+		t.Fatalf("create exit %d stderr %q", code, stderr)
+	}
+	path := filepath.Join(dir, ".awit", "items", "AWIT-TEST0001.md")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := run(t, "--repo", dir, "update", "AWIT-TEST0001",
+		"--external-tracker", "gitea",
+		"--external-repo", "owner/repo",
+		"--external-id", "127",
+		"--external-url", "https://forge.example/owner/repo/issues/127")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatalf("identical mapping rewrote:\n%s", after)
+	}
+	if stdout != "" {
+		t.Fatalf("noop stdout = %q, want empty", stdout)
+	}
+}

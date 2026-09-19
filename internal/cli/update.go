@@ -19,6 +19,11 @@ var updateCmd = &cli.Command{
 		&cli.StringFlag{Name: "title"},
 		&cli.StringSliceFlag{Name: "label", Aliases: []string{"l"}},
 		&cli.StringSliceFlag{Name: "unlabel"},
+		&cli.StringFlag{Name: "external-tracker", Usage: "external tracker (`gitea`)"},
+		&cli.StringFlag{Name: "external-repo", Usage: "external repository (`owner/repo`)"},
+		&cli.StringFlag{Name: "external-id", Usage: "external issue number"},
+		&cli.StringFlag{Name: "external-url", Usage: "external issue URL"},
+		&cli.BoolFlag{Name: "clear-external", Usage: "remove external metadata"},
 	},
 	Action: updateAction,
 }
@@ -45,7 +50,15 @@ func updateAction(_ context.Context, cmd *cli.Command) error {
 	// so IsSet misreports flags from earlier runs. Detect via values instead.
 	status, brief, assign, title := cmd.String("status"), cmd.String("brief"), cmd.String("assign"), cmd.String("title")
 	add, remove := splitFlagCSV(cmd.StringSlice("label")), splitFlagCSV(cmd.StringSlice("unlabel"))
-	if status == "" && brief == "" && assign == "" && title == "" && len(add) == 0 && len(remove) == 0 {
+	clearExt := cmd.Bool("clear-external")
+	ext, err := parseExternalMapping(cmd)
+	if err != nil {
+		return err
+	}
+	if clearExt && ext != nil {
+		return cli.Exit(`Incorrect usage: --clear-external cannot be combined with --external-tracker, --external-repo, --external-id, or --external-url`, 2)
+	}
+	if status == "" && brief == "" && assign == "" && title == "" && len(add) == 0 && len(remove) == 0 && !clearExt && ext == nil {
 		return fmt.Errorf("nothing to update")
 	}
 	s, err := openStore(cmd)
@@ -112,6 +125,21 @@ func updateAction(_ context.Context, cmd *cli.Command) error {
 		}
 		it.SetLabels(kept)
 		changed = append(changed, "labels="+strings.Join(kept, ","))
+	}
+	if clearExt {
+		if err := it.SetExternal(nil); err != nil {
+			return err
+		}
+		changed = append(changed, "external=-")
+	}
+	if ext != nil {
+		same := it.External != nil && *it.External == *ext
+		if err := it.SetExternal(ext); err != nil {
+			return cli.Exit(err.Error(), 2)
+		}
+		if !same {
+			changed = append(changed, fmt.Sprintf("external=%s %s#%d", ext.Tracker, ext.Repo, ext.ID))
+		}
 	}
 	if err := s.Save(it); err != nil {
 		return err

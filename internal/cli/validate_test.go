@@ -237,3 +237,74 @@ Reserved key only.
 		t.Fatalf("validate stdout = %q, want PASS", stdout)
 	}
 }
+
+func TestValidateExternalScalarWarns(t *testing.T) {
+	repo := initRepo(t)
+	raw := []byte(`---
+id: AWIT-TEST0001
+title: External reserved
+brief: An item that carries the old reserved external scalar.
+status: open
+deps: []
+labels: []
+refs: []
+external: gitlab#42
+---
+
+## Summary
+
+Old scalar.
+`)
+	path := filepath.Join(repo, item.DirName, "items", "AWIT-TEST0001.md")
+	if err := os.WriteFile(path, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := run(t, "--repo", repo, "validate")
+	if code != 0 {
+		t.Fatalf("validate exit %d stderr %q stdout %q", code, stderr, stdout)
+	}
+	if strings.Contains(stdout, "FAIL") || strings.Contains(stdout, "QUARANTINED") {
+		t.Fatalf("old scalar quarantined:\nstdout=%q\nstderr=%q", stdout, stderr)
+	}
+	if !strings.Contains(stdout, "PASS") {
+		t.Fatalf("stdout = %q, want PASS", stdout)
+	}
+	if !strings.Contains(stdout, "WARN  AWIT-TEST0001: invalid external:") {
+		t.Fatalf("missing invalid external warn:\n%s", stdout)
+	}
+	it := readItem(t, repo, "AWIT-TEST0001")
+	if it.External != nil {
+		t.Fatalf("External = %+v, want nil", it.External)
+	}
+}
+
+func TestValidateExternalJSONWarnsOnStderr(t *testing.T) {
+	repo := initRepo(t)
+	raw := []byte(`---
+id: AWIT-TEST0001
+title: External reserved
+brief: An item that carries the old reserved external scalar.
+status: open
+deps: []
+labels: []
+refs: []
+external: gitlab#42
+---
+
+body
+`)
+	path := filepath.Join(repo, item.DirName, "items", "AWIT-TEST0001.md")
+	if err := os.WriteFile(path, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := run(t, "--repo", repo, "--format", "json", "validate")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q stdout %q", code, stderr, stdout)
+	}
+	if stdout != "[]\n" {
+		t.Fatalf("stdout = %q, want empty fault array", stdout)
+	}
+	if !strings.Contains(stderr, "WARN  AWIT-TEST0001: invalid external:") {
+		t.Fatalf("stderr = %q, want invalid external warn", stderr)
+	}
+}

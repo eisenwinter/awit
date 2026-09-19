@@ -2,7 +2,6 @@ package item
 
 import (
 	"bytes"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -100,7 +99,7 @@ func TestParseBadClaimedAt(t *testing.T) {
 }
 
 func TestParseUnknownKeyKept(t *testing.T) {
-	raw := []byte("---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nexternal: gitlab#42\n---\n")
+	raw := []byte("---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nowner: platform\n---\n")
 	it, err := Parse("x.md", raw)
 	if err != nil {
 		t.Fatal(err)
@@ -109,7 +108,7 @@ func TestParseUnknownKeyKept(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(got, []byte("external: gitlab#42")) {
+	if !bytes.Contains(got, []byte("owner: platform")) {
 		t.Fatalf("unknown key dropped:\n%s", got)
 	}
 }
@@ -139,6 +138,8 @@ func TestRoundTripByteIdentical(t *testing.T) {
 		fullDoc,
 		"---\nid: AWIT-TEST0001\ntitle: Title\nstatus: open\nexternal: gitlab#42 # comment\n---\n",
 		"---\nid: AWIT-TEST0001\ntitle: Title\nstatus: open\ndeps: []\n---\n",
+		"---\r\nid: AWIT-TEST0001\r\ntitle: Title\r\nstatus: open\r\n---\r\nbody\r\n",
+		"---\nid: AWIT-TEST0001\ntitle:    Title\nstatus: open\n---\nbody\n",
 	}
 	for i, raw := range docs {
 		it, err := Parse("x.md", []byte(raw))
@@ -300,11 +301,321 @@ func TestParsePreservesExternalKey(t *testing.T) {
 	}
 }
 
-func TestItemHasNoExternalField(t *testing.T) {
-	st := reflect.TypeOf(Item{})
-	for i := 0; i < st.NumField(); i++ {
-		if st.Field(i).Name == "External" {
-			t.Fatal("Item must not grow an External field; keep external: on the yaml node")
+const validExternalDoc = `---
+id: AWIT-TEST0001
+title: T
+status: open
+external:
+  tracker: gitea
+  repo: owner/repo
+  id: 127
+  url: https://forge.example/owner/repo/issues/127
+---
+body
+`
+
+func validExternal() External {
+	return External{
+		Tracker: "gitea",
+		Repo:    "owner/repo",
+		ID:      127,
+		URL:     "https://forge.example/owner/repo/issues/127",
+	}
+}
+
+func TestParseExternalMapping(t *testing.T) {
+	it, err := Parse("x.md", []byte(validExternalDoc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.External == nil {
+		t.Fatal("External is nil")
+	}
+	want := validExternal()
+	if *it.External != want {
+		t.Fatalf("External = %+v, want %+v", *it.External, want)
+	}
+	if it.ExternalProblem != "" {
+		t.Fatalf("ExternalProblem = %q, want empty", it.ExternalProblem)
+	}
+}
+
+func TestParseExternalExtraNestedKeys(t *testing.T) {
+	raw := []byte(`---
+id: AWIT-TEST0001
+title: T
+status: open
+external:
+  tracker: gitea
+  repo: owner/repo
+  id: 127
+  url: https://forge.example/owner/repo/issues/127
+  extra: keep-me
+---
+raw body
+`)
+	it, err := Parse("x.md", raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.External == nil || it.External.Repo != "owner/repo" {
+		t.Fatalf("External = %+v", it.External)
+	}
+	got, err := it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, raw) {
+		t.Fatalf("extra nested keys changed source bytes:\n%s", got)
+	}
+}
+
+func TestSetExternalWriteAndClear(t *testing.T) {
+	it := New("AWIT-TEST0001", "T", "B.", nil, nil)
+	ext := validExternal()
+	if err := it.SetExternal(&ext); err != nil {
+		t.Fatal(err)
+	}
+	got, err := it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"tracker: gitea",
+		"repo: owner/repo",
+		"id: 127",
+		"url: https://forge.example/owner/repo/issues/127",
+	} {
+		if !bytes.Contains(got, []byte(want)) {
+			t.Fatalf("missing %q in:\n%s", want, got)
 		}
+	}
+	if it.External == nil || *it.External != ext {
+		t.Fatalf("External = %+v", it.External)
+	}
+	if err := it.SetExternal(nil); err != nil {
+		t.Fatal(err)
+	}
+	got, err = it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(got, []byte("external:")) {
+		t.Fatalf("external key still present:\n%s", got)
+	}
+	if it.External != nil {
+		t.Fatalf("External = %+v after clear", it.External)
+	}
+}
+
+func TestSetExternalPreservesExtraNestedKeys(t *testing.T) {
+	raw := []byte(`---
+id: AWIT-TEST0001
+title: T
+status: open
+external:
+  tracker: gitea
+  repo: owner/repo
+  id: 127
+  url: https://forge.example/owner/repo/issues/127
+  extra: keep-me
+---
+raw body
+`)
+	it, err := Parse("x.md", raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ext := validExternal()
+	ext.URL = "https://forge.example/gitea/owner/repo/issues/127"
+	if err := it.SetExternal(&ext); err != nil {
+		t.Fatal(err)
+	}
+	got, err := it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(got, []byte("extra: keep-me")) {
+		t.Fatalf("extra nested key dropped:\n%s", got)
+	}
+	if !bytes.Contains(got, []byte("url: https://forge.example/gitea/owner/repo/issues/127")) {
+		t.Fatalf("url not updated:\n%s", got)
+	}
+	if !bytes.Contains(got, []byte("raw body\n")) {
+		t.Fatalf("body changed:\n%s", got)
+	}
+}
+
+func TestParseInvalidExternalTypes(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+	}{
+		{name: "sequence tracker", raw: "---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nexternal:\n  tracker: [gitea]\n  repo: owner/repo\n  id: 127\n  url: https://forge.example/owner/repo/issues/127\n---\n"},
+		{name: "float id", raw: "---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nexternal:\n  tracker: gitea\n  repo: owner/repo\n  id: 127.5\n  url: https://forge.example/owner/repo/issues/127\n---\n"},
+		{name: "missing url", raw: "---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nexternal:\n  tracker: gitea\n  repo: owner/repo\n  id: 127\n---\n"},
+		{name: "duplicate tracker", raw: "---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nexternal:\n  tracker: gitea\n  tracker: gitea\n  repo: owner/repo\n  id: 127\n  url: https://forge.example/owner/repo/issues/127\n---\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			raw := []byte(tt.raw)
+			it, err := Parse("x.md", raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if it.External != nil {
+				t.Fatalf("External = %+v, want nil", it.External)
+			}
+			if it.ExternalProblem == "" {
+				t.Fatal("ExternalProblem empty")
+			}
+			got, err := it.Bytes()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(got, raw) {
+				t.Fatalf("invalid mapping rewritten:\n%s", got)
+			}
+		})
+	}
+}
+
+func TestParseOldExternalScalarPreserved(t *testing.T) {
+	raw := []byte("---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nexternal: gitlab#42\n---\nbody\n")
+	it, err := Parse("x.md", raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.External != nil {
+		t.Fatalf("External = %+v, want nil", it.External)
+	}
+	if it.ExternalProblem == "" {
+		t.Fatal("ExternalProblem empty for old scalar")
+	}
+	got, err := it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, raw) {
+		t.Fatalf("old scalar rewritten:\n%s", got)
+	}
+}
+
+func TestSetExternalRejectsInvalid(t *testing.T) {
+	it := New("AWIT-TEST0001", "T", "B.", nil, nil)
+	tests := []External{
+		{Tracker: "github", Repo: "owner/repo", ID: 127, URL: "https://forge.example/owner/repo/issues/127"},
+		{Tracker: "gitea", Repo: "owner", ID: 127, URL: "https://forge.example/owner/repo/issues/127"},
+		{Tracker: "gitea", Repo: "owner/repo", ID: 0, URL: "https://forge.example/owner/repo/issues/127"},
+		{Tracker: "gitea", Repo: "owner/repo", ID: 127, URL: "https://user:pass@forge.example/owner/repo/issues/127"},
+		{Tracker: "gitea", Repo: "owner/repo", ID: 127, URL: "https://forge.example/owner/repo/issues/127?x=1"},
+		{Tracker: "gitea", Repo: "owner/repo", ID: 127, URL: "https://forge.example/owner/repo/issues/127#frag"},
+		{Tracker: "gitea", Repo: "owner/repo", ID: 127, URL: "https://forge.example/owner/other/issues/127"},
+		{Tracker: "gitea", Repo: "owner/repo", ID: 127, URL: "https://forge.example/owner/repo/issues/127/extra"},
+		{Tracker: "gitea", Repo: "owner/repo", ID: 127, URL: "https://forge.example/owner/repo/../owner/repo/issues/127"},
+		{Tracker: "gitea", Repo: "owner/repo", ID: 127, URL: "https://forge.example/owner/repo%2fissues/127"},
+		{Tracker: "gitea", Repo: "own er/repo", ID: 127, URL: "https://forge.example/own%20er/repo/issues/127"},
+		{Tracker: "gitea", Repo: ".", ID: 127, URL: "https://forge.example/./issues/127"},
+		{Tracker: "gitea", Repo: "owner/..", ID: 127, URL: "https://forge.example/owner/../issues/127"},
+	}
+	for i, ext := range tests {
+		if err := it.SetExternal(&ext); err == nil {
+			t.Fatalf("case %d: SetExternal(%+v) succeeded", i, ext)
+		}
+		if it.External != nil {
+			t.Fatalf("case %d: External mutated to %+v", i, it.External)
+		}
+	}
+}
+
+func TestSetExternalIdenticalMappingNoop(t *testing.T) {
+	raw := []byte(`---
+id: AWIT-TEST0001
+title: T
+status: open
+external:
+  tracker: gitea
+  repo: owner/repo
+  id: 127
+  url: https://forge.example/owner/repo/issues/127
+---
+body
+`)
+	it, err := Parse("x.md", raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ext := validExternal()
+	if err := it.SetExternal(&ext); err != nil {
+		t.Fatal(err)
+	}
+	got, err := it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, raw) {
+		t.Fatalf("identical mapping rewrote bytes:\n%s", got)
+	}
+}
+
+func TestStatusOnlyEditPreservesExternalSubkeysAndBody(t *testing.T) {
+	raw := []byte(`---
+id: AWIT-TEST0001
+title: T
+status: open
+external:
+  tracker: gitea
+  repo: owner/repo
+  id: 127
+  url: https://forge.example/owner/repo/issues/127
+  extra: keep-me
+---
+raw body
+`)
+	it, err := Parse("x.md", raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	it.SetStatus(StatusInProgress)
+	got, err := it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(got, []byte("status: in_progress")) {
+		t.Fatalf("status not updated:\n%s", got)
+	}
+	if !bytes.Contains(got, []byte("extra: keep-me")) {
+		t.Fatalf("extra nested key dropped:\n%s", got)
+	}
+	if !bytes.Contains(got, []byte("url: https://forge.example/owner/repo/issues/127")) {
+		t.Fatalf("url rewritten:\n%s", got)
+	}
+	if !bytes.HasSuffix(got, []byte("raw body\n")) {
+		t.Fatalf("body not preserved:\n%s", got)
+	}
+}
+
+func TestSetBodyOwnsCopy(t *testing.T) {
+	it := New("AWIT-TEST0001", "T", "B.", nil, nil)
+	body := []byte("hello\r\n")
+	it.SetBody(body)
+	body[0] = 'x'
+	if !bytes.Equal(it.Body(), []byte("hello\r\n")) {
+		t.Fatalf("SetBody did not own a copy: %q", it.Body())
+	}
+	got, err := it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(got, []byte("hello\r\n")) {
+		t.Fatalf("CRLF body normalized:\n%s", got)
+	}
+}
+
+func TestValidateExternalPrefixURL(t *testing.T) {
+	ext := validExternal()
+	ext.URL = "https://forge.example/gitea/owner/repo/issues/127"
+	if err := ValidateExternal(ext); err != nil {
+		t.Fatalf("prefix URL rejected: %v", err)
 	}
 }

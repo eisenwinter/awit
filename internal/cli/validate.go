@@ -96,6 +96,9 @@ func validateAction(_ context.Context, cmd *cli.Command) error {
 		if err := enc.Encode(rows); err != nil {
 			return err
 		}
+		for _, line := range externalWarnLines(g) {
+			fmt.Fprintln(cmd.Root().ErrWriter, line)
+		}
 		if len(g.Faults) > 0 {
 			return cli.Exit("", 1)
 		}
@@ -114,10 +117,11 @@ func validateAction(_ context.Context, cmd *cli.Command) error {
 		brief := strings.TrimSpace(n.Item.Brief)
 		if brief == "" {
 			fmt.Fprintf(w, "WARN  %s: missing brief\n", n.Item.ID)
-			continue
-		}
-		if sentenceCount(brief) > 3 {
+		} else if sentenceCount(brief) > 3 {
 			fmt.Fprintf(w, "WARN  %s: brief is longer than 3 sentences\n", n.Item.ID)
+		}
+		if n.Item.ExternalProblem != "" {
+			fmt.Fprintf(w, "WARN  %s: %s\n", n.Item.ID, n.Item.ExternalProblem)
 		}
 	}
 	if cmd.Bool("stale-claims") {
@@ -129,6 +133,16 @@ func validateAction(_ context.Context, cmd *cli.Command) error {
 		return cli.Exit("", 1)
 	}
 	return nil
+}
+
+func externalWarnLines(g *graph.Graph) []string {
+	var out []string
+	for _, n := range g.Order {
+		if n.Item.ExternalProblem != "" {
+			out = append(out, fmt.Sprintf("WARN  %s: %s", n.Item.ID, n.Item.ExternalProblem))
+		}
+	}
+	return out
 }
 
 // staleClaimLines reports in_progress nodes whose claim is older

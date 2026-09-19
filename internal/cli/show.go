@@ -119,6 +119,10 @@ func defaultView(n *graph.Node) string {
 	}
 	fmt.Fprintf(&b, "assignee: %s\n", assignee)
 	fmt.Fprintf(&b, "brief: %s\n", e.Brief)
+	if n.Item.External != nil {
+		x := n.Item.External
+		fmt.Fprintf(&b, "external: %s %s#%d %s\n", x.Tracker, x.Repo, x.ID, x.URL)
+	}
 	fmt.Fprintf(&b, "refs: %d (use --full)\n", len(n.Item.Refs))
 	body := n.Item.Body()
 	// Bodies start with the blank line after the closing fence, so add the
