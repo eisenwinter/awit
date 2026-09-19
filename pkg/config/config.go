@@ -18,6 +18,10 @@ type Config struct {
 	DefaultLabels []string `yaml:"default_labels,omitempty"`
 	StaleClaim    Duration `yaml:"stale_claim"` // default 2h
 	AgentID       string   `yaml:"agent_id,omitempty"`
+	// Commit is the repository default for `next --claim` git commits.
+	// nil (the key is absent) means the documented default: commit. Only
+	// next --claim reads it; no other command's behaviour depends on it.
+	Commit *bool `yaml:"commit,omitempty"`
 }
 
 type Duration time.Duration
@@ -95,4 +99,12 @@ func (c Config) Agent(flag string) string {
 		return v
 	}
 	return c.AgentID
+}
+
+// ShouldCommit reports the config-only answer to "does a claim commit?":
+// an absent commit key commits, only an explicit commit: false skips.
+// Per-invocation flags override this in the claim path; the policy never
+// controls pushing or any other command.
+func (c Config) ShouldCommit() bool {
+	return c.Commit == nil || *c.Commit
 }

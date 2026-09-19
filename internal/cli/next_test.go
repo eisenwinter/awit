@@ -275,3 +275,208 @@ func TestNextIDHelp(t *testing.T) {
 		t.Errorf("--help missing %q; got:\n%s", want, stdout)
 	}
 }
+
+// gitClaimRepo copies the clean fixture into a real git repository with one
+// initial commit. configExtra, when non-empty, is appended to
+// .awit/config.yaml before that commit, so commit-policy tests observe real
+// history and staging instead of a mocked commit helper.
+func gitClaimRepo(t *testing.T, configExtra string) string {
+	t.Helper()
+	dir := copyFixture(t, "clean")
+	if configExtra != "" {
+		path := filepath.Join(dir, ".awit", "config.yaml")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, append(data, []byte(configExtra)...), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	gitRun(t, dir, "init", "-q")
+	gitRun(t, dir, "config", "user.name", "tester")
+	gitRun(t, dir, "config", "user.email", "tester@example.com")
+	gitRun(t, dir, "add", ".")
+	gitRun(t, dir, "commit", "-q", "-m", "init")
+	return dir
+}
+
+func TestCommitPolicyConfigFalseSkipsCommitAndStaging(t *testing.T) {
+	gitLookPath(t)
+	dir := gitClaimRepo(t, "commit: false\n")
+
+	code, _, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--agent", "test", "--seed", "1")
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if subject := gitRun(t, dir, "log", "-1", "--pretty=%s"); subject != "init" {
+		t.Fatalf("config commit: false must not add a commit; HEAD = %q", subject)
+	}
+	if staged := gitRun(t, dir, "diff", "--cached", "--name-only"); staged != "" {
+		t.Fatalf("config commit: false must skip staging too; staged = %q", staged)
+	}
+	got := readItem(t, dir, "AWIT-TEST0001")
+	if got.Status != item.StatusInProgress || got.Assignee != "agent/test" {
+		t.Fatalf("claim must still be written: status=%q assignee=%q", got.Status, got.Assignee)
+	}
+}
+
+func TestCommitPolicyExplicitTrueOverridesConfigFalse(t *testing.T) {
+	gitLookPath(t)
+	dir := gitClaimRepo(t, "commit: false\n")
+
+	// --no-commit=false is neutral, so it neither conflicts with --commit
+	// nor overrides the config; explicit true wins and the claim commits.
+	code, _, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--commit=true", "--no-commit=false", "--agent", "test", "AWIT-TEST0002")
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if subject := gitRun(t, dir, "log", "-1", "--pretty=%s"); subject != "awit: claim AWIT-TEST0002" {
+		t.Fatalf("subject = %q, want %q", subject, "awit: claim AWIT-TEST0002")
+	}
+	files := gitRun(t, dir, "show", "--name-only", "--pretty=format:", "HEAD")
+	if !strings.Contains(files, "AWIT-TEST0002.md") || strings.Contains(files, "TEST0001") {
+		t.Fatalf("commit must touch only the claimed item; files = %q", files)
+	}
+	if staged := gitRun(t, dir, "diff", "--cached", "--name-only"); staged != "" {
+		t.Fatalf("commit must leave nothing staged; staged = %q", staged)
+	}
+}
+
+func TestCommitPolicyExplicitFalseOverridesDefault(t *testing.T) {
+	gitLookPath(t)
+	dir := gitClaimRepo(t, "")
+
+	code, _, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--commit=false", "--agent", "test", "--seed", "1")
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if subject := gitRun(t, dir, "log", "-1", "--pretty=%s"); subject != "init" {
+		t.Fatalf("--commit=false must not add a commit; HEAD = %q", subject)
+	}
+	if staged := gitRun(t, dir, "diff", "--cached", "--name-only"); staged != "" {
+		t.Fatalf("--commit=false must skip staging too; staged = %q", staged)
+	}
+	if got := readItem(t, dir, "AWIT-TEST0001"); got.Status != item.StatusInProgress {
+		t.Fatalf("status = %q, want in_progress", got.Status)
+	}
+}
+
+func TestCommitPolicyNoCommitFalseIsNeutral(t *testing.T) {
+	gitLookPath(t)
+	dir := gitClaimRepo(t, "commit: false\n")
+
+	code, _, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--no-commit=false", "--agent", "test", "AWIT-TEST0002")
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if subject := gitRun(t, dir, "log", "-1", "--pretty=%s"); subject != "init" {
+		t.Fatalf("--no-commit=false must stay neutral; HEAD = %q", subject)
+	}
+	if got := readItem(t, dir, "AWIT-TEST0002"); got.Status != item.StatusInProgress {
+		t.Fatalf("status = %q, want in_progress", got.Status)
+	}
+}
+
+func TestCommitPolicyFlagConflicts(t *testing.T) {
+	gitLookPath(t)
+	tests := []struct {
+		name   string
+		args   []string
+		stderr string
+	}{
+		{"commit true plus no-commit", []string{"--claim", "--commit=true", "--no-commit", "--agent", "test", "AWIT-TEST0002"}, "--commit and --no-commit cannot be combined\n"},
+		{"commit false plus no-commit", []string{"--claim", "--commit=false", "--no-commit", "--agent", "test"}, "--commit and --no-commit cannot be combined\n"},
+		{"invalid value", []string{"--claim", "--commit=yes", "--agent", "test"}, "invalid --commit value \"yes\": use --commit=true or --commit=false\n"},
+		{"invalid value without claim", []string{"--commit=yes"}, "invalid --commit value \"yes\": use --commit=true or --commit=false\n"},
+		{"conflict without claim", []string{"--commit=true", "--no-commit"}, "--commit and --no-commit cannot be combined\n"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := gitClaimRepo(t, "")
+			args := append([]string{"--repo", dir, "--format", "compact", "next"}, tc.args...)
+			code, stdout, stderr := run(t, args...)
+			if code != 2 {
+				t.Fatalf("exit %d, want 2 (stdout %q stderr %q)", code, stdout, stderr)
+			}
+			if stderr != tc.stderr {
+				t.Fatalf("stderr = %q, want %q", stderr, tc.stderr)
+			}
+			if subject := gitRun(t, dir, "log", "-1", "--pretty=%s"); subject != "init" {
+				t.Fatalf("usage error must precede any commit; HEAD = %q", subject)
+			}
+			if got := readItem(t, dir, "AWIT-TEST0001"); got.Status != item.StatusOpen || got.Assignee != "" {
+				t.Fatalf("usage error must precede any write: status=%q assignee=%q", got.Status, got.Assignee)
+			}
+		})
+	}
+}
+
+func TestCommitPolicyNoLeakAcrossMainCalls(t *testing.T) {
+	gitLookPath(t)
+
+	// The command tree is reused across Main calls, so an explicit policy
+	// flag on one call must not bleed into later calls that omit it.
+	assertHEAD := func(t *testing.T, dir, want string) {
+		t.Helper()
+		if subject := gitRun(t, dir, "log", "-1", "--pretty=%s"); subject != want {
+			t.Fatalf("HEAD = %q, want %q", subject, want)
+		}
+	}
+
+	t.Run("explicit --commit=false does not leak", func(t *testing.T) {
+		dir := gitClaimRepo(t, "")
+		code, _, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--commit=false", "--agent", "test", "--seed", "1")
+		if code != 0 || stderr != "" {
+			t.Fatalf("first claim: exit %d stderr %q", code, stderr)
+		}
+		code, _, stderr = run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--agent", "test", "AWIT-TEST0002")
+		if code != 0 || stderr != "" {
+			t.Fatalf("second claim: exit %d stderr %q", code, stderr)
+		}
+		assertHEAD(t, dir, "awit: claim AWIT-TEST0002")
+	})
+
+	t.Run("--no-commit does not leak", func(t *testing.T) {
+		dir := gitClaimRepo(t, "")
+		code, _, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--no-commit", "--agent", "test", "--seed", "1")
+		if code != 0 || stderr != "" {
+			t.Fatalf("first claim: exit %d stderr %q", code, stderr)
+		}
+		code, _, stderr = run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--agent", "test", "AWIT-TEST0002")
+		if code != 0 || stderr != "" {
+			t.Fatalf("second claim: exit %d stderr %q", code, stderr)
+		}
+		assertHEAD(t, dir, "awit: claim AWIT-TEST0002")
+	})
+
+	t.Run("--commit=true does not override config false later", func(t *testing.T) {
+		dir := gitClaimRepo(t, "commit: false\n")
+		code, _, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--commit=true", "--agent", "test", "--seed", "1")
+		if code != 0 || stderr != "" {
+			t.Fatalf("first claim: exit %d stderr %q", code, stderr)
+		}
+		code, _, stderr = run(t, "--repo", dir, "--format", "compact", "next", "--claim", "--agent", "test", "AWIT-TEST0002")
+		if code != 0 || stderr != "" {
+			t.Fatalf("second claim: exit %d stderr %q", code, stderr)
+		}
+		assertHEAD(t, dir, "awit: claim AWIT-TEST0001")
+	})
+}
+
+func TestCommitPolicyWithoutClaimWritesNothing(t *testing.T) {
+	dir := copyFixture(t, "clean")
+	code, stdout, stderr := run(t, "--repo", dir, "--format", "compact", "next", "--commit=false", "--seed", "1")
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit %d stderr %q stdout %q", code, stderr, stdout)
+	}
+	if !strings.HasPrefix(stdout, "[AWIT-TEST0001]") {
+		t.Fatalf("stdout = %q, want the TEST0001 pick", stdout)
+	}
+	if got := readItem(t, dir, "AWIT-TEST0001"); got.Status != item.StatusOpen || got.Assignee != "" {
+		t.Fatalf("policy flag without --claim must not write: status=%q assignee=%q", got.Status, got.Assignee)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".git")); !os.IsNotExist(err) {
+		t.Fatalf("fixture must stay git-free: %v", err)
+	}
+}

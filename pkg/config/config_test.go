@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -156,5 +157,88 @@ func TestWriteAtomicBadDir(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "no-such-dir", "f.txt")
 	if err := WriteAtomic(path, []byte("x")); err == nil {
 		t.Fatal("WriteAtomic(missing dir) = nil, want error")
+	}
+}
+
+func TestCommitPolicyShouldCommit(t *testing.T) {
+	no, yes := false, true
+	tests := []struct {
+		name string
+		c    Config
+		want bool
+	}{
+		{"zero config commits", Config{}, true},
+		{"nil commit commits", Config{Commit: nil}, true},
+		{"explicit false skips", Config{Commit: &no}, false},
+		{"explicit true commits", Config{Commit: &yes}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.c.ShouldCommit(); got != tt.want {
+				t.Fatalf("ShouldCommit() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCommitPolicyLoad(t *testing.T) {
+	tests := []struct {
+		name string
+		yaml string
+		want bool
+	}{
+		{"absent key means commit", "prefix: AWIT\n", true},
+		{"commit false", "prefix: AWIT\ncommit: false\n", false},
+		{"commit true", "prefix: AWIT\ncommit: true\n", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, FileName), []byte(tt.yaml), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			c, err := Load(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c.ShouldCommit() != tt.want {
+				t.Fatalf("ShouldCommit() = %v, want %v", c.ShouldCommit(), tt.want)
+			}
+		})
+	}
+}
+
+func TestCommitPolicyWriteRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	c := Default("AWIT")
+	if err := c.Write(dir); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "commit") {
+		t.Fatalf("Default config must not write a commit key: %q", data)
+	}
+
+	no := false
+	c.Commit = &no
+	if err := c.Write(dir); err != nil {
+		t.Fatal(err)
+	}
+	data, err = os.ReadFile(filepath.Join(dir, FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "commit: false") {
+		t.Fatalf("Write must keep commit: false: %q", data)
+	}
+	loaded, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.ShouldCommit() {
+		t.Fatal("commit: false must survive Write -> Load")
 	}
 }

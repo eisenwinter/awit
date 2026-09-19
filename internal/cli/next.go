@@ -2,12 +2,15 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand/v2"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/eisenwinter/awit/internal/gitx"
+	"github.com/eisenwinter/awit/pkg/config"
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/eisenwinter/awit/pkg/item"
@@ -25,7 +28,8 @@ var nextCmd = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringSliceFlag{Name: "label", Aliases: []string{"l"}, Usage: "AND across flags, OR within a flag"},
 		&cli.BoolFlag{Name: "claim", Usage: "claim [id] or the pick: sets in_progress, commits (needs --agent or AWIT_AGENT)"},
-		&cli.BoolFlag{Name: "no-commit", Usage: "with --claim, skip the git commit"},
+		&cli.StringFlag{Name: "commit", Usage: "with --claim, `true|false` overrides the commit policy (config.yaml commit:, default true)"},
+		&cli.BoolFlag{Name: "no-commit", Usage: "deprecated: with --claim, skip the git commit; prefer --commit=false or commit: false in config.yaml"},
 		&cli.Int64Flag{Name: "seed", Usage: "tie-break RNG seed; 0 (default) uses time.Now().UnixNano()"},
 		&cli.StringFlag{
 			Name:    "agent",
@@ -69,6 +73,37 @@ func pickNext(cands []*graph.Node, seed int64) *graph.Node {
 	return group[0]
 }
 
+// commitPolicy resolves whether a claim is committed. Precedence: an
+// explicit --commit or a true --no-commit beats config commit, which beats
+// the documented default true. --no-commit=false is neutral and overrides
+// nothing.
+//
+// The command tree is reused across Main calls, so "was the flag passed?"
+// is decided by value alone — an empty --commit value means unset — never
+// by cmd.IsSet, whose hasBeenSet sticks to reused flags (guide §5).
+func commitPolicy(cmd *cli.Command, cfg config.Config) (bool, error) {
+	raw := cmd.String("commit")
+	var want bool
+	if raw != "" {
+		v, err := strconv.ParseBool(raw)
+		if err != nil {
+			return false, cli.Exit(fmt.Sprintf("invalid --commit value %q: use --commit=true or --commit=false", raw), 2)
+		}
+		want = v
+	}
+	noCommit := cmd.Bool("no-commit")
+	switch {
+	case raw != "" && noCommit:
+		return false, cli.Exit("--commit and --no-commit cannot be combined", 2)
+	case noCommit:
+		return false, nil
+	case raw != "":
+		return want, nil
+	default:
+		return cfg.ShouldCommit(), nil
+	}
+}
+
 func nextAction(_ context.Context, cmd *cli.Command) error {
 	s, err := openStore(cmd)
 	if err != nil {
@@ -76,6 +111,13 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 	}
 	if cmd.Args().Len() > 1 {
 		return cli.Exit("next takes at most one item id", 2)
+	}
+	// Commit policy is validated before any mutation: a bad or conflicting
+	// flag refuses the run before the claim lock or a file write, with or
+	// without --claim.
+	commit, err := commitPolicy(cmd, s.Config)
+	if err != nil {
+		return err
 	}
 	if cmd.Bool("claim") {
 		noteWalkedUp(cmd, s)
@@ -132,7 +174,7 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 			return err
 		}
 		n.Item = it
-		if !cmd.Bool("no-commit") {
+		if commit {
 			if err := gitx.Commit(s.Root, []string{it.Path}, "awit: claim "+it.ID); err != nil {
 				return fmt.Errorf("claimed %s but git commit failed: %w", it.ID, err)
 			}
