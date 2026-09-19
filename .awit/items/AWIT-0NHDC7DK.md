@@ -3,10 +3,11 @@ id: AWIT-0NHDC7DK
 title: 'create: use a configured repository item-body template'
 brief: >-
   Let repositories configure a body template path while retaining the existing skeleton when no template is configured. Fail explicitly on an invalid configured template rather than silently creating the wrong work-item structure.
-status: open
+status: closed
 deps: [AWIT-0ND56A3G, AWIT-0ND56H3G, AWIT-0NHDBCDN]
 labels: [phase1, p1]
-refs: []
+refs_base: repo
+refs: [.awit/comments/AWIT-0NHDC7DK/20260919T153816Z-orchestrator.md]
 ---
 ## Summary
 
