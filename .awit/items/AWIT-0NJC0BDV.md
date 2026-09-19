@@ -3,11 +3,11 @@ id: AWIT-0NJC0BDV
 title: 'config: control automatic external-state pushes with a repository default'
 brief: >-
   Allow repositories to disable automatic linked-issue state pushes without changing local status mutations. Preserve push-by-default behavior and provide explicit per-command overrides with visible configuration-based skips.
-status: open
+status: closed
 deps: []
 labels: [phase5, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NJC0BDV/20260919T201951Z-orchestrator.md]
 ---
 ## Summary
 
