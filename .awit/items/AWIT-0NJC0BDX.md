@@ -3,11 +3,11 @@ id: AWIT-0NJC0BDX
 title: 'import: derive an omitted brief from the remote title or body'
 brief: >-
   Make import derive a short brief from the remote title, falling back to the body's first sentence. Preserve explicit summaries, exact imported content, and create's required-brief contract.
-status: open
+status: closed
 deps: []
 labels: [phase5, p2]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NJC0BDX/20260919T202230Z-orchestrator.md]
 ---
 ## Summary
 
