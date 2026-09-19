@@ -166,13 +166,15 @@ Cycle: AWIT-0K7M2QX9 -> AWIT-0K7LZ9RT -> AWIT-0K7M1B4C -> AWIT-0K7M2QX9
 
 ## CLI command matrix
 
-Fourteen commands; `-p` is gone everywhere, `release`, `validate`, `label` and `archive` are new, and every list-shaped output honours `--format compact|table|json` (compact when stdout is not a TTY).
+Seventeen commands; `-p` is gone everywhere, `release`, `validate`, `label`, `archive`, `import`, `ref` and `external` are new, and every list-shaped output honours `--format compact|table|json` (compact when stdout is not a TTY).
 
 | Command | Flags | User | Purpose |
 | --- | --- | --- | --- |
 | `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Human | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
 | `awit create <title>` | `--brief`, `-d deps`, `-l labels`, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Both | Mint a snowflake ID, write a lean item; optional Gitea mapping |
 | `awit import <issue-url>` | `--brief`, `--alias`, `--tea-login` | Both | One-time snapshot of a Gitea issue via `tea`; keeps number, exact body, labels, open/closed state; refuses duplicates (active or archived) |
+| `awit external check [key]` | `--tea-login` | Both | Read-only byte-exact body comparison for linked items; `MATCH`/`DRIFT`/`ERROR` rows plus totals; exit 1 on drift/error |
+| `awit external push-body <key>` | `--tea-login` | Both | Explicit local-canonical repair via `tea`: pushes body bytes, refuses ambiguous links, verifies the remote bytes |
 | `awit list [key]` | `-s status`, `-l label`, `--ready`, `--blocked`, `--quarantined`, `--format` | Both | Index view; `[key]` selects exactly one item |
 | `awit label` | `--state open\|closed\|all`, `--format` | Both | Label vocabulary with usage counts; answers "what labels exist and how busy are they" |
 | `awit show <id>` | `--full`, `--refs-only` | Agent | Core item (~200 tokens) or full resolved ref tree |

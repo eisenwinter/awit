@@ -127,12 +127,13 @@ edges and commit messages always use the canonical ID.
 ### Item lookup keys
 
 Every command that takes an item argument (`show`, `list`, `next`,
-`update`, `close`, `release`, `comment`, `dep`, `ref`) accepts, in
-precedence order: the canonical ID (exact, case-sensitive, always wins),
-an alias (case-insensitive), or an external key `owner/repo#<n>` or bare
-`#<n>` matched against valid `external:` metadata (the bare form must be
-unique). Ambiguity is an error listing the matching canonical IDs; unknown
-keys error as `unknown item <key>` and never become filesystem paths.
+`update`, `close`, `release`, `comment`, `dep`, `ref`, `external check`,
+`external push-body`) accepts, in precedence order: the canonical ID
+(exact, case-sensitive, always wins), an alias (case-insensitive), or an
+external key `owner/repo#<n>` or bare `#<n>` matched against valid
+`external:` metadata (the bare form must be unique). Ambiguity is an error
+listing the matching canonical IDs; unknown keys error as `unknown item <key>`
+and never become filesystem paths.
 
 ### Optional key: `external`
 
@@ -175,6 +176,41 @@ local status (other states are refused). Import never writes remote state
 and never commits. Re-importing the same installation base + repo + issue
 number — whether the earlier import is active or archived — is refused
 with the existing item or archive path named.
+
+`awit external check [key] [--tea-login name]` compares the raw local
+body bytes (`Item.Body()`: every byte after the frontmatter closing
+fence) against the linked Gitea issue body and nothing else — frontmatter,
+title, labels, comments, and remote state are ignored, so any whitespace,
+line-ending, final-newline, or leading-blank-line difference is drift. The
+command is read-only: no local bytes and no remote fields change. Plain
+output prints one `MATCH`, `DRIFT`, or `ERROR` line per linked item (each
+naming the item and its URL) plus deterministic totals; `--format json`
+prints an array of `{id, url, result, detail}` with no human lines on
+stdout. Exit 1 when any row is drift or error, otherwise 0. An
+authentication or read failure is an error row, never drift. The all-items
+form walks linked items in canonical-ID order and skips genuinely
+unlinked ones (reporting the number checked, including zero); naming an
+explicitly unlinked item is an error.
+
+`awit external push-body <key> [--tea-login name]` is the explicit
+local-canonical repair: it pushes the local body bytes to the linked
+issue and nothing else (no title, label, state, local-content, or history
+change). The push holds the store lock until the bounded request
+completes, refuses ambiguous duplicate external links, requires a 2xx
+status (tea exits zero on HTTP errors, so the `--include` status line is
+authoritative), and verifies the remote took the exact bytes — against the
+PATCH response, or a GET of the same issue when the response omits the
+body. A mismatch is an error, never success.
+
+Byte-exactness relies on a tested `tea` behavior: `tea`'s `-F body=@file`
+reader strips exactly one terminal LF, so awit writes the transport file
+as the body plus one extra LF (private temp-then-rename file, mode 0600,
+deleted on every exit). Supported: `tea` 0.16.0, verified by
+`TestTeaBodyRoundTrip` (empty, no-LF, multi-LF, CRLF, leading blanks,
+Unicode, backticks, and literal `null` round-trip byte-exact). A `tea`
+build that fails that compatibility test must not be advertised as
+supported. Ordinary `awit validate` stays offline: it works with `tea`
+absent and networking disabled.
 
 ### Unknown keys
 

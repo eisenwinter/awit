@@ -146,6 +146,7 @@ When you dispatch workers instead of working yourself:
 | Take work                         | `awit next --claim` (`--commit=false` in tests; `--no-commit` also works) |
 | Look up an item                   | any `<id>` argument also accepts an `alias` (case-insensitive) or `owner/repo#127` / `#127`; ambiguity lists the canonical IDs |
 | Import a Gitea issue              | `awit import <issue-url> --brief "…" [--alias DTRM-F21 --tea-login name]` (one-time snapshot via `tea`; duplicates refused) |
+| Linked-issue body drift | `awit external check [--tea-login name]` (read-only; exit 1 names every drifted item) / `awit external push-body <id> [--tea-login name]` (explicit local-canonical repair; verifies exact bytes) |
 | Read a work item                     | `awit show <id>` (~200 tokens) / `--full` (refs inlined) / `--refs-only` |
 | Record progress                   | `awit comment <id> "…"` / `--file report.log`                            |
 | Change fields                     | `awit update <id> --status                                               | --brief        | --title | --assign | -l  | --unlabel | --external-* | --clear-external` |
@@ -164,6 +165,7 @@ When you dispatch workers instead of working yourself:
 - `dep rm` to make your own item ready → hides real blockers; the graph is now wrong for everyone.
 - Treating `in_progress (ready)` or a retained `assignee` after close as bugs → both are expected.
 - Claiming a second item while holding one → stale claims for everyone else.
+- Body drift on a linked Gitea issue → never hand-edit either side to match; run `awit external check` to see it, `awit external push-body <id>` to repair from the local canonical bytes.
 - Committing `.awit/` in a project whose orchestrator owns commits → duplicate/misordered history. Check `.omp/agents/` first.
 
 ---

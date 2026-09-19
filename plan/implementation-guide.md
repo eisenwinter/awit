@@ -79,7 +79,7 @@ Additional decisions made while writing work items:
 cmd/awit/main.go                 → internal/cli.Main()
 internal/cli/
   app.go                         root *cli.Command, global flags, Main(), helpers (openStore, exitf, SplitLabels)
-  init.go create.go import.go list.go label.go show.go comment.go update.go close.go release.go dep.go ref.go validate.go prime.go next.go archive.go
+  init.go create.go import.go list.go label.go show.go comment.go update.go close.go release.go dep.go ref.go external.go validate.go prime.go next.go archive.go
   *_test.go                      command tests drive Main() with args and capture stdout/stderr
 internal/teax/teax.go            concrete `tea` subprocess wrapper (no provider interface, no HTTP client)
 internal/skill/skill.go          Targets, Detect, Render; assets/ holds the embedded driving-awit body and frontmatter
@@ -591,6 +591,22 @@ func toEntry(n *graph.Node) format.Entry
 // canonical-ID-only; every show/list/next/mutation/dep call site resolves
 // through this helper, under the mutation lock for writers.
 func resolveItemID(items []*item.Item, key string) (string, error)
+// ExternalCheckRow is one row of `external check` output. Result is
+// match, drift, or error; auth/read failures are error rows, never drift.
+type ExternalCheckRow struct {
+    ID     string `json:"id"`
+    URL    string `json:"url,omitempty"`
+    Result string `json:"result"` // match | drift | error
+    Detail string `json:"detail,omitempty"`
+}
+// external check [key] [--tea-login] compares raw body bytes of linked
+// items in canonical-ID order and changes nothing. Plain output is one
+// MATCH/DRIFT/ERROR line per item (each naming the item and its URL) plus
+// deterministic totals; --format json prints the row array with no human
+// lines on stdout. Exit 1 on any drift/error, else 0.
+// external push-body <key> [--tea-login] pushes the local body bytes to
+// the linked issue under the store lock, refuses ambiguous duplicate
+// links, and verifies the remote took the exact bytes.
 ```
 
 Global flags (defined on the root `*cli.Command`, read via `cmd.Root().String("format")` etc.):
@@ -650,6 +666,17 @@ func (c *Client) GetIssue(ctx context.Context, number int64) (Issue, error)
 // IssueBase normalizes an issue URL to scheme://host[/prefix]; it is also
 // the import duplicate-identity comparison.
 func IssueBase(raw string) (string, error)
+// SetBody replaces the body of the given repository issue number with
+// exactly the provided bytes (PATCH -F body=@<transport-file>). The
+// transport file carries the body plus one extra LF because tea's -F @file
+// reader strips exactly one terminal LF; it is a private temp-then-rename
+// file (mode 0600), closed before tea opens it, deleted on every exit.
+// SetBody requires a 2xx status, confirms the issue number (and
+// installation, when the response carries a URL), and verifies the remote
+// body equals the pushed bytes — against the PATCH response, or a GET of
+// the same issue when the response omits the body. Mismatch is an error.
+// Supported tea: 0.16.0 (one-LF behavior pinned by TestTeaBodyRoundTrip).
+func (c *Client) SetBody(ctx context.Context, number int64, body []byte) error
 ```
 
 ### `internal/skill`
