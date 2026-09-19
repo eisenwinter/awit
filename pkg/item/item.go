@@ -13,12 +13,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Item is one Markdown work item under .awit/items/.
-//
 // Known frontmatter keys map to the exported fields below. Unknown keys are
 // kept on the unexported YAML mapping node and survive Bytes() after any
-// setter. Optional `external` is a Gitea issue mapping; invalid or legacy
-// scalar values populate ExternalProblem and leave the YAML intact.
+// setter. Optional `external` is a Gitea or GitLab issue mapping; invalid or
+// legacy scalar values populate ExternalProblem and leave the YAML intact.
 type Item struct {
 	ID              string
 	Title           string
@@ -41,8 +39,8 @@ type Item struct {
 	dirty bool
 }
 
-// External is a Gitea issue linked from an item. ID is the repository
-// issue number, not Gitea's database-wide issue id.
+// External is a Gitea or GitLab issue linked from an item. ID is the
+// repository issue number (Gitea number or GitLab iid), not a database-wide id.
 type External struct {
 	Tracker string `json:"tracker"`
 	Repo    string `json:"repo"`
@@ -592,19 +590,128 @@ func validateExternalURL(raw, owner, name string, id int64) error {
 	return nil
 }
 
-// ValidateExternal reports whether e is a complete, well-formed Gitea mapping.
+func validGitLabRepoSegment(s string) error {
+	if s == "" || s == "." || s == ".." {
+		return invalidExternal("repo must have at least two nonempty path segments")
+	}
+	for _, r := range s {
+		if r <= 0x20 || r == 0x7F || unicode.IsSpace(r) || unicode.IsControl(r) {
+			return invalidExternal("repo contains whitespace or control characters")
+		}
+		if strings.ContainsRune(`\/:?#@[]%`, r) {
+			return invalidExternal("repo contains a URL delimiter")
+		}
+	}
+	return nil
+}
+
+func parseGitLabRepo(repo string) error {
+	if repo == "" || strings.HasPrefix(repo, "/") || strings.HasSuffix(repo, "/") {
+		return invalidExternal("repo must have at least two nonempty path segments")
+	}
+	segs := strings.Split(repo, "/")
+	if len(segs) < 2 {
+		return invalidExternal("repo must have at least two nonempty path segments")
+	}
+	for _, s := range segs {
+		if err := validGitLabRepoSegment(s); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validGitLabURLSegment(s string) error {
+	if s == "" {
+		return invalidExternal("url path contains an empty segment")
+	}
+	if s == "." || s == ".." {
+		return invalidExternal("url path contains a dot segment")
+	}
+	for _, r := range s {
+		if r <= 0x20 || r == 0x7F || unicode.IsSpace(r) || unicode.IsControl(r) {
+			return invalidExternal("url path contains whitespace or control characters")
+		}
+		if r == '\\' || strings.ContainsRune(`:?#@[]%`, r) {
+			return invalidExternal("url path contains a URL delimiter")
+		}
+	}
+	return nil
+}
+
+func validateGitLabURL(raw, repo string, id int64) error {
+	u, err := url.Parse(raw)
+	if err != nil || !u.IsAbs() {
+		return invalidExternal("url must be an absolute HTTP(S) URL")
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return invalidExternal("url must be an absolute HTTP(S) URL")
+	}
+	if u.Host == "" {
+		return invalidExternal("url must include a host")
+	}
+	if u.User != nil {
+		return invalidExternal("url must not include userinfo")
+	}
+	if u.RawQuery != "" || u.ForceQuery {
+		return invalidExternal("url must not include a query")
+	}
+	if u.Fragment != "" || strings.Contains(raw, "#") {
+		return invalidExternal("url must not include a fragment")
+	}
+	escaped := u.EscapedPath()
+	lower := strings.ToLower(escaped)
+	if strings.Contains(lower, "%2f") || strings.Contains(lower, "%5c") {
+		return invalidExternal("url path contains an encoded separator")
+	}
+	if strings.Contains(lower, "%2e") {
+		return invalidExternal("url path contains an encoded dot")
+	}
+	path := u.Path
+	if path == "" || path[0] != '/' {
+		return invalidExternal("url path must end in /repo/-/issues/id or /repo/-/work_items/id")
+	}
+	if strings.HasSuffix(path, "/") {
+		return invalidExternal("url path must end in /repo/-/issues/id or /repo/-/work_items/id")
+	}
+	segs := strings.Split(path[1:], "/")
+	for _, seg := range segs {
+		if err := validGitLabURLSegment(seg); err != nil {
+			return err
+		}
+	}
+	idStr := strconv.FormatInt(id, 10)
+	issues := "/" + repo + "/-/issues/" + idStr
+	workItems := "/" + repo + "/-/work_items/" + idStr
+	if !strings.HasSuffix(path, issues) && !strings.HasSuffix(path, workItems) {
+		return invalidExternal("url path must end in /repo/-/issues/id or /repo/-/work_items/id")
+	}
+	return nil
+}
+
+// ValidateExternal reports whether e is a complete, well-formed Gitea or GitLab mapping.
 func ValidateExternal(e External) error {
-	if e.Tracker != "gitea" {
-		return invalidExternal("tracker must be gitea")
+	switch e.Tracker {
+	case "gitea":
+		owner, name, err := parseRepo(e.Repo)
+		if err != nil {
+			return err
+		}
+		if e.ID <= 0 {
+			return invalidExternal("id must be a positive integer")
+		}
+		return validateExternalURL(e.URL, owner, name, e.ID)
+	case "gitlab":
+		if err := parseGitLabRepo(e.Repo); err != nil {
+			return err
+		}
+		if e.ID <= 0 {
+			return invalidExternal("id must be a positive integer")
+		}
+		return validateGitLabURL(e.URL, e.Repo, e.ID)
+	default:
+		return invalidExternal("tracker must be gitea or gitlab")
 	}
-	owner, name, err := parseRepo(e.Repo)
-	if err != nil {
-		return err
-	}
-	if e.ID <= 0 {
-		return invalidExternal("id must be a positive integer")
-	}
-	return validateExternalURL(e.URL, owner, name, e.ID)
 }
 
 func scalarString(n *yaml.Node, name string) (string, error) {
@@ -740,8 +847,8 @@ func (it *Item) setExternalNode(e *External) {
 	setOwned("url", "!!str", e.URL)
 }
 
-// SetExternal writes a validated Gitea mapping, or removes the field when e
-// is nil. An identical mapping is a no-op. Extra nested keys are retained.
+// SetExternal writes a validated Gitea or GitLab mapping, or removes the field
+// when e is nil. An identical mapping is a no-op. Extra nested keys are retained.
 func (it *Item) SetExternal(e *External) error {
 	if e == nil {
 		_, _, idx := it.findKey("external")

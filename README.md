@@ -31,7 +31,7 @@ prints `awit dev`.
 | Command | Flags | Purpose |
 | --- | --- | --- |
 | `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
-| `awit create <title>` | `--brief`, `-d` deps, `-l` labels, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Mint a snowflake ID, write a lean item; optional Gitea mapping; optional `config.template` body |
+| `awit create <title>` | `--brief`, `-d` deps, `-l` labels, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Mint a snowflake ID, write a lean item; optional Gitea or GitLab mapping; optional `config.template` body |
 | `awit import <issue-url>` | `--brief`, `--alias`, `--tea-login` | One-time snapshot of an existing Gitea issue via `tea`: keeps the issue number, exact body, labels and open/closed state; refuses duplicates |
 | `awit external check [key]` | `--tea-login` | Read-only byte-exact body comparison for linked items; `MATCH`/`DRIFT`/`ERROR` rows plus totals; exit 1 on any drift or error |
 | `awit external push-body <key>` | `--tea-login` | Explicit repair: push local body bytes to the linked Gitea issue through `tea`; refuses ambiguous links; verifies the remote took the exact bytes |
@@ -134,8 +134,8 @@ optional `external`) followed by a Markdown body.
 Priority is a label by convention (`p0`…`p4`). Optional `config.yaml`
 `labels` is an advisory vocabulary: `create`/`update` warn on unknown
 names they introduce but still store them. Blocked is derived, never
-stored. The on-disk schema, including the optional `alias` and the Gitea
-`external:` mapping, is documented in [docs/schema.md](docs/schema.md).
+stored. The on-disk schema, including the optional `alias` and the Gitea or
+GitLab `external:` mapping, is documented in [docs/schema.md](docs/schema.md).
 
 Wherever a command takes an item — `show`, `list`, `next`, `update`,
 `close`, `release`, `comment`, `dep`, `ref`, `external check`,

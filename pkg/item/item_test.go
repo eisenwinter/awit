@@ -620,6 +620,214 @@ func TestValidateExternalPrefixURL(t *testing.T) {
 	}
 }
 
+func validGitLabExternal() External {
+	return External{
+		Tracker: "gitlab",
+		Repo:    "group/sub/project",
+		ID:      127,
+		URL:     "https://forge.example/apps/gitlab/group/sub/project/-/work_items/127",
+	}
+}
+
+const validGitLabDoc = `---
+id: AWIT-TEST0001
+title: T
+status: open
+external:
+  tracker: gitlab
+  repo: group/sub/project
+  id: 127
+  url: https://forge.example/apps/gitlab/group/sub/project/-/work_items/127
+---
+body
+`
+
+func TestExternalGitLabValidation(t *testing.T) {
+	e := External{
+		Tracker: "gitlab", Repo: "group/sub/project", ID: 127,
+		URL: "https://forge.example/apps/gitlab/group/sub/project/-/work_items/127",
+	}
+	if err := ValidateExternal(e); err != nil {
+		t.Fatalf("valid GitLab issue mapping: %v", err)
+	}
+
+	valid := []External{
+		validGitLabExternal(),
+		{Tracker: "gitlab", Repo: "group/project", ID: 42, URL: "https://gitlab.example/group/project/-/issues/42"},
+		{Tracker: "gitlab", Repo: "group/project", ID: 42, URL: "http://gitlab.example/gitlab/group/project/-/issues/42"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group/sub/project/-/issues/127"},
+		{Tracker: "gitlab", Repo: "group/my.project", ID: 7, URL: "https://forge.example/group/my.project/-/work_items/7"},
+		validExternal(),
+		{Tracker: "gitea", Repo: "owner/repo", ID: 127, URL: "https://forge.example/gitea/owner/repo/issues/127"},
+	}
+	for i, ext := range valid {
+		if err := ValidateExternal(ext); err != nil {
+			t.Fatalf("valid[%d] %+v: %v", i, ext, err)
+		}
+	}
+
+	invalid := []External{
+		{Tracker: "github", Repo: "group/project", ID: 1, URL: "https://forge.example/group/project/-/issues/1"},
+		{Tracker: "GitLab", Repo: "group/project", ID: 1, URL: "https://forge.example/group/project/-/issues/1"},
+		{Tracker: "gitlab", Repo: "project", ID: 1, URL: "https://forge.example/project/-/issues/1"},
+		{Tracker: "gitlab", Repo: "/group/project", ID: 1, URL: "https://forge.example/group/project/-/issues/1"},
+		{Tracker: "gitlab", Repo: "group/project/", ID: 1, URL: "https://forge.example/group/project/-/issues/1"},
+		{Tracker: "gitlab", Repo: "group//project", ID: 1, URL: "https://forge.example/group/project/-/issues/1"},
+		{Tracker: "gitlab", Repo: "group/./project", ID: 1, URL: "https://forge.example/group/project/-/issues/1"},
+		{Tracker: "gitlab", Repo: "group/../project", ID: 1, URL: "https://forge.example/group/project/-/issues/1"},
+		{Tracker: "gitlab", Repo: "group/pro ject", ID: 1, URL: "https://forge.example/group/project/-/issues/1"},
+		{Tracker: "gitlab", Repo: "group/pro\u00a0ject", ID: 1, URL: "https://forge.example/group/project/-/issues/1"},
+		{Tracker: "gitlab", Repo: `group\project`, ID: 1, URL: "https://forge.example/group/project/-/issues/1"},
+		{Tracker: "gitlab", Repo: "group/pro%ject", ID: 1, URL: "https://forge.example/group/project/-/issues/1"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 0, URL: "https://forge.example/group/sub/project/-/issues/1"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: -3, URL: "https://forge.example/group/sub/project/-/issues/3"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://user:pass@forge.example/group/sub/project/-/issues/127"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group/sub/project/-/issues/127?x=1"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group/sub/project/-/issues/127?"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group/sub/project/-/issues/127#frag"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group/sub/project/-/issues/127#"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group/other/project/-/issues/127"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group/sub/project/-/issues/128"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group/sub/project/-/issues/127/extra"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group/sub/project/issues/127"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group%2Fsub/project/-/issues/127"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group/sub/project%2f-/issues/127"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group/sub/project/-/issues/127%5c"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group/sub/%2e%2e/project/-/issues/127"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/apps//gitlab/group/sub/project/-/issues/127"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/apps/../group/sub/project/-/issues/127"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group/sub/project/-/issues/127/"},
+		{Tracker: "gitlab", Repo: "group/sub/project", ID: 127, URL: "ftp://forge.example/group/sub/project/-/issues/127"},
+		{Tracker: "gitea", Repo: "group/sub/project", ID: 127, URL: "https://forge.example/group/sub/project/issues/127"},
+	}
+	for i, ext := range invalid {
+		if err := ValidateExternal(ext); err == nil {
+			t.Fatalf("invalid[%d] %+v: accepted", i, ext)
+		}
+	}
+}
+
+func TestExternalGitLabRoundTrip(t *testing.T) {
+	raw := []byte(validGitLabDoc)
+	it, err := Parse("x.md", raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.External == nil {
+		t.Fatal("External is nil")
+	}
+	want := validGitLabExternal()
+	if *it.External != want {
+		t.Fatalf("External = %+v, want %+v", *it.External, want)
+	}
+	if it.ExternalProblem != "" {
+		t.Fatalf("ExternalProblem = %q, want empty", it.ExternalProblem)
+	}
+	got, err := it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, raw) {
+		t.Fatalf("GitLab mapping rewritten:\n%s", got)
+	}
+
+	gitea, err := Parse("x.md", []byte(validExternalDoc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err = gitea.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, []byte(validExternalDoc)) {
+		t.Fatalf("Gitea mapping rewritten:\n%s", got)
+	}
+
+	extra := []byte(`---
+id: AWIT-TEST0001
+title: T
+status: open
+external:
+  tracker: gitlab
+  repo: group/sub/project
+  id: 127
+  url: https://forge.example/apps/gitlab/group/sub/project/-/work_items/127
+  extra: keep-me
+---
+raw body
+`)
+	it, err = Parse("x.md", extra)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err = it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, extra) {
+		t.Fatalf("extra nested keys changed source bytes:\n%s", got)
+	}
+	it.SetStatus(StatusInProgress)
+	got, err = it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(got, []byte("extra: keep-me")) {
+		t.Fatalf("extra nested key dropped:\n%s", got)
+	}
+	if !bytes.Contains(got, []byte("url: https://forge.example/apps/gitlab/group/sub/project/-/work_items/127")) {
+		t.Fatalf("url rewritten:\n%s", got)
+	}
+	if !bytes.HasSuffix(got, []byte("raw body\n")) {
+		t.Fatalf("body not preserved:\n%s", got)
+	}
+
+	fresh := New("AWIT-TEST0001", "T", "B.", nil, nil)
+	ext := validGitLabExternal()
+	if err := fresh.SetExternal(&ext); err != nil {
+		t.Fatal(err)
+	}
+	if err := fresh.SetExternal(&ext); err != nil {
+		t.Fatal(err)
+	}
+	got, err = fresh.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Count(got, []byte("tracker: gitlab")) != 1 {
+		t.Fatalf("identical SetExternal rewrote mapping:\n%s", got)
+	}
+
+	malformed := []string{
+		"---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nexternal:\n  tracker: [gitlab]\n  repo: group/project\n  id: 127\n  url: https://forge.example/group/project/-/issues/127\n---\n",
+		"---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nexternal:\n  tracker: gitlab\n  repo: group/project\n  id: 127.5\n  url: https://forge.example/group/project/-/issues/127\n---\n",
+		"---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nexternal:\n  tracker: gitlab\n  repo: group/project\n  id: 9223372036854775808\n  url: https://forge.example/group/project/-/issues/1\n---\n",
+		"---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nexternal:\n  tracker: gitlab\n  repo: group/project\n  id: 127\n---\n",
+		"---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nexternal:\n  tracker: gitlab\n  tracker: gitlab\n  repo: group/project\n  id: 127\n  url: https://forge.example/group/project/-/issues/127\n---\n",
+		"---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nexternal: gitlab#42\n---\nbody\n",
+	}
+	for i, doc := range malformed {
+		raw := []byte(doc)
+		it, err := Parse("x.md", raw)
+		if err != nil {
+			t.Fatalf("malformed[%d] parse: %v", i, err)
+		}
+		if it.External != nil {
+			t.Fatalf("malformed[%d] External = %+v, want nil", i, it.External)
+		}
+		if it.ExternalProblem == "" {
+			t.Fatalf("malformed[%d] ExternalProblem empty", i)
+		}
+		got, err := it.Bytes()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(got, raw) {
+			t.Fatalf("malformed[%d] rewritten:\n%s", i, got)
+		}
+	}
+}
+
 func TestParseAlias(t *testing.T) {
 	it, err := Parse("/abs/AWIT-TEST0001.md", []byte(`---
 id: AWIT-TEST0001

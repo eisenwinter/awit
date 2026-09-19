@@ -105,7 +105,7 @@ Missing required keys or an unknown status → parse error → quarantine
 | `claimed_at` | RFC3339 UTC | Seconds precision. Set by `--claim`; deleted by `release` and `close` |
 | `refs_base` | string | `repo` or omitted. Omitted means historical `.awit/items/`-relative refs. Invalid types/values are parse errors |
 | `refs` | list of paths | Forward slashes. Block style. Always present, `[]` when empty. Relative to the repo root when `refs_base: repo`, else `.awit/items/` |
-| `external` | mapping | Optional Gitea issue link (see below). Missing is valid |
+| `external` | mapping | Optional Gitea or GitLab issue link (see below). Missing is valid |
 | `alias` | string | Optional human alias (see below). Missing is valid |
 
 New items written by `awit create` use key order
@@ -145,13 +145,41 @@ external:
   url: https://forge.example/owner/repo/issues/127
 ```
 
-`id` is the repository issue **number**, not Gitea's database-wide issue ID.
-All four subkeys are required for a valid mapping. Extra nested keys are
-kept. `tracker` must be exactly `gitea`. `repo` is `owner/name` (two
-nonempty segments; no whitespace, control characters, `.`/`..`, or URL
-delimiters). `url` is absolute HTTP(S) with a host, no userinfo, query, or
-fragment; its decoded path must end in `/<owner>/<repo>/issues/<id>`
-(an installation prefix before that suffix is allowed).
+```yaml
+external:
+  tracker: gitlab
+  repo: group/sub/project
+  id: 127
+  url: https://forge.example/apps/gitlab/group/sub/project/-/work_items/127
+```
+
+`id` is the repository issue **number** (Gitea `number` or GitLab **`iid`**),
+never either product's database-wide issue ID. All four subkeys are required
+for a valid mapping. Extra nested keys are kept. `tracker` must be exactly
+`gitea` or `gitlab`. This is additive: existing Gitea files stay valid, no
+item is rewritten, and Gitea grammar is unchanged.
+
+Gitea `repo` is `owner/name` (exactly two nonempty segments; no whitespace,
+control characters, `.`/`..`, or URL delimiters). Gitea `url` is absolute
+HTTP(S) with a host, no userinfo, query, or fragment; its decoded path must
+end in `/<owner>/<repo>/issues/<id>` (an installation prefix before that
+suffix is allowed).
+
+GitLab `repo` has at least two slash-separated segments (subgroups allowed).
+Reject leading/trailing slash, empty segments, `.` and `..`, Unicode
+whitespace/control characters, and any segment containing `\/:?#@[]%`.
+Ordinary dots inside a name are allowed; case and spelling are preserved.
+GitLab `url` is absolute HTTP(S) with a host, no userinfo, query (including
+empty `?`), or fragment (including empty `#`). Its decoded path must end
+exactly in `/<complete repo>/-/issues/<iid>` or
+`/<complete repo>/-/work_items/<iid>`. A prefix before that suffix is the
+installation path. `work_items` is an issue-link spelling, not a promise to
+import every GitLab work-item type.
+
+Local statuses remain `open|in_progress|closed`. GitLab wire `opened` maps to
+local `open` and wire `closed` to `closed`; that conversion is remote
+integration, not YAML parsing. Import and remote writes for GitLab are not
+part of this schema change.
 
 `awit create` and `awit update` take `--external-tracker`, `--external-repo`,
 `--external-id`, and `--external-url` together; a partial set is a usage
@@ -165,7 +193,8 @@ quarantine the item: Parse keeps the YAML, `External` is nil, and
 `validate` prints `WARN  <id>: invalid external: <reason>` (exit 0 unless
 there are graph faults). JSON `validate` writes that advisory on stderr
 without changing the fault-array schema. Show, list, and compact output
-display only a valid link (`gitea owner/repo#127`).
+display only a valid link (`gitea owner/repo#127` or
+`gitlab group/sub/project#127`).
 
 `awit import <issue-url> --brief <summary> [--alias X] [--tea-login name]`
 creates an item from an existing Gitea issue through the `tea` CLI: the

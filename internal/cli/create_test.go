@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eisenwinter/awit/internal/teax/teaxtest"
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/id"
 	"github.com/eisenwinter/awit/pkg/item"
@@ -274,6 +275,177 @@ func TestCreateInvalidExternalDoesNotWrite(t *testing.T) {
 	}
 	if len(ents) != 0 {
 		t.Fatalf("invalid mapping wrote %d items", len(ents))
+	}
+}
+
+func TestExternalGitLabMetadataCLI(t *testing.T) {
+	teaxtest.HideTea(t)
+	dir := initRepo(t)
+	gitlabURL := "https://forge.example/apps/gitlab/group/sub/project/-/work_items/127"
+	code, stdout, stderr := run(t, "--repo", dir, "create",
+		"--brief", "A linked GitLab issue.",
+		"--alias", "GL-SCHEMA",
+		"--external-tracker", "gitlab",
+		"--external-repo", "group/sub/project",
+		"--external-id", "127",
+		"--external-url", gitlabURL,
+		"Linked")
+	if code != 0 {
+		t.Fatalf("create exit %d stderr %q stdout %q", code, stderr, stdout)
+	}
+	it := onlyItem(t, dir)
+	if it.External == nil {
+		t.Fatal("External is nil")
+	}
+	if it.External.Tracker != "gitlab" || it.External.Repo != "group/sub/project" || it.External.ID != 127 {
+		t.Fatalf("External = %+v", it.External)
+	}
+	if it.External.URL != gitlabURL {
+		t.Fatalf("URL = %q", it.External.URL)
+	}
+	id := it.ID
+
+	code, stdout, stderr = run(t, "--repo", dir, "show", "GL-SCHEMA")
+	if code != 0 {
+		t.Fatalf("show exit %d stderr %q", code, stderr)
+	}
+	wantShow := "external: gitlab group/sub/project#127 " + gitlabURL
+	if !strings.Contains(stdout, wantShow) {
+		t.Fatalf("show stdout = %q", stdout)
+	}
+
+	code, stdout, stderr = run(t, "--repo", dir, "--format", "json", "list", "GL-SCHEMA")
+	if code != 0 {
+		t.Fatalf("list exit %d stderr %q", code, stderr)
+	}
+	var entries []format.Entry
+	if err := json.Unmarshal([]byte(stdout), &entries); err != nil {
+		t.Fatalf("list json: %v\n%s", err, stdout)
+	}
+	if len(entries) != 1 || entries[0].External == nil || entries[0].External.Tracker != "gitlab" || entries[0].External.ID != 127 {
+		t.Fatalf("list json = %s", stdout)
+	}
+
+	path := filepath.Join(dir, ".awit", "items", id+".md")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr = run(t, "--repo", dir, "update", "GL-SCHEMA",
+		"--external-tracker", "gitlab",
+		"--external-repo", "group/sub/project",
+		"--external-id", "127",
+		"--external-url", gitlabURL)
+	if code != 0 {
+		t.Fatalf("identical update exit %d stderr %q", code, stderr)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Fatalf("identical mapping rewrote:\n%s", after)
+	}
+
+	code, stdout, stderr = run(t, "--repo", dir, "validate")
+	if code != 0 {
+		t.Fatalf("validate exit %d stderr %q stdout %q", code, stderr, stdout)
+	}
+	if strings.Contains(stdout, "invalid external") || strings.Contains(stderr, "invalid external") {
+		t.Fatalf("valid GitLab mapping warned:\nstdout=%q\nstderr=%q", stdout, stderr)
+	}
+
+	code, stdout, stderr = run(t, "--repo", dir, "update", "GL-SCHEMA", "--clear-external")
+	if code != 0 {
+		t.Fatalf("clear exit %d stderr %q", code, stderr)
+	}
+	cleared := readItem(t, dir, id)
+	if cleared.External != nil {
+		t.Fatalf("External after clear = %+v", cleared.External)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "external:") {
+		t.Fatalf("external still present:\n%s", data)
+	}
+
+	itemsDir := filepath.Join(dir, ".awit", "items")
+	countItems := func() int {
+		t.Helper()
+		ents, err := os.ReadDir(itemsDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(ents)
+	}
+	beforeCount := countItems()
+	clearedBytes, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	invalid := [][]string{
+		{"create", "--brief", "Bad repo.", "--external-tracker", "gitlab", "--external-repo", "group//project", "--external-id", "127", "--external-url", gitlabURL, "BadRepo"},
+		{"create", "--brief", "Bad query.", "--external-tracker", "gitlab", "--external-repo", "group/sub/project", "--external-id", "127", "--external-url", gitlabURL + "?x=1", "BadQuery"},
+		{"create", "--brief", "Bad iid.", "--external-tracker", "gitlab", "--external-repo", "group/sub/project", "--external-id", "128", "--external-url", gitlabURL, "BadIID"},
+		{"create", "--brief", "Partial.", "--external-tracker", "gitlab", "--external-repo", "group/sub/project", "Partial"},
+		{"update", id, "--external-tracker", "gitlab", "--external-repo", "group//project", "--external-id", "127", "--external-url", gitlabURL},
+		{"update", id, "--external-tracker", "gitlab", "--external-repo", "group/sub/project", "--external-id", "127", "--external-url", gitlabURL + "?x=1"},
+		{"update", id, "--external-tracker", "gitlab", "--external-repo", "group/sub/project", "--external-id", "128", "--external-url", gitlabURL},
+		{"update", id, "--external-tracker", "gitlab", "--external-repo", "group/sub/project"},
+	}
+	for i, args := range invalid {
+		code, _, stderr = run(t, append([]string{"--repo", dir}, args...)...)
+		if code != 2 {
+			t.Fatalf("invalid[%d] exit %d, want 2 stderr %q", i, code, stderr)
+		}
+		if countItems() != beforeCount {
+			t.Fatalf("invalid[%d] wrote an item", i)
+		}
+		after, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(after) != string(clearedBytes) {
+			t.Fatalf("invalid[%d] mutated item:\n%s", i, after)
+		}
+	}
+
+	legacy := []byte(`---
+id: AWIT-TEST0002
+title: Legacy
+brief: Old scalar.
+status: open
+deps: []
+labels: []
+refs: []
+external: gitlab#42
+---
+
+body
+`)
+	legacyPath := filepath.Join(itemsDir, "AWIT-TEST0002.md")
+	if err := os.WriteFile(legacyPath, legacy, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr = run(t, "--repo", dir, "validate")
+	if code != 0 {
+		t.Fatalf("legacy validate exit %d stderr %q stdout %q", code, stderr, stdout)
+	}
+	if strings.Contains(stdout, "FAIL") || strings.Contains(stdout, "QUARANTINED") {
+		t.Fatalf("legacy scalar quarantined:\nstdout=%q\nstderr=%q", stdout, stderr)
+	}
+	if !strings.Contains(stdout, "WARN  AWIT-TEST0002: invalid external:") {
+		t.Fatalf("legacy scalar missing warn:\n%s", stdout)
+	}
+	gotLegacy, err := os.ReadFile(legacyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(gotLegacy) != string(legacy) {
+		t.Fatalf("legacy scalar rewritten:\n%s", gotLegacy)
 	}
 }
 

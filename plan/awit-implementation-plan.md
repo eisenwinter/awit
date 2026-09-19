@@ -111,7 +111,7 @@ refs:
 | `assignee` | string | `human/<name>` or `agent/<id>`; set by `--claim` or `--assign` |
 | `claimed_at` | RFC 3339 | Set by `--claim`, cleared by `release` and `close`; drives stale-claim check |
 | `refs` | list | Paths relative to the repo root when `refs_base: repo` (default for new writes), forward slashes only. Omitted `refs_base` means historical `.awit/items/`-relative refs, rewritten on first mutation |
-| `external` | mapping | Optional Gitea link `{tracker, repo, id, url}`. `id` is the repository issue number. Invalid or legacy scalar values warn on `validate` and do not quarantine |
+| `external` | mapping | Optional Gitea or GitLab link `{tracker, repo, id, url}`. `tracker` is `gitea` or `gitlab`. `id` is the Gitea issue number or GitLab iid. GitLab `repo` allows subgroups. Invalid or legacy scalar values warn on `validate` and do not quarantine |
 | `alias` | string | Optional human alias, `[A-Za-z][A-Za-z0-9._-]{0,127}`, never ID-shaped; case-insensitively unique across active items (warned, not enforced); lookup-only, never a filename or dep edge |
 
 Unknown keys are preserved on write so teams can add their own fields without a schema change. `config.yaml` holds `prefix`, optional `default_labels`, optional `labels` (advisory vocabulary; missing/empty disables; `create`/`update` warn on unknown names they introduce but still store them), `stale_claim` (duration, default `2h`), `agent_id` (overridden by `AWIT_AGENT`), and optional `template` (repo-root-relative forward-slash path to a body-only file `create` copies verbatim; absent keeps the default skeleton; `import` ignores it).
@@ -171,7 +171,7 @@ Seventeen commands; `-p` is gone everywhere, `release`, `validate`, `label`, `ar
 | Command | Flags | User | Purpose |
 | --- | --- | --- | --- |
 | `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Human | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
-| `awit create <title>` | `--brief`, `-d deps`, `-l labels`, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Both | Mint a snowflake ID, write a lean item; optional Gitea mapping |
+| `awit create <title>` | `--brief`, `-d deps`, `-l labels`, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Both | Mint a snowflake ID, write a lean item; optional Gitea or GitLab mapping |
 | `awit import <issue-url>` | `--brief`, `--alias`, `--tea-login` | Both | One-time snapshot of a Gitea issue via `tea`; keeps number, exact body, labels, open/closed state; refuses duplicates (active or archived) |
 | `awit external check [key]` | `--tea-login` | Both | Read-only byte-exact body comparison for linked items; `MATCH`/`DRIFT`/`ERROR` rows plus totals; exit 1 on drift/error |
 | `awit external push-body <key>` | `--tea-login` | Both | Explicit local-canonical repair via `tea`: pushes body bytes, refuses ambiguous links, verifies the remote bytes |
@@ -301,7 +301,7 @@ Six phases; phases 1–2 set the codebase's shape, and the agent surface waits u
 - [ ] Documented pre-commit hook running `awit validate`
 - [ ] goreleaser config, version embedding, `README` with the agent loop
 - [ ] `init --skills`: detect `.claude`, `.omp`, `.opencode`, `.agents`, `.pi` and offer to seed the driving-awit skill from an embedded asset
-- [ ] Structured `external:` Gitea mapping (`tracker`, `repo`, issue `id`, `url`); invalid values warn, do not quarantine
+- [ ] Structured `external:` Gitea or GitLab mapping (`tracker`, `repo`, issue `id`/`iid`, `url`); invalid values warn, do not quarantine
 - [ ] `archive`: fixed-point eligibility, comment collapse, attachment move, `--dry-run`; `validate` stays `PASS` afterwards
 
 ## Open questions

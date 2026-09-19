@@ -70,7 +70,7 @@ Additional decisions made while writing work items:
 | Archive write order | Per item: write `archive/<id>.md` atomically → move attachments (`os.Rename`, atomic write fallback on cross-device) → `os.Remove(items/<id>.md)` → `os.RemoveAll(comments/<id>)`. Idempotent: if both `archive/<id>.md` and `items/<id>.md` exist (crash between steps) the archive file is rebuilt from `items/` and overwritten. |
 | Does `archive` commit? | **No**, same as `close`. Holds `Store.Lock`. Output ignores `--format` (like `close`): one `archived <id>` line per item, sorted by ID, then `Archived N items`. `--dry-run` writes nothing, prints `would archive <id>` lines and `skip <id>: dependant <dep-id> not archivable` for every closed item left behind, then `Would archive N items`. Exit 0 even when N = 0. |
 | Release output | **No commit**, same as `close`. Holds `Store.Lock`. Every source state — `open`, `in_progress`, `closed` — ends `open` with `assignee`/`claimed_at` deleted, so release is an idempotent visible action. Output ignores `--format` (like `close` and `archive`): exactly one `reopened <id>` line, printed only after `Store.Save` succeeds; load/write failures print no success line. |
-| `external` mapping | Optional Gitea link: `{tracker: gitea, repo: owner/repo, id: <issue number>, url: <http(s)>}`. `id` is the repository issue number. `create`/`update` require `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` together (partial → exit 2, no write). `update --clear-external` is mutually exclusive with those flags. Invalid or legacy scalar `external:` values set `ExternalProblem` and are **not** quarantined; `validate` prints `WARN  <id>: invalid external: <reason>` (JSON: that line on stderr; fault-array schema unchanged). Exit 0 unless graph faults exist. |
+| `external` mapping | Optional Gitea or GitLab link: `{tracker: gitea\|gitlab, repo, id, url}`. `id` is the Gitea issue number or GitLab iid. Gitea `repo` is two segments; GitLab `repo` is two or more (subgroups allowed). GitLab URLs end in `/<repo>/-/issues/<iid>` or `/<repo>/-/work_items/<iid>` with an optional installation prefix. Local statuses stay `open\|in_progress\|closed`; GitLab wire `opened` maps to local `open` (remote conversion, not YAML). `create`/`update` require `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` together (partial → exit 2, no write). `update --clear-external` is mutually exclusive with those flags. Invalid or legacy scalar `external:` values set `ExternalProblem` and are **not** quarantined; `validate` prints `WARN  <id>: invalid external: <reason>` (JSON: that line on stderr; fault-array schema unchanged). Exit 0 unless graph faults exist. |
 | `external` state push | One-way local→Gitea propagation only. `close`→`closed`, `release`→`open`, explicit `update --status closed`→`closed`, `update --status open\|in_progress`→`open`; a non-status update, `next --claim`, create, import, comment, ref, and archive never push. All three carry `--no-push` (no tea discovery/auth/network, even with malformed metadata) and `--tea-login`. Local save first (keeping close's reason/comment and claim-clearing), then `Client.SetState` under the held store lock with the bounded subprocess deadline. Remote failure, missing tea, invalid metadata, or ambiguous links keep the local mutation and confirmation, print one stderr `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>`, and exit 0; local failure exits 1 with no push. Same-status `update --status` repeats the push (the retry path). Response identity/state and HTTP status are validated; remote state is never GET-read to decide. No retries, queues, or commits. |
 
 ## 3. Repository layout
@@ -242,12 +242,12 @@ type Item struct {
 }
 
 type External struct {
-    Tracker string `json:"tracker"`
-    Repo    string `json:"repo"`
-    ID      int64  `json:"id"`
+    Tracker string `json:"tracker"` // "gitea" or "gitlab"
+    Repo    string `json:"repo"`    // Gitea: two segments; GitLab: two or more
+    ID      int64  `json:"id"`      // Gitea number or GitLab iid
     URL     string `json:"url"`
 }
-func ValidateExternal(e External) error
+func ValidateExternal(e External) error // GitLab URL ends in /repo/-/issues|work_items/<iid>
 
 // Split separates frontmatter and body. data must start with "---\n" (or "---\r\n").
 // Returns the YAML bytes between the fences and the raw body bytes after the closing fence line.
