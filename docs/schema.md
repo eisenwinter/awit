@@ -38,6 +38,7 @@ default_labels: [p1]
 stale_claim: 2h
 agent_id: claude
 commit: false
+template: plan/workitem-template.md
 ```
 
 | Key | Required | Rules |
@@ -47,6 +48,7 @@ commit: false
 | `stale_claim` | no | Go duration (`2h`, `90m`). Missing/zero → `2h` |
 | `agent_id` | no | raw identity; `AWIT_AGENT` overrides; `--author` overrides both |
 | `commit` | no | bool; repository default for `next --claim` git commits. Absent → `true`. `next --commit=true\|false` overrides per invocation; `--no-commit` (deprecated) equals `--commit=false`. Only `next --claim` reads it — never pushing, never another command |
+| `template` | no | repo-root-relative forward-slash path to a body-only Markdown file. Only `create` reads the file. Absolute paths, backslashes, and lexical escape above the repo root fail `Load`. Missing/unreadable/directory/non-UTF-8/conflict-marker files fail `create` (exit 1, no item). Empty file → empty body. Absent/empty keeps the default skeleton. `import` ignores it |
 
 Unknown keys in `config.yaml` are not part of v1; `Load` decodes into a
 struct and extra keys are dropped on the next `Write`. Do not put
@@ -191,9 +193,23 @@ bytes. `create` seeds:
 
 ```
 
-(leading newline after the fence). Conflict marker lines
+(leading newline after the fence) when `template` is unset. When
+`template:` names a file, `create` copies those bytes exactly as the
+body — no extra leading newline — and does not parse them as frontmatter.
+An empty template file is an empty body. Conflict marker lines
 (`<<<<<<< `, `=======`, `>>>>>>> `) anywhere in the file quarantine
-the item as `CONFLICT MARKERS`.
+the item as `CONFLICT MARKERS`; a template containing them is refused
+before mint so the new item is never written.
+
+Example `plan/workitem-template.md` (body-only, no frontmatter):
+
+```markdown
+## Summary
+
+## Context (read first)
+
+## Acceptance Criteria
+```
 
 ## Comment files
 

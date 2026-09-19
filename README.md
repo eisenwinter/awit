@@ -31,7 +31,7 @@ prints `awit dev`.
 | Command | Flags | Purpose |
 | --- | --- | --- |
 | `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
-| `awit create <title>` | `--brief`, `-d` deps, `-l` labels, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Mint a snowflake ID, write a lean item; optional Gitea mapping |
+| `awit create <title>` | `--brief`, `-d` deps, `-l` labels, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Mint a snowflake ID, write a lean item; optional Gitea mapping; optional `config.template` body |
 | `awit import <issue-url>` | `--brief`, `--alias`, `--tea-login` | One-time snapshot of an existing Gitea issue via `tea`: keeps the issue number, exact body, labels and open/closed state; refuses duplicates |
 | `awit list [key]` | `-s` status, `-l` label, `--ready`, `--blocked`, `--quarantined`, `--format` | Index view; `[key]` selects exactly one item |
 | `awit label` | `--state open\|closed\|all`, `--format` | Label vocabulary with usage counts |
@@ -53,6 +53,12 @@ from a subdirectory prints a one-line note on stderr naming the root it
 walked up to. Exit codes: `0` success,
 `1` expected non-success (`next` with no candidates, `validate` with FAIL),
 `2` usage error.
+
+When a graph-reading command (`list`, `next`, `prime`, `show`, `validate`,
+`dep`, `archive`) loads quarantined items or broken files, it prints one
+stderr line first: `warning: N items quarantined, run awit validate`.
+Stdout (including `--format json`) and exit codes are unchanged — run
+`awit validate` for the fault details and their `fix:` commands.
 
 ## Agent loop
 
@@ -106,7 +112,7 @@ commit.
 
 ```text
 .awit/
-├── config.yaml            # prefix, default_labels, stale_claim, agent_id
+├── config.yaml            # prefix, default_labels, stale_claim, agent_id, optional template
 ├── items/PREFIX-XXXXXXXX.md
 └── comments/PREFIX-XXXXXXXX/<UTC seconds>-<author>.md
 ```

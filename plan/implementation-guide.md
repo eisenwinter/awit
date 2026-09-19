@@ -48,7 +48,7 @@ Additional decisions made while writing work items:
 | Topic | Decision |
 | --- | --- |
 | CLI package layout | Commands live in `internal/cli/`, one file per command. `cmd/awit/main.go` is three lines. |
-| Item body template on `create` | `\n## Summary\n\n## Acceptance Criteria\n\n` (leading newline separates from closing `---`). |
+| Item body template on `create` | Default `\n## Summary\n\n## Acceptance Criteria\n\n` (leading newline separates from closing `---`). Optional `config.yaml` `template:` is a repo-root-relative forward-slash path; `create` copies that file's exact bytes as the body (no extra leading newline; empty file → empty body). Absent/empty keeps the skeleton. Absolute paths and lexical `..` escape fail config load. Missing/unreadable/directory/non-UTF-8/conflict-marker files fail create before mint. Body-only: not parsed as frontmatter. `import` never reads it. |
 | Frontmatter key order for new items | `id, title, brief, status, deps, labels, assignee, claimed_at, refs_base, refs`. Keys with empty values (`assignee`, `claimed_at`) are **omitted** on create and **deleted** from the mapping when cleared. `deps`, `labels`, `refs` are always present, `[]` when empty. `refs_base: repo` is written immediately before `refs`. Absence of `refs_base` means historical `.awit/items/`-relative refs. |
 | Sequence style | `deps` and `labels` are written flow style `[a, b]`. `refs` is written block style (one `- path` per line) because paths are long. When editing an existing item, the existing node's style is preserved. |
 | `brief` style | Written as `>-` folded scalar (`yaml.FoldedStyle`) when it contains a newline or is longer than 80 chars, plain otherwise. |
@@ -169,6 +169,7 @@ type Config struct {
     StaleClaim    Duration      `yaml:"stale_claim"`           // default 2h
     AgentID       string        `yaml:"agent_id,omitempty"`
     Commit        *bool         `yaml:"commit,omitempty"`      // claim-commit default; nil means true (AWIT-0NHDC5DZ)
+    Template      string        `yaml:"template,omitempty"`    // create body file; repo-root-relative; empty = skeleton
 }
 
 // Duration marshals as a Go duration string ("2h", "90m").
@@ -569,6 +570,15 @@ func SplitLabels(flags []string) [][]string
 func openStore(cmd *cli.Command) (*item.Store, error)
 // loadGraph = store.LoadAll + graph.Build.
 func loadGraph(s *item.Store) (*graph.Graph, error)
+// warnQuarantined prints the single stderr line
+// "warning: N items quarantined, run awit validate" when the just-loaded
+// graph holds quarantined items or broken files; N = len(Quarantined()) +
+// len(Broken) (nodes and files, not fault records; same text for N=1).
+// Call once per command at its initial loadGraph boundary — list, both
+// next forms, prime, every show form, validate, dep add/rm (never
+// printCompact's post-write reload), archive and archive --dry-run.
+// label and the commands that read no graph never warn.
+func warnQuarantined(cmd *cli.Command, g *graph.Graph)
 // toEntry converts a node to a format.Entry.
 func toEntry(n *graph.Node) format.Entry
 

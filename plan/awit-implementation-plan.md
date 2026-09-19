@@ -47,7 +47,7 @@ Worker hashes the branch name as proposed, plus hostname and worktree path so tw
 
 ### Quarantine
 
-One mechanism covers cycles, dangling deps, unparseable frontmatter, Git conflict markers, and duplicate IDs. Quarantined items are excluded from `next`, listed under `=== GRAPH WARNINGS ===` in `prime`, reported as `FAIL` by `validate`, and still visible in `list` and `show` with a flag. The CLI never panics on a bad file.
+One mechanism covers cycles, dangling deps, unparseable frontmatter, Git conflict markers, and duplicate IDs. Quarantined items are excluded from `next`, listed under `=== GRAPH WARNINGS ===` in `prime`, reported as `FAIL` by `validate`, and still visible in `list` and `show` with a flag. The CLI never panics on a bad file. Any command that reads the graph (`list`, `next`, `prime`, `show`, `validate`, `dep`, `archive`) prints one stderr line first — `warning: N items quarantined, run awit validate` — when its initial load holds quarantined items or broken files (N = quarantined nodes plus broken files, same wording for N=1); stdout, exit codes and goldens are untouched, and `label`, which builds no graph, stays silent.
 
 ### Paths and platforms
 
@@ -59,7 +59,7 @@ Everything is a Markdown file under `.awit/`; the only non-committed file is the
 
 ```text
 .awit/
-├── config.yaml                        # prefix, default_labels, stale_claim
+├── config.yaml                        # prefix, default_labels, stale_claim, template
 ├── items/
 │   ├── AWIT-0K7M2QX9.md               # one lean item per file, ID = filename
 │   └── AWIT-0K7M3A1F.md
@@ -114,7 +114,7 @@ refs:
 | `external` | mapping | Optional Gitea link `{tracker, repo, id, url}`. `id` is the repository issue number. Invalid or legacy scalar values warn on `validate` and do not quarantine |
 | `alias` | string | Optional human alias, `[A-Za-z][A-Za-z0-9._-]{0,127}`, never ID-shaped; case-insensitively unique across active items (warned, not enforced); lookup-only, never a filename or dep edge |
 
-Unknown keys are preserved on write so teams can add their own fields without a schema change. `config.yaml` holds `prefix`, optional `default_labels`, `stale_claim` (duration, default `2h`), and `agent_id` (overridden by `AWIT_AGENT`).
+Unknown keys are preserved on write so teams can add their own fields without a schema change. `config.yaml` holds `prefix`, optional `default_labels`, `stale_claim` (duration, default `2h`), `agent_id` (overridden by `AWIT_AGENT`), and optional `template` (repo-root-relative forward-slash path to a body-only file `create` copies verbatim; absent keeps the default skeleton; `import` ignores it).
 
 ### Archive
 
@@ -263,7 +263,7 @@ Six phases; phases 1–2 set the codebase's shape, and the agent surface waits u
 - [ ] `pkg/item`: frontmatter split, `yaml.v3` Node parse, targeted scalar rewrite, body kept as raw bytes
 - [ ] Round-trip test: parse → write must be byte-identical on every fixture; fuzz the splitter
 - [ ] `store.go`: scan, load all, atomic write (temp + rename), filename/ID consistency check
-- [ ] Commands: `init`, `create`, `list`, `show` (default view), `update`, `close`, `release`
+- [ ] Commands: `init`, `create` (optional `config.template` body file), `list`, `show` (default view), `update`, `close`, `release`
 - [ ] Formatters `compact`, `table`, `json` with golden files and an `-update` flag
 
 ### Phase 2 — graph core

@@ -37,6 +37,8 @@ Parse output with `--format json`; humans get a table, pipes get compact lines.
 | `refs`        | Paths relative to the repo root when `refs_base: repo` (new writes). Omitted marker means historical `.awit/items/` base until first mutation. Comments and attachments become refs automatically. |
 | `assignee`    | Set by `--claim`. **Stays after `close`** on purpose (audit trail); only `release` clears it.                                                                    |
 
+When a command loads a graph holding quarantined items or broken files (`list`, `next`, `prime`, `show`, `validate`, `dep`, `archive`), it prints one stderr line first: `warning: N items quarantined, run awit validate`. That is a pointer, not a failure: exit codes and stdout (including `--format json`) are unchanged.
+
 ## The loop
 
 Run this per work item. Do not skip steps; do not reorder.
@@ -98,7 +100,7 @@ awit create "<imperative title>" \
   -d <dep-id> -d <dep-id>
 ```
 
-Then edit `.awit/items/<new-id>.md` **below** the closing `---` — fill `## Summary` and `## Acceptance Criteria` (commands with expected output). Bigger work items follow the project's work item template (in this repo: `plan/implementation-guide.md` §6). Rules:
+Then edit `.awit/items/<new-id>.md` **below** the closing `---` — fill `## Summary` and `## Acceptance Criteria` (commands with expected output). Bigger work items follow the project's work item template (in this repo: `plan/implementation-guide.md` §6). Optional `.awit/config.yaml` `template:` (repo-root-relative, forward slashes) replaces the default body with that file's exact bytes; looked up from the repository root even when cwd is nested; absent keeps the skeleton; `import` never reads it. Rules:
 
 - `--brief` is mandatory and must fit three sentences. If it cannot, the work item is two work items.
 - Priority is a label (`p0` critical path, `p1`, `p2`), never a field. Check `awit label` for the vocabulary already in use before inventing one.
