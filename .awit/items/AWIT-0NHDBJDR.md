@@ -3,10 +3,11 @@ id: AWIT-0NHDBJDR
 title: 'import: mint local items from Gitea issues and resolve human aliases'
 brief: >-
   Import an existing Gitea issue through tea, retaining its number, URL, body, labels, and initial state. Add a separate alias field and deterministic lookup without weakening AWIT ID or dependency rules.
-status: open
+status: closed
 deps: [AWIT-0ND56E3G, AWIT-0NFAW5DT, AWIT-0ND56K3G, AWIT-0ND56J3G, AWIT-0NHDBCDN]
 labels: [phase5, p0]
-refs: []
+refs_base: repo
+refs: [.awit/comments/AWIT-0NHDBJDR/20260919T152556Z-orchestrator.md, .awit/comments/AWIT-0NHDBJDR/20260919T152602Z-orchestrator.md]
 ---
 ## Summary
 
