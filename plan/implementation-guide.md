@@ -49,7 +49,7 @@ Additional decisions made while writing work items:
 | --- | --- |
 | CLI package layout | Commands live in `internal/cli/`, one file per command. `cmd/awit/main.go` is three lines. |
 | Item body template on `create` | `\n## Summary\n\n## Acceptance Criteria\n\n` (leading newline separates from closing `---`). |
-| Frontmatter key order for new items | `id, title, brief, status, deps, labels, assignee, claimed_at, refs`. Keys with empty values (`assignee`, `claimed_at`) are **omitted** on create and **deleted** from the mapping when cleared. `deps`, `labels`, `refs` are always present, `[]` when empty. |
+| Frontmatter key order for new items | `id, title, brief, status, deps, labels, assignee, claimed_at, refs_base, refs`. Keys with empty values (`assignee`, `claimed_at`) are **omitted** on create and **deleted** from the mapping when cleared. `deps`, `labels`, `refs` are always present, `[]` when empty. `refs_base: repo` is written immediately before `refs`. Absence of `refs_base` means historical `.awit/items/`-relative refs. |
 | Sequence style | `deps` and `labels` are written flow style `[a, b]`. `refs` is written block style (one `- path` per line) because paths are long. When editing an existing item, the existing node's style is preserved. |
 | `brief` style | Written as `>-` folded scalar (`yaml.FoldedStyle`) when it contains a newline or is longer than 80 chars, plain otherwise. |
 | `claimed_at` format | `time.RFC3339` in UTC, seconds precision. |
@@ -60,11 +60,11 @@ Additional decisions made while writing work items:
 | `next` tie-break | `math/rand/v2` with `rand.NewPCG(seed, seed)`; seed from `--seed` if set else `time.Now().UnixNano()`. Shuffle only within equal-unblock groups. |
 | Unblock count | Number of **unique, non-closed, non-quarantined** nodes reachable via `Unblocks` edges (transitive). Quarantined nodes have `UnblockCount == -1`. |
 | Critical path | Longest path (by node count) over non-closed, non-quarantined nodes following `Unblocks` edges in topological order; ties by smaller ID at each DP step. Printed from the root (item with no open deps) downstream. |
-| `--repo` semantics | Path to the directory that **contains** `.awit/`. Precedence: `--repo` flag → `AWIT_REPO` env → walk up from cwd until a directory containing `.awit/` is found; stop at filesystem root with `Error: no .awit directory found (run awit init)`. A mutating command (`create`, `update`, `close`, `release`, `dep`, `comment`, `archive`, `next --claim`) that walked up — no flag, no env, no `.awit/` in cwd — prints one line on stderr: `Note: no .awit in the current directory; using <root>. Run awit init here, or pass --repo / set AWIT_REPO.` Read-only commands stay silent. |
-| Git commit on `--claim` | `git -C <root> add <itemfile>` then `git -C <root> commit -m "awit: claim <id>" -- <itemfile>`. Commit failure is an error **after** the file was written; message tells the user the file is claimed but uncommitted. |
+| `--repo` semantics | Path to the directory that **contains** `.awit/`. Precedence: `--repo` flag → `AWIT_REPO` env → walk up from cwd until a directory containing `.awit/` is found; stop at filesystem root with `Error: no .awit directory found (run awit init)`. A mutating command (`create`, `update`, `close`, `release`, `dep`, `ref`, `comment`, `archive`, `next --claim`) that walked up — no flag, no env, no `.awit/` in cwd — prints one line on stderr: `Note: no .awit in the current directory; using <root>. Run awit init here, or pass --repo / set AWIT_REPO.` Read-only commands stay silent. |
+| Git commit on `--claim` | `git -C <root> add <itemfile>` then `git -C <root> commit -m "awit: claim <id>" -- <itemfile>`. Commit failure is an error **after** the file was written; message tells the user the file is claimed but uncommitted. Whether the commit happens follows the **claim commit policy** (AWIT-0NHDC5DZ): an explicit `next --commit=true\|false` or a true `--no-commit` (deprecated spelling of `--commit=false`, still accepted, no runtime warning) beats `config.yaml commit:` which beats the default `true`; `--no-commit=false` is neutral; `--commit` plus a true `--no-commit`, or a non-bool `--commit` value, is usage error 2 before any mutation. The policy governs only this claim commit — never pushing, `close`, `release`, or any other command. |
 | Archive eligibility | Fixed point over the graph: start with every closed, non-quarantined node; repeatedly remove any node with an `Unblocks` neighbour outside the set (open, quarantined, or closed-but-not-in-set); stop when stable. Result sorted by ID. Never rewrites another item's `deps`, never introduces an index file; the graph engine is unchanged. |
-| Archive layout | Flat `.awit/archive/<id>.md`, same depth as `items/`, so non-comment `refs` (`../../plan/x.md`) stay valid without rewriting. `--file` attachments move to `.awit/archive/<id>/<file>`; their ref becomes `../archive/<id>/<file>` (still items-relative — the ref convention does not change for archived files). |
-| Comment collapse format | Original item bytes, then `\n## Comments\n` and one `\n### <created RFC3339 UTC> <author>\n\n<text>\n` block per comment, ordered by comment filename asc (chronological). Comment refs (`../comments/<id>/…` with frontmatter `author`+`created`) are removed from `refs`; all other frontmatter untouched (node edit, unknown keys kept). No `archived_at` key — Git records when. Items with zero comments get no `## Comments` section. |
+| Archive layout | Flat `.awit/archive/<id>.md`, same depth as `items/`. After `refs_base: repo`, non-comment refs (`docs/plan/x.md`) stay valid independent of archive directory depth. `--file` attachments move to `.awit/archive/<id>/<file>`; their ref becomes `.awit/archive/<id>/<file>`. |
+| Comment collapse format | Original item bytes, then `\n## Comments\n` and one `\n### <created RFC3339 UTC> <author>\n\n<text>\n` block per comment, ordered by comment filename asc (chronological). Comment refs (`.awit/comments/<id>/…` with frontmatter `author`+`created`, or historical `../comments/<id>/…`) are removed from `refs`; all other frontmatter untouched (node edit, unknown keys kept). No `archived_at` key — Git records when. Items with zero comments get no `## Comments` section. |
 | Comment vs attachment | A file under `comments/<id>/` is a **comment** when `Split` succeeds and the frontmatter has `author` and `created`; every other file is an **attachment** (verbatim `--file` copy) and is moved, never inlined. No MIME sniffing. |
 | Archive write order | Per item: write `archive/<id>.md` atomically → move attachments (`os.Rename`, atomic write fallback on cross-device) → `os.Remove(items/<id>.md)` → `os.RemoveAll(comments/<id>)`. Idempotent: if both `archive/<id>.md` and `items/<id>.md` exist (crash between steps) the archive file is rebuilt from `items/` and overwritten. |
 | Does `archive` commit? | **No**, same as `close`. Holds `Store.Lock`. Output ignores `--format` (like `close`): one `archived <id>` line per item, sorted by ID, then `Archived N items`. `--dry-run` writes nothing, prints `would archive <id>` lines and `skip <id>: dependant <dep-id> not archivable` for every closed item left behind, then `Would archive N items`. Exit 0 even when N = 0. |
@@ -78,10 +78,10 @@ Additional decisions made while writing work items:
 cmd/awit/main.go                 → internal/cli.Main()
 internal/cli/
   app.go                         root *cli.Command, global flags, Main(), helpers (openStore, exitf, SplitLabels)
-  init.go create.go list.go label.go show.go comment.go update.go close.go release.go dep.go validate.go prime.go next.go archive.go
+  init.go create.go import.go list.go label.go show.go comment.go update.go close.go release.go dep.go ref.go validate.go prime.go next.go archive.go
   *_test.go                      command tests drive Main() with args and capture stdout/stderr
+internal/teax/teax.go            concrete `tea` subprocess wrapper (no provider interface, no HTTP client)
 internal/skill/skill.go          Targets, Detect, Render; assets/ holds the embedded driving-awit body and frontmatter
-internal/gitx/gitx.go            Branch, UserName, Commit, Root (os/exec wrappers)
 pkg/id/id.go                     snowflake IDs
 pkg/config/config.go             config.yaml
 pkg/item/
@@ -168,6 +168,7 @@ type Config struct {
     DefaultLabels []string      `yaml:"default_labels,omitempty"`
     StaleClaim    Duration      `yaml:"stale_claim"`           // default 2h
     AgentID       string        `yaml:"agent_id,omitempty"`
+    Commit        *bool         `yaml:"commit,omitempty"`      // claim-commit default; nil means true (AWIT-0NHDC5DZ)
 }
 
 // Duration marshals as a Go duration string ("2h", "90m").
@@ -183,6 +184,9 @@ func (c Config) Write(awitDir string) error        // atomic write
 func WriteAtomic(path string, data []byte) error
 // Agent resolves identity: flag → AWIT_AGENT → c.AgentID → "". Never adds a prefix.
 func (c Config) Agent(flag string) string
+// ShouldCommit reports the config-only claim-commit answer: nil Commit means true.
+// Explicit next --commit / a true --no-commit override it in nextAction (§2).
+func (c Config) ShouldCommit() bool
 ```
 
 ### 4.3 `pkg/item`
@@ -225,10 +229,12 @@ type Item struct {
     Labels          []string
     Assignee        string     // "" = absent
     ClaimedAt       *time.Time // nil = absent
-    Refs            []string   // forward-slash relative to .awit/items/
+    Refs            []string   // forward-slash; repo-root relative when RefsBase=="repo", else .awit/items/
+    RefsBase        string     // "repo" or empty (historical items base); optional serialized field
     Path            string     // absolute path on disk, "" for unsaved
     External        *External  // nil when missing or invalid
     ExternalProblem string     // derived diagnostic; never serialized
+    Alias           string     // optional human alias; "" = absent
     // unexported: doc *yaml.Node (the mapping node), body []byte (everything after the closing ---\n), raw []byte (original source), dirty bool, extra keys preserved inside doc
 }
 
@@ -251,6 +257,7 @@ func HasConflictMarkers(data []byte) bool
 // Parse decodes an item. path is stored on the Item; the caller checks ID vs filename.
 // Missing required keys (id, title, status) → error. Unknown status → error. Unknown keys are kept.
 // Invalid optional `external` populates ExternalProblem and leaves the YAML intact; Parse still succeeds.
+// Invalid `refs_base` type/value is a normal parse error.
 func Parse(path string, data []byte) (*Item, error)
 
 // New builds an unsaved item with canonical key order and the body template. Starts dirty.
@@ -265,9 +272,13 @@ func (it *Item) SetClaimedAt(t *time.Time)   // nil deletes the key
 func (it *Item) SetDeps(v []string)
 func (it *Item) SetLabels(v []string)
 func (it *Item) SetRefs(v []string)
+func (it *Item) SetRefsBase(base string) error // only "repo" or empty
 func (it *Item) SetExternal(e *External) error // nil removes external; identical mapping is a no-op
 func (it *Item) SetBody(body []byte)          // owns a copy; no normalization
-func (it *Item) HasLabel(l string) bool
+func (it *Item) SetAlias(alias string) error // validated; "" clears; AWIT-shaped aliases refused
+// ValidateAlias enforces [A-Za-z][A-Za-z0-9._-]{0,127} and rejects anything
+// shaped like a canonical ID. validate warns on invalid/duplicate aliases.
+func ValidateAlias(alias string) error
 
 // Bytes returns the original source when no setter has run; otherwise "---\n<yaml>---\n<body>".
 func (it *Item) Bytes() ([]byte, error)
@@ -313,17 +324,23 @@ func (s *Store) Load(id string) (*Item, error)
 // case-insensitive stem collision → ReasonDuplicate on all colliding files. Directory read error → returned error.
 func (s *Store) LoadAll() ([]*Item, []Broken, error)
 
-// Save writes it.Bytes() atomically to s.ItemPath(it.ID) and sets it.Path.
+// Save calls NormalizeRefs, then writes it.Bytes() atomically to s.ItemPath(it.ID) and sets it.Path.
 func (s *Store) Save(it *Item) error
+
+// NormalizeRefs rewrites historical items-relative refs to repo-root relative
+// paths via filepath.Rel(Root, Join(ItemsDir(), oldRef)), ToSlash, and sets
+// refs_base: repo. Already-marked items are left untouched. No existence check.
+// Cross-volume paths that cannot be represented error before any write.
+func (s *Store) NormalizeRefs(it *Item) error
 
 // Mint produces a new unique ID using s.Config.Prefix, id.Worker(s.Root, gitx.Branch(s.Root)), and s.Exists.
 func (s *Store) Mint(now time.Time) (string, error)
 
 // AddComment writes comments/<id>/<stamp>-<author>.md with frontmatter (author, created) + text,
-// appends the forward-slash ref "../comments/<id>/<file>" to the item's Refs, saves the item, returns the ref.
+// normalizes existing refs, appends the forward-slash ref ".awit/comments/<id>/<file>", saves, returns the ref.
 func (s *Store) AddComment(it *Item, author string, now time.Time, text string) (ref string, err error)
 
-// AttachFile copies src into comments/<id>/<stamp>-<author><ext>, appends the ref, saves, returns the ref.
+// AttachFile copies src into comments/<id>/<stamp>-<author><ext>, normalizes, appends the ref, saves, returns the ref.
 func (s *Store) AttachFile(it *Item, author string, now time.Time, src string) (ref string, err error)
 
 // CommentFileName builds "<YYYYMMDDTHHMMSSZ>-<sanitised author><ext>"; SanitizeAuthor strips "agent/" and maps to [a-z0-9._-].
@@ -454,12 +471,13 @@ type Entry struct {
     Assignee string         `json:"assignee,omitempty"`
     Unblocks int            `json:"unblocks"`    // -1 when quarantined
     Faults   []string       `json:"faults,omitempty"` // "[CYCLE] ...", only when quarantined
+    Alias    string         `json:"alias,omitempty"`
     External *item.External `json:"external,omitempty"`
 }
 
 // Line renders the one-line compact form used by list, next and prime:
 // "[ID] Title | label1,label2 | Unblocks: N"; labels part is "-" when empty; quarantined appends " | QUARANTINED".
-// A valid External appends " | External: gitea owner/repo#127".
+// A non-empty Alias appends " | Alias: DTRM-F21"; a valid External appends " | External: gitea owner/repo#127".
 func Line(e Entry) string
 
 // Write renders entries in the given format. JSON is an array, indented two spaces, trailing newline.
@@ -518,8 +536,9 @@ type Resolved struct {
     Content []byte // nil when Err != nil
     Err     error  // os.ErrNotExist etc.
 }
-// Resolve maps every ref relative to itemsDir (FromSlash applied) and reads it. Never returns an error itself.
-func Resolve(itemsDir string, refs []string) []Resolved
+// Resolve maps every ref relative to baseDir (FromSlash applied) and reads it. Never returns an error itself.
+// Callers pass Store.Root for refs_base: repo items, ItemsDir() for historical items-relative refs.
+func Resolve(baseDir string, refs []string) []Resolved
 ```
 
 ### 4.10 `pkg/lock`
@@ -552,6 +571,14 @@ func openStore(cmd *cli.Command) (*item.Store, error)
 func loadGraph(s *item.Store) (*graph.Graph, error)
 // toEntry converts a node to a format.Entry.
 func toEntry(n *graph.Node) format.Entry
+
+// resolveItemID maps a user-supplied key to a canonical item ID: exact
+// canonical ID first, then alias (case-insensitive), then external key
+// owner/repo#<n> or unique bare #<n>. Ambiguity lists sorted canonical IDs;
+// unknown keys error as "unknown item <key>". Store.Load stays
+// canonical-ID-only; every show/list/next/mutation/dep call site resolves
+// through this helper, under the mutation lock for writers.
+func resolveItemID(items []*item.Item, key string) (string, error)
 ```
 
 Global flags (defined on the root `*cli.Command`, read via `cmd.Root().String("format")` etc.):
@@ -582,6 +609,36 @@ var createCmd = &cli.Command{
 ```
 
 Errors returned from `Action` are printed by `Main` as `Error: <msg>` to stderr with exit `1`; use `cli.Exit(msg, code)` only when a different code is needed.
+
+### 4.12 `internal/teax`
+
+```go
+package teax
+
+// Concrete `tea` CLI subprocess wrapper. exec.CommandContext with an
+// explicit argv, no shell, disconnected stdin, separate stdout/stderr,
+// 30s deadline per operation. tea exits 0 on HTTP errors, so the
+// --include status line is validated. Tokens and response headers are
+// never forwarded.
+type Issue struct {
+    Number int64 // repository issue number, not the database id
+    Title  string
+    Body   []byte // decoded JSON body string, unaltered (null → empty)
+    Labels []string
+    State  string
+    URL    string
+}
+type Client struct{ Login, Repo, BaseURL string }
+// Open looks up tea, probes the api capability, selects the login whose
+// normalized base URL equals the issue URL's installation base (explicit
+// login must match; default-only is never chosen), and verifies auth via
+// GET user.
+func Open(ctx context.Context, issue item.External, login string) (*Client, error)
+func (c *Client) GetIssue(ctx context.Context, number int64) (Issue, error)
+// IssueBase normalizes an issue URL to scheme://host[/prefix]; it is also
+// the import duplicate-identity comparison.
+func IssueBase(raw string) (string, error)
+```
 
 ### `internal/skill`
 
@@ -646,9 +703,10 @@ brief: >-
 status: open
 deps: []
 labels: [phase0, p1]
+refs_base: repo
 refs:
-  - ../../plan/implementation-guide.md
-  - ../../plan/awit-implementation-plan.md
+  - plan/implementation-guide.md
+  - plan/awit-implementation-plan.md
 ---
 
 ## Summary

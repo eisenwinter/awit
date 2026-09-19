@@ -20,8 +20,15 @@ from `items/*.md` on every invocation. This document is the v1 contract.
             └── 20260917T151047Z-jan.md
 ```
 
-Paths inside frontmatter `refs` always use forward slashes, relative to
-`.awit/items/`. On-disk paths use `filepath` (OS separators).
+Paths inside frontmatter `refs` always use forward slashes. New items
+set `refs_base: repo` and store paths relative to the repository root
+(the directory that contains `.awit/`), so `docs/notes/x.md` is
+`<repo>/docs/notes/x.md` and `.awit/comments/<id>/file.md` is a comment.
+Items that omit `refs_base` keep the historical `.awit/items/` base until
+their first successful mutation, which rewrites every ref with
+`filepath.Rel` (no existence check) and writes the marker in the same
+atomic save. Resolution never probes both bases. On-disk paths use
+`filepath` (OS separators).
 
 ## `config.yaml`
 
@@ -30,6 +37,7 @@ prefix: AWIT
 default_labels: [p1]
 stale_claim: 2h
 agent_id: claude
+commit: false
 ```
 
 | Key | Required | Rules |
@@ -38,6 +46,7 @@ agent_id: claude
 | `default_labels` | no | strings; merged first-wins into `awit create -l` |
 | `stale_claim` | no | Go duration (`2h`, `90m`). Missing/zero → `2h` |
 | `agent_id` | no | raw identity; `AWIT_AGENT` overrides; `--author` overrides both |
+| `commit` | no | bool; repository default for `next --claim` git commits. Absent → `true`. `next --commit=true\|false` overrides per invocation; `--no-commit` (deprecated) equals `--commit=false`. Only `next --claim` reads it — never pushing, never another command |
 
 Unknown keys in `config.yaml` are not part of v1; `Load` decodes into a
 struct and extra keys are dropped on the next `Write`. Do not put
@@ -61,6 +70,7 @@ brief: >-
 status: open
 deps: []
 labels: [auth, p1]
+refs_base: repo
 refs: []
 ---
 
@@ -89,12 +99,36 @@ Missing required keys or an unknown status → parse error → quarantine
 | `labels` | list of strings | Free-form. `p0`–`p4` recommended for priority. Flow style |
 | `assignee` | string | `human/<name>` or `agent/<id>`. Omitted when empty. Deleted by `release`; kept by `close` as the audit trail |
 | `claimed_at` | RFC3339 UTC | Seconds precision. Set by `--claim`; deleted by `release` and `close` |
-| `refs` | list of paths | Relative to `.awit/items/`, forward slashes. Block style. Always present, `[]` when empty |
+| `refs_base` | string | `repo` or omitted. Omitted means historical `.awit/items/`-relative refs. Invalid types/values are parse errors |
+| `refs` | list of paths | Forward slashes. Block style. Always present, `[]` when empty. Relative to the repo root when `refs_base: repo`, else `.awit/items/` |
 | `external` | mapping | Optional Gitea issue link (see below). Missing is valid |
+| `alias` | string | Optional human alias (see below). Missing is valid |
 
 New items written by `awit create` use key order
-`id, title, brief, status, deps, labels, refs` and omit empty
+`id, title, brief, status, deps, labels, refs_base, refs` and omit empty
 `assignee` / `claimed_at`. `external` is appended when `--external-*` flags are set.
+
+### Optional key: `alias`
+
+A short human handle set by `create`/`update --alias` or `import --alias`
+(`update --clear-alias` removes it). Grammar:
+`[A-Za-z][A-Za-z0-9._-]{0,127}` — no whitespace, slash or `#`, and never
+anything shaped like a canonical ID. Uniqueness is case-insensitive across
+active parseable items but is not enforced at write time: duplicate
+hand-edited aliases make alias lookup fail with the matching canonical IDs
+listed, and `validate` warns about invalid or duplicate aliases (exit stays
+0 unless graph faults exist). Aliases are lookup-only: filenames, `deps`
+edges and commit messages always use the canonical ID.
+
+### Item lookup keys
+
+Every command that takes an item argument (`show`, `list`, `next`,
+`update`, `close`, `release`, `comment`, `dep`, `ref`) accepts, in
+precedence order: the canonical ID (exact, case-sensitive, always wins),
+an alias (case-insensitive), or an external key `owner/repo#<n>` or bare
+`#<n>` matched against valid `external:` metadata (the bare form must be
+unique). Ambiguity is an error listing the matching canonical IDs; unknown
+keys error as `unknown item <key>` and never become filesystem paths.
 
 ### Optional key: `external`
 
@@ -127,6 +161,16 @@ quarantine the item: Parse keeps the YAML, `External` is nil, and
 there are graph faults). JSON `validate` writes that advisory on stderr
 without changing the fault-array schema. Show, list, and compact output
 display only a valid link (`gitea owner/repo#127`).
+
+`awit import <issue-url> --brief <summary> [--alias X] [--tea-login name]`
+creates an item from an existing Gitea issue through the `tea` CLI: the
+item is a one-time snapshot with the issue number as `external.id`, the
+decoded body byte-exact, the remote labels first-seen deduplicated (local
+default labels are not merged), and `open`/`closed` mapped to the same
+local status (other states are refused). Import never writes remote state
+and never commits. Re-importing the same installation base + repo + issue
+number — whether the earlier import is active or archived — is refused
+with the existing item or archive path named.
 
 ### Unknown keys
 
@@ -172,8 +216,9 @@ Research notes go here.
 
 `--file` copies the source bytes verbatim — no frontmatter is added.
 
-After a comment or attachment is written, the item's `refs` gains a
-forward-slash entry `../comments/<id>/<filename>` and the item is saved.
+After a comment or attachment is written, existing refs are normalized to
+the repo-root base and the item's `refs` gains a forward-slash entry
+`.awit/comments/<id>/<filename>`.
 
 ## Filenames
 

@@ -33,7 +33,7 @@ Seven decisions from the review are locked. The `priority` field is gone, IDs ar
 | Ranking in `prime` | Unblocks desc, then ID asc — deterministic | Identical state must yield identical bytes for prompt caching and tests |
 | Frontmatter writes | `yaml.v3` Node editing; only changed scalars rewritten | `awit update` produces a one-line git diff; unknown keys, order and body stay intact |
 | Comment filenames | `<UTC seconds>-<author>.md`, e.g. `20260917T143205Z-claude.md`; `-2` suffix on collision | Per-day sequence numbers collide across branches |
-| Claims | Soft claim: writes `status`, `assignee`, `claimed_at`, then commits (`awit: claim <id>`) unless `--no-commit` | A claim is invisible to other worktrees until pushed; committing makes the double-claim a merge conflict, which quarantine surfaces |
+| Claims | Soft claim: writes `status`, `assignee`, `claimed_at`, then commits (`awit: claim <id>`) unless the commit policy says no — `--commit=false`, a true `--no-commit`, or `commit: false` in `config.yaml` | A claim is invisible to other worktrees until pushed; committing makes the double-claim a merge conflict, which quarantine surfaces. Repositories whose orchestrator owns commits opt out once in config instead of per command |
 
 ### ID layout
 
@@ -88,9 +88,10 @@ deps: [AWIT-0K7LZ9RT]          # blocked by these IDs
 labels: [auth, api, p1]        # priority is a label by convention
 assignee: agent/claude
 claimed_at: 2026-09-17T14:32:05Z
+refs_base: repo
 refs:
-  - ../comments/AWIT-0K7M2QX9/20260917T143205Z-claude.md
-  - ../../docs/architecture/auth-middleware-spec.md
+  - .awit/comments/AWIT-0K7M2QX9/20260917T143205Z-claude.md
+  - docs/architecture/auth-middleware-spec.md
 ---
 
 ## Summary
@@ -109,8 +110,9 @@ refs:
 | `labels` | list | Free-form; `p0`–`p4` recommended for priority |
 | `assignee` | string | `human/<name>` or `agent/<id>`; set by `--claim` or `--assign` |
 | `claimed_at` | RFC 3339 | Set by `--claim`, cleared by `release` and `close`; drives stale-claim check |
-| `refs` | list | Paths relative to `.awit/items/`, forward slashes only |
+| `refs` | list | Paths relative to the repo root when `refs_base: repo` (default for new writes), forward slashes only. Omitted `refs_base` means historical `.awit/items/`-relative refs, rewritten on first mutation |
 | `external` | mapping | Optional Gitea link `{tracker, repo, id, url}`. `id` is the repository issue number. Invalid or legacy scalar values warn on `validate` and do not quarantine |
+| `alias` | string | Optional human alias, `[A-Za-z][A-Za-z0-9._-]{0,127}`, never ID-shaped; case-insensitively unique across active items (warned, not enforced); lookup-only, never a filename or dep edge |
 
 Unknown keys are preserved on write so teams can add their own fields without a schema change. `config.yaml` holds `prefix`, optional `default_labels`, `stale_claim` (duration, default `2h`), and `agent_id` (overridden by `AWIT_AGENT`).
 
@@ -120,7 +122,7 @@ Unknown keys are preserved on write so teams can add their own fields without a 
 
 That is also the constraint. A closed item `Y` that any remaining item still lists in `deps` would become a `DANGLING DEP` fault on that dependant the moment `Y` leaves `items/`. So the archive set is the **fixed point**: start with every closed, non-quarantined item; repeatedly drop any item that has a dependant outside the set; stop when nothing changes. Items that stay behind are still closed and still satisfy their dependants; they get archived on a later run once their dependants are archivable too. No index file, no "external closed" state in the graph, no rewriting of other items' `deps`.
 
-Per archived item: the file is rewritten to `archive/<id>.md` with its comments appended as a `## Comments` section in chronological order (comment `refs` removed from frontmatter, everything else preserved), `--file` attachments move to `archive/<id>/` with their `refs` rewritten, then `items/<id>.md` and `comments/<id>/` are deleted. Archived items are invisible to every other command; the history lives in Git and in the archive file. There is no `unarchive`; `git revert` is the way back.
+Per archived item: the file is rewritten to `archive/<id>.md` with its comments appended as a `## Comments` section in chronological order (comment `refs` removed from frontmatter, everything else preserved), `--file` attachments move to `archive/<id>/` with their `refs` rewritten to `.awit/archive/<id>/<file>`, then `items/<id>.md` and `comments/<id>/` are deleted. Archived items are invisible to every other command; the history lives in Git and in the archive file. There is no `unarchive`; `git revert` is the way back.
 
 ## Graph engine
 
@@ -169,21 +171,25 @@ Fourteen commands; `-p` is gone everywhere, `release`, `validate`, `label` and `
 | Command | Flags | User | Purpose |
 | --- | --- | --- | --- |
 | `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Human | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
-| `awit create <title>` | `--brief`, `-d deps`, `-l labels`, `--assign`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Both | Mint a snowflake ID, write a lean item; optional Gitea mapping |
-| `awit list` | `-s status`, `-l label`, `--ready`, `--blocked`, `--quarantined`, `--format` | Both | Index view |
+| `awit create <title>` | `--brief`, `-d deps`, `-l labels`, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Both | Mint a snowflake ID, write a lean item; optional Gitea mapping |
+| `awit import <issue-url>` | `--brief`, `--alias`, `--tea-login` | Both | One-time snapshot of a Gitea issue via `tea`; keeps number, exact body, labels, open/closed state; refuses duplicates (active or archived) |
+| `awit list [key]` | `-s status`, `-l label`, `--ready`, `--blocked`, `--quarantined`, `--format` | Both | Index view; `[key]` selects exactly one item |
 | `awit label` | `--state open\|closed\|all`, `--format` | Both | Label vocabulary with usage counts; answers "what labels exist and how busy are they" |
 | `awit show <id>` | `--full`, `--refs-only` | Agent | Core item (~200 tokens) or full resolved ref tree |
 | `awit comment <id> [text]` | `--file <path>`, `--author` | Both | Write a timestamped comment or attach an external file; append to `refs` |
-| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external` | Both | Mutate frontmatter with a minimal diff |
+| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--alias`, `--clear-alias`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external` | Both | Mutate frontmatter with a minimal diff |
 | `awit close <id>` | `--reason` | Both | Set `closed`, clear `claimed_at`, append reason as a comment |
 | `awit release <id>` | — | Both | Reopen an in-progress or closed item to `open`, clear `assignee` and `claimed_at`; prints `reopened <id>` (plain line, ignores `--format`) |
 | `awit dep add\|rm <id> <dep>` | — | Both | Edit `deps` with cycle pre-check |
+| `awit ref add\|rm <id> <path>` | — | Both | Add or remove a repo-root-relative file reference; does not copy, delete, or commit |
 | `awit validate` | `--stale-claims` | Both | Integrity report; non-zero exit on `FAIL`; invalid `external` is a WARN |
 | `awit archive` | `--dry-run` | Human | Move the fixed-point set of closed items to `.awit/archive/`, one collapsed file each |
 | `awit prime` | `--max-tokens`, `-l label` | Agent | Deterministic state graph for prompt injection |
-| `awit next` | `-l label`, `--claim`, `--no-commit`, `--seed` | Agent | Top unblocked item; optional claim |
+| `awit next` | `-l label`, `--claim`, `--commit=true\|false`, `--no-commit` (deprecated), `--seed` | Agent | Top unblocked item; optional claim |
 
 Global flags: `--format`, `--repo <path>` (locate `.awit/` explicitly instead of walking up), `--no-color`.
+
+Every `<id>` argument (and `dep`/`create -d` values) accepts a canonical ID (exact, wins), an alias (case-insensitive), or an external key `owner/repo#<n>` / unique bare `#<n>`; ambiguity is an error naming the canonical IDs.
 
 ## Agent surface
 
@@ -226,7 +232,7 @@ Output is one compact line, or JSON with `--format json`:
 
 - Candidate set = ready items minus quarantined, filtered by `-l`; ranked by unblocks desc; ties broken by `math/rand` seeded from time, or from `--seed` in tests.
 - Empty candidate set exits 1 with `No ready items` (and the active label filter) so a loop can stop cleanly.
-- `--claim` sets `status: in_progress`, `assignee: agent/<id>`, `claimed_at: now`, writes the file, and commits `awit: claim <id>` touching only that file. `--no-commit` skips the commit.
+- `--claim` sets `status: in_progress`, `assignee: agent/<id>`, `claimed_at: now`, writes the file, and commits `awit: claim <id>` touching only that file. The commit follows the policy: explicit `--commit=true|false` or a true `--no-commit` (deprecated) beats `config.yaml commit:` which beats the default `true`; `--no-commit=false` is neutral; passing both `--commit` and a true `--no-commit`, or a non-bool `--commit` value, is usage error 2 before any write. Without `--claim` the policy flags write and commit nothing.
 - Agent identity: `--agent`, else `AWIT_AGENT`, else `config.agent_id`; none → refuse `--claim`.
 
 The intended priority check is `awit next -l p0` without `--claim`: it answers whether anything critical is ready and how much it unblocks, and the agent decides from there.
@@ -280,9 +286,9 @@ Six phases; phases 1–2 set the codebase's shape, and the agent surface waits u
 
 ### Phase 4 — progressive disclosure
 
-- [ ] `comment` inline and `--file`; timestamped filenames with collision suffix; `refs` append
-- [ ] `pkg/resolver`: relative-path resolution from `.awit/items/`, slash normalisation, missing-file reporting
-- [ ] `show --full` with delimiter headers per ref; `--refs-only`; cycle-safe if a ref points at another item
+- [ ] `comment` inline and `--file`; timestamped filenames with collision suffix; `refs` append (`.awit/comments/<id>/…`)
+- [ ] `pkg/resolver`: relative-path resolution from a caller-chosen base directory (repo root or `.awit/items/`), slash normalisation, missing-file reporting
+- [ ] `show --full` with delimiter headers per ref; `--refs-only`; cycle-safe if a ref points at another item; `ref add`/`rm`
 - [ ] End-to-end test running the five-step loop against a fixture repo
 
 ### Phase 5 — hardening

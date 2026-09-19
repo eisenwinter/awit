@@ -34,7 +34,7 @@ Parse output with `--format json`; humans get a table, pipes get compact lines.
 | `Unblocks: N` | How many open items transitively wait on this one. Higher = more valuable to finish.                                                                             |
 | `deps`        | IDs this item waits for. Blocked is derived from deps, never stored.                                                                                             |
 | QUARANTINED   | The file or its deps are faulty (cycle, dangling dep, parse error, conflict markers, id mismatch, duplicate id). Excluded from `next`.                           |
-| `refs`        | Paths relative to `.awit/items/`. Comments and attachments become refs automatically.                                                                            |
+| `refs`        | Paths relative to the repo root when `refs_base: repo` (new writes). Omitted marker means historical `.awit/items/` base until first mutation. Comments and attachments become refs automatically. |
 | `assignee`    | Set by `--claim`. **Stays after `close`** on purpose (audit trail); only `release` clears it.                                                                    |
 
 ## The loop
@@ -43,7 +43,7 @@ Run this per work item. Do not skip steps; do not reorder.
 
 ```bash
 awit prime                       # 1. snapshot: warnings, READY, BLOCKED, critical path
-awit next --claim                # 2. claim the top ready item; prints its line, commits "awit: claim <id>"
+awit next --claim                # 2. claim the top ready item; prints its line, commits "awit: claim <id>" unless the commit policy says no
 awit show <id> --full            # 3. work item + every ref inlined; read all of it before touching code
 # 4. build your todo list from the work item (see below)
 # 5. do the work
@@ -57,7 +57,7 @@ Decisions the baseline agent had to guess, resolved:
 
 - **Finished = `close`.** `release` means "I give up the claim, someone else take it": it returns an in-progress **or closed** item to `open`, clears `assignee` and `claimed_at`, and confirms with a plain `reopened <id>` line (never JSON, even under `--format json`).
 - **Notes go in `comment`.** `close --reason` is a one-line why, not the report; both create a comment file, so writing the same text in both duplicates it.
-- **Only `next --claim` commits** (so a double claim becomes a merge conflict, which quarantine surfaces). `comment`, `close`, `release`, `create`, `update`, `dep` leave the tree dirty — commit `.awit/` together with your code when you are done: `awit: close <id>` after a close, `awit: release <id>` after a release (otherwise Git still shows your claim to everyone else). If an orchestrator owns commits in this project (see `.omp/agents/orchestrator.md`), do not commit; report instead.
+- **Only `next --claim` commits** (so a double claim becomes a merge conflict, which quarantine surfaces). Whether it does follows the commit policy: `--commit=true|false` for one run, `commit: false` in `config.yaml` as the repository default (default `true`); `--no-commit` is the deprecated spelling of `--commit=false`. `comment`, `close`, `release`, `create`, `update`, `dep`, `ref` leave the tree dirty — commit `.awit/` together with your code when you are done: `awit: close <id>` after a close, `awit: release <id>` after a release (otherwise Git still shows your claim to everyone else). If an orchestrator owns commits in this project (see `.omp/agents/orchestrator.md`), do not commit; report instead.
 - **`.awit/.lock` is never committed.** `awit init` gitignores it; if `git status` shows it untracked, add `.awit/.lock` to `.gitignore` first, then `git add .awit`. `init` can also seed this skill into `.claude`, `.omp`, `.opencode`, `.agents` and `.pi` (`--skills` to skip the prompts); unlike the lock, those files are project config and belong in the commit.
 - **One claim at a time.** Finish or `release` before the next `next --claim`.
 
@@ -140,12 +140,15 @@ When you dispatch workers instead of working yourself:
 | --------------------------------- | ------------------------------------------------------------------------ | -------------- | ------- | -------- | --- | ---------- |
 | Whole picture                     | `awit prime`                                                             |
 | What would I get, no side effects | `awit next` / `awit next -l p0`                                          |
-| Take work                         | `awit next --claim` (`--no-commit` in tests)                             |
+| Take work                         | `awit next --claim` (`--commit=false` in tests; `--no-commit` also works) |
+| Look up an item                   | any `<id>` argument also accepts an `alias` (case-insensitive) or `owner/repo#127` / `#127`; ambiguity lists the canonical IDs |
+| Import a Gitea issue              | `awit import <issue-url> --brief "…" [--alias DTRM-F21 --tea-login name]` (one-time snapshot via `tea`; duplicates refused) |
 | Read a work item                     | `awit show <id>` (~200 tokens) / `--full` (refs inlined) / `--refs-only` |
 | Record progress                   | `awit comment <id> "…"` / `--file report.log`                            |
 | Change fields                     | `awit update <id> --status                                               | --brief        | --title | --assign | -l  | --unlabel | --external-* | --clear-external` |
 | Finish / give back / reopen     | `awit close <id> --reason "…"` / `awit release <id>` (prints `reopened <id>`) |
 | Dependencies                      | `awit dep add                                                            | rm <id> <dep>` |
+| File references                   | `awit ref add                                                            | rm <id> <path>` |
 | Integrity                         | `awit validate [--stale-claims]` (exit 1 on FAIL; invalid external is WARN)                        |
 | Everything, filtered              | `awit list -s open -l auth --ready --format json`                        |
 | Label vocabulary                  | `awit label [--state open                                                | closed         | all]`   |
