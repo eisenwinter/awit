@@ -71,7 +71,7 @@ Additional decisions made while writing work items:
 | Does `archive` commit? | **No**, same as `close`. Holds `Store.Lock`. Output ignores `--format` (like `close`): one `archived <id>` line per item, sorted by ID, then `Archived N items`. `--dry-run` writes nothing, prints `would archive <id>` lines and `skip <id>: dependant <dep-id> not archivable` for every closed item left behind, then `Would archive N items`. Exit 0 even when N = 0. |
 | Release output | **No commit**, same as `close`. Holds `Store.Lock`. Every source state — `open`, `in_progress`, `closed` — ends `open` with `assignee`/`claimed_at` deleted, so release is an idempotent visible action. Output ignores `--format` (like `close` and `archive`): exactly one `reopened <id>` line, printed only after `Store.Save` succeeds; load/write failures print no success line. |
 | `external` mapping | Optional Gitea or GitLab link: `{tracker: gitea\|gitlab, repo, id, url}`. `id` is the Gitea issue number or GitLab iid. Gitea `repo` is two segments; GitLab `repo` is two or more (subgroups allowed). GitLab URLs end in `/<repo>/-/issues/<iid>` or `/<repo>/-/work_items/<iid>` with an optional installation prefix. Local statuses stay `open\|in_progress\|closed`; GitLab wire `opened` maps to local `open` (remote conversion, not YAML). `create`/`update` require `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` together (partial → exit 2, no write). `update --clear-external` is mutually exclusive with those flags. Invalid or legacy scalar `external:` values set `ExternalProblem` and are **not** quarantined; `validate` prints `WARN  <id>: invalid external: <reason>` (JSON: that line on stderr; fault-array schema unchanged). Exit 0 unless graph faults exist. |
-| `external` state push | One-way local→Gitea propagation only. `close`→`closed`, `release`→`open`, explicit `update --status closed`→`closed`, `update --status open\|in_progress`→`open`; a non-status update, `next --claim`, create, import, comment, ref, and archive never push. All three carry `--no-push` (no tea discovery/auth/network, even with malformed metadata) and `--tea-login`. Local save first (keeping close's reason/comment and claim-clearing), then `Client.SetState` under the held store lock with the bounded subprocess deadline. Remote failure, missing tea, invalid metadata, or ambiguous links keep the local mutation and confirmation, print one stderr `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>`, and exit 0; local failure exits 1 with no push. Same-status `update --status` repeats the push (the retry path). Response identity/state and HTTP status are validated; remote state is never GET-read to decide. No retries, queues, or commits. |
+| `external` state push | One-way local→remote propagation, dispatched by tracker (Gitea via `tea`, GitLab via `glab` as `state_event` reopen/close). `close`→`closed`, `release`→`open`, explicit `update --status closed`→`closed`, `update --status open\|in_progress`→`open`; a non-status update, `next --claim`, create, import, comment, ref, and archive never push. All three carry `--no-push` (no tool discovery/auth/network, even with malformed metadata) and `--tea-login` (Gitea-only, ignored for GitLab). Local save first (keeping close's reason/comment and claim-clearing), then `Client.SetState` under the held store lock with the bounded subprocess deadline. Remote failure, a missing tool, invalid metadata, or ambiguous links keep the local mutation and confirmation, print one stderr `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>`, and exit 0; local failure exits 1 with no push. Same-status `update --status` repeats the push (the retry path). Response identity/state and HTTP status are validated; remote state is never GET-read to decide. No retries, queues, or commits. |
 
 ## 3. Repository layout
 
@@ -624,13 +624,25 @@ type ExternalCheckRow struct {
     Detail string `json:"detail,omitempty"`
 }
 // external check [key] [--tea-login] compares raw body bytes of linked
-// items in canonical-ID order and changes nothing. Plain output is one
-// MATCH/DRIFT/ERROR line per item (each naming the item and its URL) plus
-// deterministic totals; --format json prints the row array with no human
-// lines on stdout. Exit 1 on any drift/error, else 0.
+// items in canonical-ID order and changes nothing. Reads dispatch by
+// tracker through getExternalIssue (--tea-login is Gitea-only). Plain
+// output is one MATCH/DRIFT/ERROR line per item (each naming the item and
+// its URL) plus deterministic totals; --format json prints the row array
+// with no human lines on stdout. Exit 1 on any drift/error, else 0.
 // external push-body <key> [--tea-login] pushes the local body bytes to
 // the linked issue under the store lock, refuses ambiguous duplicate
-// links, and verifies the remote took the exact bytes.
+// links, and verifies the remote took the exact bytes. Writes dispatch by
+// tracker through setExternalBody.
+// setExternalBody pushes the local body bytes via teax (Gitea) or glabx
+// (GitLab, tea login ignored); setExternalState pushes open|closed via
+// teax or glabx the same way. Both refuse unsupported trackers before any
+// mutation and change nothing else. maybePushExternalState runs only
+// after the local save under the held store lock and routes through
+// setExternalState; every failure keeps exit 0 with the single retry
+// warning, and --no-push returns before any lookup.
+func setExternalBody(ctx context.Context, ext item.External, teaLogin string, body []byte) error
+func setExternalState(ctx context.Context, ext item.External, teaLogin, state string) error
+func maybePushExternalState(ctx context.Context, cmd *cli.Command, all []*item.Item, it *item.Item, remoteState string)
 ```
 
 Global flags (defined on the root `*cli.Command`, read via `cmd.Root().String("format")` etc.):

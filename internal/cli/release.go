@@ -12,8 +12,8 @@ import (
 var releaseCmd = &cli.Command{
 	Name: "release", Usage: "Return an in-progress or closed item to open and clear its claim", ArgsUsage: "<id>",
 	Flags: []cli.Flag{
-		&cli.BoolFlag{Name: "no-push", Usage: "skip pushing the reopened state to the linked Gitea issue"},
-		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for the issue's instance"},
+		&cli.BoolFlag{Name: "no-push", Usage: "skip pushing the reopened state to the linked external issue"},
+		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for a Gitea issue; ignored for GitLab"},
 	},
 	Action: releaseAction,
 }

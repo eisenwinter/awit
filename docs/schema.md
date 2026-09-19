@@ -233,28 +233,33 @@ is refused with the existing item or archive path named.
 
 `awit external check [key] [--tea-login name]` compares the raw local
 body bytes (`Item.Body()`: every byte after the frontmatter closing
-fence) against the linked Gitea issue body and nothing else — frontmatter,
-title, labels, comments, and remote state are ignored, so any whitespace,
-line-ending, final-newline, or leading-blank-line difference is drift. The
-command is read-only: no local bytes and no remote fields change. Plain
-output prints one `MATCH`, `DRIFT`, or `ERROR` line per linked item (each
-naming the item and its URL) plus deterministic totals; `--format json`
-prints an array of `{id, url, result, detail}` with no human lines on
-stdout. Exit 1 when any row is drift or error, otherwise 0. An
-authentication or read failure is an error row, never drift. The all-items
-form walks linked items in canonical-ID order and skips genuinely
-unlinked ones (reporting the number checked, including zero); naming an
-explicitly unlinked item is an error.
+fence) against the linked issue body — Gitea through `tea`, GitLab
+through `glab` — and nothing else: frontmatter, title, labels, comments,
+and remote state are ignored, so any whitespace, line-ending,
+final-newline, or leading-blank-line difference is drift. `--tea-login`
+is Gitea-only and ignored for GitLab. The command is read-only: no local
+bytes and no remote fields change. Plain output prints one `MATCH`,
+`DRIFT`, or `ERROR` line per linked item (each naming the item and its
+URL) plus deterministic totals; `--format json` prints an array of
+`{id, url, result, detail}` with no human lines on stdout. Exit 1 when
+any row is drift or error, otherwise 0. An authentication or read failure
+is an error row, never drift. The all-items form walks linked items in
+canonical-ID order and skips genuinely unlinked ones (reporting the
+number checked, including zero); naming an explicitly unlinked item is an
+error.
 
 `awit external push-body <key> [--tea-login name]` is the explicit
 local-canonical repair: it pushes the local body bytes to the linked
 issue and nothing else (no title, label, state, local-content, or history
 change). The push holds the store lock until the bounded request
-completes, refuses ambiguous duplicate external links, requires a 2xx
-status (tea exits zero on HTTP errors, so the `--include` status line is
-authoritative), and verifies the remote took the exact bytes — against the
-PATCH response, or a GET of the same issue when the response omits the
-body. A mismatch is an error, never success.
+completes, refuses ambiguous duplicate external links, and verifies the
+remote took the exact bytes — against the write response, or a GET of the
+same issue when the response omits the body. A mismatch is an error,
+never success. Gitea requires a 2xx status (tea exits zero on HTTP
+errors, so the `--include` status line is authoritative); GitLab requires
+a 2xx status the same way (glab exits nonzero on HTTP errors) and
+refuses column-zero `/command` bodies before any mutation, since GitLab
+would execute them as quick actions instead of storing them.
 
 `awit close <id> [--tea-login name] [--no-push]`, `awit release <id>` with
 the same flags, and `awit update <id> --status <s>` with the same flags
@@ -262,31 +267,36 @@ propagate local state one way to the linked issue: `close` pushes `closed`,
 `release` pushes `open`, and an explicit `--status` pushes `closed` for
 `closed` and `open` for `open`/`in_progress` (a non-status update never
 pushes, and neither do `next --claim`, create, import, comment, ref, or
-archive). The local item is saved first — keeping close's reason comment
-and claim-clearing — then the push runs under the held store lock with the
-bounded subprocess deadline (`tea api --login <login> --repo <owner/repo>
---include -X PATCH -f state=<open|closed>
-repos/<owner>/<repo>/issues/<n>`), requiring a 2xx status and verifying
+archive). `--tea-login` is Gitea-only and ignored for GitLab. The local
+item is saved first — keeping close's reason comment and claim-clearing —
+then the push runs under the held store lock with the bounded subprocess
+deadline (Gitea: `tea api --login <login> --repo <owner/repo> --include
+-X PATCH -f state=<open|closed> repos/<owner>/<repo>/issues/<n>`; GitLab:
+`glab api` PUT of `state_event=<close|reopen>` on the single-segment
+`%2F`-encoded project endpoint), requiring a 2xx status and verifying
 the response confirms the issue number, installation, and state (GET
 fallback when the response omits it; the remote is never read to decide).
-Local state stays canonical: remote failure, missing tea, invalid
+Local state stays canonical: remote failure, a missing tool, invalid
 metadata, or ambiguous duplicate links keep the local mutation and its
 ordinary confirmation, print one stderr
 `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>`
 (exit 0), while a local write failure exits 1 and never pushes.
 Repeating `update <id> --status <current>` re-pushes without a queue or
-daemon. `--no-push` performs no tea discovery, auth, or network operation,
-even with malformed metadata.
+daemon. `--no-push` performs no tool discovery, auth, or network
+operation, even with malformed metadata.
 
 Byte-exactness relies on a tested `tea` behavior: `tea`'s `-F body=@file`
 reader strips exactly one terminal LF, so awit writes the transport file
 as the body plus one extra LF (private temp-then-rename file, mode 0600,
-deleted on every exit). Supported: `tea` 0.16.0, verified by
-`TestTeaBodyRoundTrip` (empty, no-LF, multi-LF, CRLF, leading blanks,
-Unicode, backticks, and literal `null` round-trip byte-exact). A `tea`
-build that fails that compatibility test must not be advertised as
-supported. Ordinary `awit validate` stays offline: it works with `tea`
-absent and networking disabled.
+deleted on every exit). GitLab needs no such adaptation: `glab` sends
+`-F description=@file` byte-exact, so the transport file carries exactly
+the body bytes, verified by `TestGlabBodyRoundTrip` (empty, no-LF,
+multi-LF, CRLF, leading blanks, Unicode, backticks, and literal `null`
+round-trip byte-exact). Supported: `tea` 0.16.0, verified by
+`TestTeaBodyRoundTrip` over the same edges. A `tea` or `glab` build that
+fails its compatibility test must not be advertised as supported.
+Ordinary `awit validate` stays offline: it works with both tools absent
+and networking disabled.
 
 ### Unknown keys
 

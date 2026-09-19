@@ -14,8 +14,8 @@ var closeCmd = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "reason"},
 		&cli.StringFlag{Name: "author"},
-		&cli.BoolFlag{Name: "no-push", Usage: "skip pushing the closed state to the linked Gitea issue"},
-		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for the issue's instance"},
+		&cli.BoolFlag{Name: "no-push", Usage: "skip pushing the closed state to the linked external issue"},
+		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for a Gitea issue; ignored for GitLab"},
 	},
 	Action: closeAction,
 }

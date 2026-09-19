@@ -16,7 +16,7 @@ import (
 
 var externalCmd = &cli.Command{
 	Name:  "external",
-	Usage: "Check and repair Gitea body drift for linked items",
+	Usage: "Check and repair external body drift for linked items",
 	Commands: []*cli.Command{
 		externalCheckCmd,
 		externalPushBodyCmd,
@@ -35,20 +35,20 @@ type ExternalCheckRow struct {
 
 var externalCheckCmd = &cli.Command{
 	Name:      "check",
-	Usage:     "Compare local bodies against linked Gitea issues (read-only)",
+	Usage:     "Compare local bodies against linked external issues (read-only)",
 	ArgsUsage: "[key]",
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for the issue's instance"},
+		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for a Gitea issue; ignored for GitLab"},
 	},
 	Action: externalCheckAction,
 }
 
 var externalPushBodyCmd = &cli.Command{
 	Name:      "push-body",
-	Usage:     "Push the local body bytes to the linked Gitea issue (explicit repair)",
+	Usage:     "Push the local body bytes to the linked external issue (explicit repair)",
 	ArgsUsage: "<key>",
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for the issue's instance"},
+		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for a Gitea issue; ignored for GitLab"},
 	},
 	Action: externalPushBodyAction,
 }
@@ -139,7 +139,9 @@ func externalCheckAction(ctx context.Context, cmd *cli.Command) error {
 // issue body. It never writes locally or remotely. Only body bytes are
 // compared: whitespace, line endings, final newlines, and leading blank
 // lines all constitute drift; frontmatter, title, labels, comments, and
-// remote state are ignored.
+// remote state are ignored. Reads dispatch by tracker through
+// getExternalIssue; schema, auth, and identity failures are ERROR, never
+// DRIFT.
 func checkOne(ctx context.Context, it *item.Item, login string) ExternalCheckRow {
 	if it.ExternalProblem != "" {
 		return ExternalCheckRow{ID: it.ID, Result: "error", Detail: it.ExternalProblem}
@@ -148,11 +150,7 @@ func checkOne(ctx context.Context, it *item.Item, login string) ExternalCheckRow
 	if ext == nil {
 		return ExternalCheckRow{ID: it.ID, Result: "error", Detail: "invalid external: no external link"}
 	}
-	client, err := teax.Open(ctx, *ext, login)
-	if err != nil {
-		return ExternalCheckRow{ID: it.ID, URL: ext.URL, Result: "error", Detail: err.Error()}
-	}
-	iss, err := client.GetIssue(ctx, ext.ID)
+	iss, err := getExternalIssue(ctx, *ext, login)
 	if err != nil {
 		return ExternalCheckRow{ID: it.ID, URL: ext.URL, Result: "error", Detail: err.Error()}
 	}
@@ -216,15 +214,35 @@ func externalPushBodyAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("ambiguous external link %s#%d matches %s; refusing to push", ext.Repo, ext.ID, joinIDs(dups))
 	}
 	body := append([]byte(nil), target.Body()...)
-	client, err := teax.Open(ctx, ext, cmd.String("tea-login"))
-	if err != nil {
-		return err
-	}
-	if err := client.SetBody(ctx, ext.ID, body); err != nil {
+	if err := setExternalBody(ctx, ext, cmd.String("tea-login"), body); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Root().Writer, "pushed body for %s to %s (%d bytes)\n", target.ID, ext.URL, len(body))
 	return nil
+}
+
+// setExternalBody pushes the local body bytes to the linked issue,
+// dispatching on tracker: teax for Gitea (with the tea login), glabx for
+// GitLab (which ignores the tea login). It changes no title, labels, or
+// state; subgroup encoding and quick-action refusal stay in glabx.
+// Unsupported trackers are refused before any mutation.
+func setExternalBody(ctx context.Context, ext item.External, teaLogin string, body []byte) error {
+	switch ext.Tracker {
+	case "gitea":
+		client, err := teax.Open(ctx, ext, teaLogin)
+		if err != nil {
+			return err
+		}
+		return client.SetBody(ctx, ext.ID, body)
+	case "gitlab":
+		client, err := glabx.Open(ctx, ext)
+		if err != nil {
+			return err
+		}
+		return client.SetBody(ctx, ext.ID, body)
+	default:
+		return fmt.Errorf("unsupported tracker %q", ext.Tracker)
+	}
 }
 
 // duplicateExternalLinks returns the canonical IDs of every parseable item
