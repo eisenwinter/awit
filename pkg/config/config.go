@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -22,6 +24,10 @@ type Config struct {
 	// nil (the key is absent) means the documented default: commit. Only
 	// next --claim reads it; no other command's behaviour depends on it.
 	Commit *bool `yaml:"commit,omitempty"`
+	// Template is a repo-root-relative forward-slash path to a body-only
+	// file used by create. Empty means the built-in skeleton. Only create
+	// reads the file.
+	Template string `yaml:"template,omitempty"`
 }
 
 type Duration time.Duration
@@ -75,6 +81,9 @@ func Load(awitDir string) (Config, error) {
 	if c.StaleClaim == 0 {
 		c.StaleClaim = Duration(2 * time.Hour)
 	}
+	if err := validateTemplatePath(c.Template); err != nil {
+		return Config{}, err
+	}
 	return c, nil
 }
 
@@ -107,4 +116,32 @@ func (c Config) Agent(flag string) string {
 // controls pushing or any other command.
 func (c Config) ShouldCommit() bool {
 	return c.Commit == nil || *c.Commit
+}
+
+func validateTemplatePath(p string) error {
+	if p == "" {
+		return nil
+	}
+	if strings.Contains(p, "\\") || path.IsAbs(p) || windowsAbs(p) {
+		return errors.New("config: template must be a repo-root-relative path")
+	}
+	cleaned := path.Clean(p)
+	if cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+		return errors.New("config: template escapes repository root")
+	}
+	return nil
+}
+
+func windowsAbs(p string) bool {
+	if strings.HasPrefix(p, "//") {
+		return true
+	}
+	if len(p) < 2 || p[1] != ':' {
+		return false
+	}
+	c := p[0]
+	if (c < 'A' || c > 'Z') && (c < 'a' || c > 'z') {
+		return false
+	}
+	return len(p) == 2 || p[2] == '/'
 }

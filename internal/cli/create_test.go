@@ -323,3 +323,190 @@ func writeDefaultLabels(t *testing.T, repo string, yaml []byte) {
 		t.Fatal(err)
 	}
 }
+
+func writeTemplateFile(t *testing.T, repo, rel string, data []byte) {
+	t.Helper()
+	p := filepath.Join(repo, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func countItems(t *testing.T, repo string) int {
+	t.Helper()
+	ents, err := os.ReadDir(filepath.Join(repo, ".awit", "items"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, e := range ents {
+		if strings.HasSuffix(e.Name(), ".md") {
+			n++
+		}
+	}
+	return n
+}
+
+func TestCreateTemplateExactBytes(t *testing.T) {
+	dir := initRepo(t)
+	want := "## Context\n\nhello world  \n"
+	writeTemplateFile(t, dir, "plan/workitem-template.md", []byte(want))
+	writeDefaultLabels(t, dir, []byte("prefix: AWIT\ntemplate: plan/workitem-template.md\nstale_claim: 2h\n"))
+	code, stdout, stderr := run(t, "--repo", dir, "create", "--brief", "A template check.", "Template check")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	it := readItem(t, dir, itemIDFromCompact(t, stdout))
+	if string(it.Body()) != want {
+		t.Fatalf("body = %q, want exact template bytes %q", it.Body(), want)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, ".awit", "items", it.ID+".md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	idx := strings.LastIndex(string(raw), "---\n")
+	if idx < 0 {
+		t.Fatalf("no closing fence in\n%s", raw)
+	}
+	if string(raw[idx+len("---\n"):]) != want {
+		t.Fatalf("on-disk body = %q, want %q (no synthesized leading newline)", raw[idx+len("---\n"):], want)
+	}
+}
+
+func TestCreateTemplateLookupFromNestedCwd(t *testing.T) {
+	dir := initRepo(t)
+	want := "## Nested\nfrom root-relative path\n"
+	writeTemplateFile(t, dir, "plan/workitem-template.md", []byte(want))
+	writeDefaultLabels(t, dir, []byte("prefix: AWIT\ntemplate: plan/workitem-template.md\nstale_claim: 2h\n"))
+	nested := filepath.Join(dir, "src", "pkg")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(nested)
+	code, stdout, stderr := run(t, "create", "--brief", "A template check.", "Template check")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	it := onlyItem(t, dir)
+	if string(it.Body()) != want {
+		t.Fatalf("nested-cwd body = %q, want %q (looked up from repo root, not cwd)", it.Body(), want)
+	}
+	_ = stdout
+}
+
+func TestCreateAbsentTemplateKeepsSkeleton(t *testing.T) {
+	dir := initRepo(t)
+	code, _, stderr := run(t, "--repo", dir, "create", "--brief", "A template check.", "No template")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	it := onlyItem(t, dir)
+	if string(it.Body()) != "\n## Summary\n\n## Acceptance Criteria\n\n" {
+		t.Fatalf("body = %q, want default skeleton", it.Body())
+	}
+}
+
+func TestCreateEmptyTemplateIsEmptyBody(t *testing.T) {
+	dir := initRepo(t)
+	writeTemplateFile(t, dir, "plan/empty.md", []byte{})
+	writeDefaultLabels(t, dir, []byte("prefix: AWIT\ntemplate: plan/empty.md\nstale_claim: 2h\n"))
+	code, stdout, stderr := run(t, "--repo", dir, "create", "--brief", "A template check.", "Empty template")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	it := readItem(t, dir, itemIDFromCompact(t, stdout))
+	if len(it.Body()) != 0 {
+		t.Fatalf("body = %q, want empty", it.Body())
+	}
+}
+
+func TestCreateTemplateErrorsLeaveNoItem(t *testing.T) {
+	tests := []struct {
+		name   string
+		rel    string
+		setup  func(t *testing.T, dir string)
+		suberr string
+	}{
+		{
+			name: "missing",
+			rel:  "plan/missing.md",
+			setup: func(t *testing.T, dir string) {
+			},
+			suberr: "plan/missing.md",
+		},
+		{
+			name: "directory",
+			rel:  "plan/dir",
+			setup: func(t *testing.T, dir string) {
+				if err := os.MkdirAll(filepath.Join(dir, "plan", "dir"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+			},
+			suberr: "plan/dir",
+		},
+		{
+			name: "non-utf8",
+			rel:  "plan/bad.md",
+			setup: func(t *testing.T, dir string) {
+				writeTemplateFile(t, dir, "plan/bad.md", []byte{0xff, 0xfe, 0xfd})
+			},
+			suberr: "plan/bad.md",
+		},
+		{
+			name: "conflict-markers",
+			rel:  "plan/conflict.md",
+			setup: func(t *testing.T, dir string) {
+				writeTemplateFile(t, dir, "plan/conflict.md", []byte("before\n<<<<<<< HEAD\nmine\n=======\ntheirs\n>>>>>>> other\n"))
+			},
+			suberr: "plan/conflict.md",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := initRepo(t)
+			tt.setup(t, dir)
+			writeDefaultLabels(t, dir, []byte("prefix: AWIT\ntemplate: "+tt.rel+"\nstale_claim: 2h\n"))
+			code, _, stderr := run(t, "--repo", dir, "create", "--brief", "A template check.", "Should fail")
+			if code != 1 {
+				t.Fatalf("exit %d, want 1 stderr %q", code, stderr)
+			}
+			if !strings.Contains(stderr, tt.suberr) {
+				t.Fatalf("stderr = %q, want it to name %q", stderr, tt.suberr)
+			}
+			if countItems(t, dir) != 0 {
+				t.Fatalf("create wrote an item after template error; stderr %q", stderr)
+			}
+		})
+	}
+}
+
+func TestCreateTemplateDoesNotChangeFrontmatter(t *testing.T) {
+	dir := initRepo(t)
+	body := "---\nid: HACKED01\nstatus: closed\n---\nstolen body\n"
+	writeTemplateFile(t, dir, "plan/workitem-template.md", []byte(body))
+	writeDefaultLabels(t, dir, []byte("prefix: AWIT\ntemplate: plan/workitem-template.md\nstale_claim: 2h\n"))
+	code, stdout, stderr := run(t, "--repo", dir, "create", "--id", "AWIT-TEST0001", "--brief", "A template check.", "Identity")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	it := readItem(t, dir, "AWIT-TEST0001")
+	if it.ID != "AWIT-TEST0001" || it.Status != item.StatusOpen || it.Title != "Identity" {
+		t.Fatalf("frontmatter mutated by template: id=%q status=%q title=%q", it.ID, it.Status, it.Title)
+	}
+	if string(it.Body()) != body {
+		t.Fatalf("body = %q, want template bytes kept as body-only", it.Body())
+	}
+	_ = stdout
+}
+
+func TestTemplateMissingDoesNotBreakList(t *testing.T) {
+	dir := initRepo(t)
+	writeDefaultLabels(t, dir, []byte("prefix: AWIT\ntemplate: plan/missing.md\nstale_claim: 2h\n"))
+	code, _, stderr := run(t, "--repo", dir, "list")
+	if code != 0 {
+		t.Fatalf("list exit %d stderr %q (must not read the template file)", code, stderr)
+	}
+}

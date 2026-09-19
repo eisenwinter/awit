@@ -242,3 +242,77 @@ func TestCommitPolicyWriteRoundTrip(t *testing.T) {
 		t.Fatal("commit: false must survive Write -> Load")
 	}
 }
+
+func TestTemplateLoadAbsent(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte("prefix: AWIT\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Template != "" {
+		t.Fatalf("Template = %q, want empty", c.Template)
+	}
+}
+
+func TestTemplateLoadValidRelative(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, FileName), []byte("prefix: AWIT\ntemplate: plan/workitem-template.md\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Template != "plan/workitem-template.md" {
+		t.Fatalf("Template = %q", c.Template)
+	}
+}
+
+func TestTemplateLoadRejectsAbsoluteAndEscape(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+	}{
+		{"unix absolute", "/etc/passwd"},
+		{"windows absolute", "C:/Windows/template.md"},
+		{"unc absolute", "//server/share/template.md"},
+		{"backslash", `plan\workitem-template.md`},
+		{"escapes root", "../secret.md"},
+		{"escapes via parent", "foo/../../secret.md"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			body := "prefix: AWIT\ntemplate: " + tt.value + "\n"
+			if err := os.WriteFile(filepath.Join(dir, FileName), []byte(body), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			_, err := Load(dir)
+			if err == nil {
+				t.Fatal("Load() = nil, want template path error")
+			}
+			if !strings.Contains(err.Error(), "template") {
+				t.Fatalf("Load() error = %v, want it to mention template", err)
+			}
+		})
+	}
+}
+
+func TestTemplateWriteRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	c := Default("AWIT")
+	c.Template = "plan/workitem-template.md"
+	if err := c.Write(dir); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.Template != "plan/workitem-template.md" {
+		t.Fatalf("Template = %q", loaded.Template)
+	}
+}

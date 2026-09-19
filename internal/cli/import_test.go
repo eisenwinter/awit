@@ -646,6 +646,21 @@ func TestAliasValidateWarns(t *testing.T) {
 	}
 }
 
+func TestImportIgnoresConfiguredTemplate(t *testing.T) {
+	repo, stub := importRepo(t)
+	writeTemplateFile(t, repo, "plan/workitem-template.md", []byte("LOCAL TEMPLATE\n"))
+	writeDefaultLabels(t, repo, []byte("prefix: AWIT\ntemplate: plan/workitem-template.md\nstale_claim: 2h\n"))
+	writeTeaIssue(t, stub, 127, faithfulIssue)
+	code, stdout, stderr := run(t, importArgs(repo, stub)...)
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	it := readItem(t, repo, itemIDFromCompact(t, stdout))
+	if string(it.Body()) != "Line one.\n\nLine two.\n" {
+		t.Fatalf("body = %q, want the issue body; import must not read the local template", it.Body())
+	}
+}
+
 // --- helpers ---
 
 func quote(s string) string {
