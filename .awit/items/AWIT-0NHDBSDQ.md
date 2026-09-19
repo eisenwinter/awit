@@ -3,10 +3,11 @@ id: AWIT-0NHDBSDQ
 title: 'cli: warn once about quarantined items on graph-reading commands'
 brief: >-
   Make graph exclusions visible with one stable stderr warning per command without changing results, exit codes, or machine-readable stdout.
-status: open
+status: closed
 deps: [AWIT-0ND56S3G, AWIT-0ND56J3G, AWIT-0ND56W3G, AWIT-0ND56X3G, AWIT-0ND56R3G, AWIT-0NE610DS]
 labels: [phase5, p1]
-refs: []
+refs_base: repo
+refs: [.awit/comments/AWIT-0NHDBSDQ/20260919T153816Z-orchestrator.md]
 ---
 ## Summary
 
