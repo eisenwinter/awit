@@ -3,10 +3,11 @@ id: AWIT-0NHDC2DN
 title: 'ref: add and remove repo-root references with explicit legacy migration'
 brief: >-
   Add ref add/rm and make new references repo-root-relative. Preserve old items-relative refs through an explicit per-item base marker and deterministic rewrite-on-touch, not filesystem-existence guessing.
-status: open
+status: closed
 deps: [AWIT-0ND56Z3G, AWIT-0ND5703G, AWIT-0ND56Y3G, AWIT-0NE610DS]
 labels: [phase4, p1]
-refs: []
+refs_base: repo
+refs: [.awit/comments/AWIT-0NHDC2DN/20260919T152555Z-orchestrator.md]
 ---
 ## Summary
 
