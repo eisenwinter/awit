@@ -10,7 +10,7 @@ import (
 )
 
 var releaseCmd = &cli.Command{
-	Name: "release", Usage: "Return an item to open and clear its claim", ArgsUsage: "<id>",
+	Name: "release", Usage: "Return an in-progress or closed item to open and clear its claim", ArgsUsage: "<id>",
 	Action: releaseAction,
 }
 
@@ -36,5 +36,9 @@ func releaseAction(_ context.Context, cmd *cli.Command) error {
 	it.SetStatus(item.StatusOpen)
 	it.SetAssignee("")
 	it.SetClaimedAt(nil)
-	return s.Save(it)
+	if err := s.Save(it); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.Root().Writer, "reopened %s\n", it.ID)
+	return nil
 }
