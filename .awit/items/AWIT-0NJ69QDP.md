@@ -3,11 +3,11 @@ id: AWIT-0NJ69QDP
 title: 'glabx: wrap GitLab issues with verified byte-exact writes and quick-action refusal'
 brief: >-
   Add a concrete pre-authenticated glab subprocess wrapper for issue reads, description writes, and state events. Refuse quick-action-shaped bodies before mutation and pin raw file transport with a real-glab compatibility canary.
-status: open
+status: closed
 deps: [AWIT-0NJ69JDP]
 labels: [phase5, p0]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NJ69QDP/20260919T185257Z-orchestrator.md]
 ---
 ## Summary
 
