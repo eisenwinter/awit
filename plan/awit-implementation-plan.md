@@ -59,7 +59,7 @@ Everything is a Markdown file under `.awit/`; the only non-committed file is the
 
 ```text
 .awit/
-├── config.yaml                        # prefix, default_labels, stale_claim, template
+├── config.yaml                        # prefix, default_labels, labels, stale_claim, template
 ├── items/
 │   ├── AWIT-0K7M2QX9.md               # one lean item per file, ID = filename
 │   └── AWIT-0K7M3A1F.md
@@ -107,14 +107,14 @@ refs:
 | `brief` | string | One to three sentences of prose summarizing the item. `create` requires `--brief`; `validate` warns when it is missing or runs past three sentences — an item that cannot be briefed that tightly should be split |
 | `status` | enum | `open`, `in_progress`, `closed`; blocked is derived, never stored |
 | `deps` | list | Unknown ID → item is blocked and quarantined (dangling dep) |
-| `labels` | list | Free-form; `p0`–`p4` recommended for priority |
+| `labels` | list | Free-form; `p0`–`p4` recommended for priority. Optional `config.yaml` `labels` is advisory |
 | `assignee` | string | `human/<name>` or `agent/<id>`; set by `--claim` or `--assign` |
 | `claimed_at` | RFC 3339 | Set by `--claim`, cleared by `release` and `close`; drives stale-claim check |
 | `refs` | list | Paths relative to the repo root when `refs_base: repo` (default for new writes), forward slashes only. Omitted `refs_base` means historical `.awit/items/`-relative refs, rewritten on first mutation |
 | `external` | mapping | Optional Gitea link `{tracker, repo, id, url}`. `id` is the repository issue number. Invalid or legacy scalar values warn on `validate` and do not quarantine |
 | `alias` | string | Optional human alias, `[A-Za-z][A-Za-z0-9._-]{0,127}`, never ID-shaped; case-insensitively unique across active items (warned, not enforced); lookup-only, never a filename or dep edge |
 
-Unknown keys are preserved on write so teams can add their own fields without a schema change. `config.yaml` holds `prefix`, optional `default_labels`, `stale_claim` (duration, default `2h`), `agent_id` (overridden by `AWIT_AGENT`), and optional `template` (repo-root-relative forward-slash path to a body-only file `create` copies verbatim; absent keeps the default skeleton; `import` ignores it).
+Unknown keys are preserved on write so teams can add their own fields without a schema change. `config.yaml` holds `prefix`, optional `default_labels`, optional `labels` (advisory vocabulary; missing/empty disables; `create`/`update` warn on unknown names they introduce but still store them), `stale_claim` (duration, default `2h`), `agent_id` (overridden by `AWIT_AGENT`), and optional `template` (repo-root-relative forward-slash path to a body-only file `create` copies verbatim; absent keeps the default skeleton; `import` ignores it).
 
 ### Archive
 
@@ -185,7 +185,7 @@ Fourteen commands; `-p` is gone everywhere, `release`, `validate`, `label` and `
 | `awit validate` | `--stale-claims` | Both | Integrity report; non-zero exit on `FAIL`; invalid `external` is a WARN |
 | `awit archive` | `--dry-run` | Human | Move the fixed-point set of closed items to `.awit/archive/`, one collapsed file each |
 | `awit prime` | `--max-tokens`, `-l label` | Agent | Deterministic state graph for prompt injection |
-| `awit next` | `-l label`, `--claim`, `--commit=true\|false`, `--no-commit` (deprecated), `--seed` | Agent | Top unblocked item; optional claim |
+| `awit next` | `-l label`, `--claim`, `--commit=true\|false`, `--no-commit` (deprecated), `--seed`, `--why` | Agent | Top unblocked item; optional claim; `--why` explains the pick on stderr |
 
 Global flags: `--format`, `--repo <path>` (locate `.awit/` explicitly instead of walking up), `--no-color`.
 
@@ -234,6 +234,7 @@ Output is one compact line, or JSON with `--format json`:
 - Empty candidate set exits 1 with `No ready items` (and the active label filter) so a loop can stop cleanly.
 - `--claim` sets `status: in_progress`, `assignee: agent/<id>`, `claimed_at: now`, writes the file, and commits `awit: claim <id>` touching only that file. The commit follows the policy: explicit `--commit=true|false` or a true `--no-commit` (deprecated) beats `config.yaml commit:` which beats the default `true`; `--no-commit=false` is neutral; passing both `--commit` and a true `--no-commit`, or a non-bool `--commit` value, is usage error 2 before any write. Without `--claim` the policy flags write and commit nothing.
 - Agent identity: `--agent`, else `AWIT_AGENT`, else `config.agent_id`; none → refuse `--claim`.
+- `--why` prints one stderr line after a successful pick or claim, stdout byte-identical: `why: <id>; unblocks=<N>; critical-path=<yes|no>; selection=<max-unblocks|explicit>; tie-break=<none|pcg(seed=<S>,candidates=<K>)>`. `K` is the equal-maximum group after label filtering (`K=1` → `none`); the printed seed replays the tie-break. Exact lookups report `selection=explicit`. No line on failed selection, refused claim, or empty candidates.
 
 The intended priority check is `awit next -l p0` without `--claim`: it answers whether anything critical is ready and how much it unblocks, and the agent decides from there.
 

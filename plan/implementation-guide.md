@@ -54,10 +54,11 @@ Additional decisions made while writing work items:
 | `brief` style | Written as `>-` folded scalar (`yaml.FoldedStyle`) when it contains a newline or is longer than 80 chars, plain otherwise. |
 | `claimed_at` format | `time.RFC3339` in UTC, seconds precision. |
 | Comment file format | Frontmatter `author`, `created` (RFC3339 UTC) then blank line then the text. Attached files (`--file`) are copied verbatim, no frontmatter. |
-| `awit label` semantics | `--state open` (default) counts items whose status is **not** `closed` (so `open` + `in_progress`); `--state closed` counts only closed; `--state all` counts every parseable item. Quarantined items are counted (they still carry labels); unparseable files are not. Rows sorted by count desc, then label asc. Labels never declared anywhere — the vocabulary is whatever items use. |
+| `awit label` semantics | `--state open` (default) counts items whose status is **not** `closed` (so `open` + `in_progress`); `--state closed` counts only closed; `--state all` counts every parseable item. Quarantined items are counted (they still carry labels); unparseable files are not. Rows sorted by count desc, then label asc. Optional `config.yaml` `labels` is an advisory vocabulary (missing/empty disables). `create`/`update` warn on unknown names they introduce but still store them; matching is case-sensitive. `awit label` still counts actual use: used undeclared labels appear, unused declared names do not. |
 | Comment filename | `<YYYYMMDDTHHMMSSZ>-<author>.md`; author sanitised to `[a-z0-9._-]` (others → `-`, `agent/` prefix stripped). Collision → `-2`, `-3`, … before `.md`. `--file` keeps the original extension. |
 | Duplicate ID definition | Two files in `items/` whose stems are equal case-insensitively (`strings.EqualFold`). Both are quarantined `DUPLICATE ID`. |
 | `next` tie-break | `math/rand/v2` with `rand.NewPCG(seed, seed)`; seed from `--seed` if set else `time.Now().UnixNano()`. Shuffle only within equal-unblock groups. |
+| `next --why` | One stderr line after a successful pick/claim: `why: <id>; unblocks=<N>; critical-path=<yes\|no>; selection=<max-unblocks\|explicit>; tie-break=<none\|pcg(seed=<S>,candidates=<K>)>`. `K` is the equal-maximum group after label filtering; exact lookups use `selection=explicit`. No line on failed/refused/no-ready exits; stdout byte-identical with or without it. |
 | Unblock count | Number of **unique, non-closed, non-quarantined** nodes reachable via `Unblocks` edges (transitive). Quarantined nodes have `UnblockCount == -1`. |
 | Critical path | Longest path (by node count) over non-closed, non-quarantined nodes following `Unblocks` edges in topological order; ties by smaller ID at each DP step. Printed from the root (item with no open deps) downstream. |
 | `--repo` semantics | Path to the directory that **contains** `.awit/`. Precedence: `--repo` flag → `AWIT_REPO` env → walk up from cwd until a directory containing `.awit/` is found; stop at filesystem root with `Error: no .awit directory found (run awit init)`. A mutating command (`create`, `update`, `close`, `release`, `dep`, `ref`, `comment`, `archive`, `next --claim`) that walked up — no flag, no env, no `.awit/` in cwd — prints one line on stderr: `Note: no .awit in the current directory; using <root>. Run awit init here, or pass --repo / set AWIT_REPO.` Read-only commands stay silent. |
@@ -166,6 +167,7 @@ const FileName = "config.yaml"
 type Config struct {
     Prefix        string        `yaml:"prefix"`
     DefaultLabels []string      `yaml:"default_labels,omitempty"`
+    Labels        []string      `yaml:"labels,omitempty"`      // advisory vocabulary; empty disables warnings
     StaleClaim    Duration      `yaml:"stale_claim"`           // default 2h
     AgentID       string        `yaml:"agent_id,omitempty"`
     Commit        *bool         `yaml:"commit,omitempty"`      // claim-commit default; nil means true (AWIT-0NHDC5DZ)

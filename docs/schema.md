@@ -35,6 +35,7 @@ atomic save. Resolution never probes both bases. On-disk paths use
 ```yaml
 prefix: AWIT
 default_labels: [p1]
+labels: [phase0, phase1, phase2, phase3, phase4, phase5, p0, p1, p2]
 stale_claim: 2h
 agent_id: claude
 commit: false
@@ -45,6 +46,7 @@ template: plan/workitem-template.md
 | --- | --- | --- |
 | `prefix` | yes | `[A-Z][A-Z0-9]{1,7}`; missing → load error `config: prefix is required` |
 | `default_labels` | no | strings; merged first-wins into `awit create -l` |
+| `labels` | no | advisory vocabulary. Missing or empty disables warnings. Entries must be nonempty, with no leading/trailing whitespace or control characters; duplicates are deduplicated in memory; matching is case-sensitive. `create`/`update` warn on unknown names they introduce but still store them (exit 0). Not an allowlist |
 | `stale_claim` | no | Go duration (`2h`, `90m`). Missing/zero → `2h` |
 | `agent_id` | no | raw identity; `AWIT_AGENT` overrides; `--author` overrides both |
 | `commit` | no | bool; repository default for `next --claim` git commits. Absent → `true`. `next --commit=true\|false` overrides per invocation; `--no-commit` (deprecated) equals `--commit=false`. Only `next --claim` reads it — never pushing, never another command |
@@ -98,7 +100,7 @@ Missing required keys or an unknown status → parse error → quarantine
 | --- | --- | --- |
 | `brief` | string | One to three sentences. `create` requires `--brief`. `validate` warns when missing or longer |
 | `deps` | list of ids | Unknown id → `DANGLING DEP` on this item. Written flow style `[a, b]` |
-| `labels` | list of strings | Free-form. `p0`–`p4` recommended for priority. Flow style |
+| `labels` | list of strings | Free-form. `p0`–`p4` recommended for priority. Flow style. Optional `config.yaml` `labels` is advisory only — unknown names warn on `create`/`update` and still store |
 | `assignee` | string | `human/<name>` or `agent/<id>`. Omitted when empty. Deleted by `release`; kept by `close` as the audit trail |
 | `claimed_at` | RFC3339 UTC | Seconds precision. Set by `--claim`; deleted by `release` and `close` |
 | `refs_base` | string | `repo` or omitted. Omitted means historical `.awit/items/`-relative refs. Invalid types/values are parse errors |

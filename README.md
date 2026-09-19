@@ -34,7 +34,7 @@ prints `awit dev`.
 | `awit create <title>` | `--brief`, `-d` deps, `-l` labels, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Mint a snowflake ID, write a lean item; optional Gitea mapping; optional `config.template` body |
 | `awit import <issue-url>` | `--brief`, `--alias`, `--tea-login` | One-time snapshot of an existing Gitea issue via `tea`: keeps the issue number, exact body, labels and open/closed state; refuses duplicates |
 | `awit list [key]` | `-s` status, `-l` label, `--ready`, `--blocked`, `--quarantined`, `--format` | Index view; `[key]` selects exactly one item |
-| `awit label` | `--state open\|closed\|all`, `--format` | Label vocabulary with usage counts |
+| `awit label` | `--state open\|closed\|all`, `--format` | Observed label usage counts (not the config vocabulary) |
 | `awit show <id>` | `--full`, `--refs-only` | Core item or full resolved ref tree |
 | `awit comment <id> [text]` | `--file <path>`, `--author` | Timestamped comment or attached file; append to `refs` |
 | `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--alias`, `--clear-alias`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external` | Mutate frontmatter with a minimal diff |
@@ -44,7 +44,7 @@ prints `awit dev`.
 | `awit ref add\|rm <id> <path>` | — | Add or remove a repo-root-relative file reference; does not copy, delete, or commit |
 | `awit validate` | `--stale-claims` | Integrity report; non-zero exit on `FAIL`; invalid `external` is a WARN |
 | `awit prime` | `--max-tokens`, `-l` label | Deterministic state graph for prompt injection; `--max-tokens` is a soft budget that never sheds warnings or the top ready row |
-| `awit next` | `-l` label, `--claim`, `--commit=true\|false`, `--no-commit` (deprecated), `--seed` | Top unblocked item; optional claim |
+| `awit next` | `-l` label, `--claim`, `--commit=true\|false`, `--no-commit` (deprecated), `--seed`, `--why` | Top unblocked item; optional claim; `--why` explains the pick on stderr |
 
 Global flags: `--format compact|table|json`, `--repo <path>` (directory that
 contains `.awit/`; `$AWIT_REPO` when the flag is unset, else walk up from the
@@ -112,7 +112,7 @@ commit.
 
 ```text
 .awit/
-├── config.yaml            # prefix, default_labels, stale_claim, agent_id, optional template
+├── config.yaml            # prefix, default_labels, labels, stale_claim, agent_id, optional template
 ├── items/PREFIX-XXXXXXXX.md
 └── comments/PREFIX-XXXXXXXX/<UTC seconds>-<author>.md
 ```
@@ -120,7 +120,9 @@ commit.
 An item is YAML frontmatter (`id`, `title`, `brief`, `status`, `deps`,
 `labels`, `assignee`, `claimed_at`, `refs_base`, `refs`, optional `alias`,
 optional `external`) followed by a Markdown body.
-Priority is a label by convention (`p0`…`p4`). Blocked is derived, never
+Priority is a label by convention (`p0`…`p4`). Optional `config.yaml`
+`labels` is an advisory vocabulary: `create`/`update` warn on unknown
+names they introduce but still store them. Blocked is derived, never
 stored. The on-disk schema, including the optional `alias` and the Gitea
 `external:` mapping, is documented in [docs/schema.md](docs/schema.md).
 

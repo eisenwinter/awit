@@ -36,6 +36,7 @@ Parse output with `--format json`; humans get a table, pipes get compact lines.
 | QUARANTINED   | The file or its deps are faulty (cycle, dangling dep, parse error, conflict markers, id mismatch, duplicate id). Excluded from `next`.                           |
 | `refs`        | Paths relative to the repo root when `refs_base: repo` (new writes). Omitted marker means historical `.awit/items/` base until first mutation. Comments and attachments become refs automatically. |
 | `assignee`    | Set by `--claim`. **Stays after `close`** on purpose (audit trail); only `release` clears it.                                                                    |
+| `labels`      | Free-form on items. Optional `.awit/config.yaml` `labels` is advisory: `create`/`update` warn on unknown names they introduce but still store them. `awit label` counts actual use. |
 
 When a command loads a graph holding quarantined items or broken files (`list`, `next`, `prime`, `show`, `validate`, `dep`, `archive`), it prints one stderr line first: `warning: N items quarantined, run awit validate`. That is a pointer, not a failure: exit codes and stdout (including `--format json`) are unchanged.
 
@@ -89,7 +90,7 @@ Work items without `## Steps` (short items): todo list = `Read refs and deps; ch
 A -> B -> C                     # longest open chain; finishing A moves the whole project
 ```
 
-`prime` is deterministic (same state → same bytes) and safe to paste into a prompt. `--max-tokens N` is a soft budget: it sheds BLOCKED rows from the end, then READY rows from the end (never the top line), then the critical path, then headings — warning details and the top READY line always survive, even over budget. `-l p0` restricts READY/BLOCKED to items with that label; `-l p0 -l auth` = both labels, `-l p0,p1` = either. `awit next -l p0` (without `--claim`) answers "is anything critical ready?" without side effects.
+`prime` is deterministic (same state → same bytes) and safe to paste into a prompt. `--max-tokens N` is a soft budget: it sheds BLOCKED rows from the end, then READY rows from the end (never the top line), then the critical path, then headings — warning details and the top READY line always survive, even over budget. `-l p0` restricts READY/BLOCKED to items with that label; `-l p0 -l auth` = both labels, `-l p0,p1` = either. `awit next -l p0` (without `--claim`) answers "is anything critical ready?" without side effects. Append `next --why` for a one-line stderr explanation of the pick (unblocks, critical-path membership, selection, tie-break) with stdout unchanged.
 
 ## Adding work items
 
@@ -103,7 +104,7 @@ awit create "<imperative title>" \
 Then edit `.awit/items/<new-id>.md` **below** the closing `---` — fill `## Summary` and `## Acceptance Criteria` (commands with expected output). Bigger work items follow the project's work item template (in this repo: `plan/implementation-guide.md` §6). Optional `.awit/config.yaml` `template:` (repo-root-relative, forward slashes) replaces the default body with that file's exact bytes; looked up from the repository root even when cwd is nested; absent keeps the skeleton; `import` never reads it. Rules:
 
 - `--brief` is mandatory and must fit three sentences. If it cannot, the work item is two work items.
-- Priority is a label (`p0` critical path, `p1`, `p2`), never a field. Check `awit label` for the vocabulary already in use before inventing one.
+- Priority is a label (`p0` critical path, `p1`, `p2`), never a field. Prefer names listed in `.awit/config.yaml` `labels` (advisory; unknown names warn on create/update and still store). Check `awit label` for names already in use before inventing one.
 - Deps later: `awit dep add <id> <dep>` (id _depends on_ dep). It refuses cycles before writing and prints the chain.
 - Finish with `awit validate` → `PASS`. Warnings about a missing or long brief are yours to fix now.
 
@@ -141,7 +142,7 @@ When you dispatch workers instead of working yourself:
 | Need                              | Command                                                                  |
 | --------------------------------- | ------------------------------------------------------------------------ | -------------- | ------- | -------- | --- | ---------- |
 | Whole picture                     | `awit prime`                                                             |
-| What would I get, no side effects | `awit next` / `awit next -l p0`                                          |
+| What would I get, no side effects | `awit next` / `awit next -l p0` (`--why` explains the pick on stderr)  |
 | Take work                         | `awit next --claim` (`--commit=false` in tests; `--no-commit` also works) |
 | Look up an item                   | any `<id>` argument also accepts an `alias` (case-insensitive) or `owner/repo#127` / `#127`; ambiguity lists the canonical IDs |
 | Import a Gitea issue              | `awit import <issue-url> --brief "…" [--alias DTRM-F21 --tea-login name]` (one-time snapshot via `tea`; duplicates refused) |
