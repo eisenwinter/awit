@@ -3,11 +3,11 @@ id: AWIT-0NJC0BDQ
 title: 'ref: reject missing add targets unless allow-missing is explicit'
 brief: >-
   Reject mistyped reference paths when adding them, naming the resolved absolute target without saving the item. Preserve future-document references with --allow-missing and leave historical reference normalization non-validating.
-status: open
+status: closed
 deps: []
 labels: [phase4, p2]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NJC0BDQ/20260919T202230Z-orchestrator.md]
 ---
 ## Summary
 
