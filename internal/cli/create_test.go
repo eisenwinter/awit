@@ -331,7 +331,7 @@ func TestExternalGitLabMetadataCLI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	code, stdout, stderr = run(t, "--repo", dir, "update", "GL-SCHEMA",
+	code, _, stderr = run(t, "--repo", dir, "update", "GL-SCHEMA",
 		"--external-tracker", "gitlab",
 		"--external-repo", "group/sub/project",
 		"--external-id", "127",
@@ -355,7 +355,7 @@ func TestExternalGitLabMetadataCLI(t *testing.T) {
 		t.Fatalf("valid GitLab mapping warned:\nstdout=%q\nstderr=%q", stdout, stderr)
 	}
 
-	code, stdout, stderr = run(t, "--repo", dir, "update", "GL-SCHEMA", "--clear-external")
+	code, _, stderr = run(t, "--repo", dir, "update", "GL-SCHEMA", "--clear-external")
 	if code != 0 {
 		t.Fatalf("clear exit %d stderr %q", code, stderr)
 	}
