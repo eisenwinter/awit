@@ -675,7 +675,7 @@ func IssueBase(raw string) (string, error)
 // installation, when the response carries a URL), and verifies the remote
 // body equals the pushed bytes — against the PATCH response, or a GET of
 // the same issue when the response omits the body. Mismatch is an error.
-// Supported tea: 0.16.0 (one-LF behavior pinned by TestTeaBodyRoundTrip).
+// Supported tea: 0.14.2 and 0.16.0 (one-LF behavior pinned by TestTeaBodyRoundTrip; 0.14.2 verified live 2026-09-19).
 func (c *Client) SetBody(ctx context.Context, number int64, body []byte) error
 // SetState replaces the state of the given repository issue number with
 // exactly "open" or "closed" (PATCH -f state=<want>). It requires a 2xx
