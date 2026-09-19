@@ -41,18 +41,18 @@ a quick action instead of storing it).
 | --- | --- | --- |
 | `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
 | `awit create <title>` | `--brief`, `-d` deps, `-l` labels, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Mint a snowflake ID, write a lean item; optional Gitea or GitLab mapping; optional `config.template` body |
-| `awit import <issue-url>` | `--brief`, `--alias`, `--tea-login` | One-time snapshot of an existing Gitea (`tea`) or GitLab (`glab`) issue: keeps number/iid, exact body, labels and open/closed state; refuses tracker-aware duplicates. `--tea-login` is Gitea-only and ignored for GitLab |
+| `awit import <issue-url>` | `[--brief]`, `--alias`, `--tea-login` | One-time snapshot of an existing Gitea (`tea`) or GitLab (`glab`) issue: keeps number/iid, exact body, labels and open/closed state; refuses tracker-aware duplicates. Omitted `--brief` derives from the remote title (else the body's first sentence, capped at 240 code points). `--tea-login` is Gitea-only and ignored for GitLab |
 | `awit external check [key]` | `--tea-login` | Read-only byte-exact body comparison for linked Gitea (`tea`) or GitLab (`glab`) items; `MATCH`/`DRIFT`/`ERROR` rows plus totals; exit 1 on any drift or error. `--tea-login` is Gitea-only and ignored for GitLab |
 | `awit external push-body <key>` | `--tea-login` | Explicit repair: push local body bytes to the linked issue (Gitea via `tea`, GitLab via `glab`); refuses ambiguous links and column-zero `/command` bodies GitLab would execute as quick actions; verifies the remote took the exact bytes |
 | `awit list [key]` | `-s` status, `-l` label, `--ready`, `--blocked`, `--quarantined`, `--format` | Index view; `[key]` selects exactly one item |
 | `awit label` | `--state open\|closed\|all`, `--format` | Observed label usage counts (not the config vocabulary) |
 | `awit show <id>` | `--full`, `--refs-only` | Core item or full resolved ref tree |
 | `awit comment <id> [text]` | `--file <path>`, `--author` | Timestamped comment or attached file; append to `refs` |
-| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--alias`, `--clear-alias`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external`, `--no-push`, `--tea-login` | Mutate frontmatter with a minimal diff; an explicit `--status` also pushes the mapped state (`closed`→closed, `open`/`in_progress`→open) to the linked Gitea or GitLab issue, local-first with a stderr retry warning on remote failure |
-| `awit close <id>` | `--reason`, `--author`, `--no-push`, `--tea-login` | Set `closed`, clear `claimed_at`; does not git-commit; pushes `closed` to the linked Gitea or GitLab issue unless `--no-push` |
-| `awit release <id>` | `--no-push`, `--tea-login` | Reopen an in-progress or closed item as `open`, clear `assignee` and `claimed_at`; prints `reopened <id>` (plain line, ignores `--format`); pushes `open` to the linked Gitea or GitLab issue unless `--no-push` |
+| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--alias`, `--clear-alias`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external`, `--push=true\|false`, `--no-push`, `--tea-login` | Mutate frontmatter with a minimal diff; an explicit `--status` also pushes the mapped state (`closed`→closed, `open`/`in_progress`→open) to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push`; local-first with a stderr retry warning on remote failure |
+| `awit close <id>` | `--reason`, `--author`, `--push=true\|false`, `--no-push`, `--tea-login` | Set `closed`, clear `claimed_at`; does not git-commit; pushes `closed` to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push` |
+| `awit release <id>` | `--push=true\|false`, `--no-push`, `--tea-login` | Reopen an in-progress or closed item as `open`, clear `assignee` and `claimed_at`; prints `reopened <id>` (plain line, ignores `--format`); pushes `open` to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push` |
 | `awit dep add\|rm <id> <dep>` | — | Edit `deps` with cycle pre-check |
-| `awit ref add\|rm <id> <path>` | — | Add or remove a repo-root-relative file reference; does not copy, delete, or commit |
+| `awit ref add\|rm <id> <path>` | `add --allow-missing` | Add or remove a repo-root-relative file reference; `add` refuses a missing target (exit 1, no write) unless `--allow-missing` plans it ahead; does not copy, delete, or commit |
 | `awit validate` | `--stale-claims` | Integrity report; non-zero exit on `FAIL`; invalid `external` is a WARN |
 | `awit prime` | `--max-tokens`, `-l` label | Deterministic state graph for prompt injection; `--max-tokens` is a soft budget that never sheds warnings or the top ready row |
 | `awit next` | `-l` label, `--claim`, `--commit=true\|false`, `--no-commit` (deprecated), `--seed`, `--why` | Top unblocked item; optional claim; `--why` explains the pick on stderr |
@@ -93,10 +93,15 @@ For linked items `close` pushes `closed` (and `release` pushes `open`) to
 the linked issue — Gitea through `tea`, GitLab through `glab` as a
 `state_event` reopen/close — after the local save, under the store lock;
 an explicit `update --status` pushes the mapped state the same way, and a
-non-status update never pushes. Local state stays canonical: a remote
+non-status update never pushes. Automatic pushes follow
+`external_push` in `.awit/config.yaml` (omitted means true);
+`--push=true|false` overrides one invocation (true `--no-push` equals
+`--push=false`; `--no-push=false` is neutral). Local state stays canonical: a remote
 failure keeps the local mutation, prints
 `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>`
-on stderr, and still exits 0. Pass `--no-push` for an explicit offline path
+on stderr, and still exits 0. A config-disabled skip prints
+`warning: <id> saved locally; external state push skipped by config external_push: false; push with awit update <id> --status <status> --push=true`.
+Pass `--no-push` or `--push=false` for an explicit silent offline path
 (no tool discovery, auth, or network, even with malformed metadata), or
 `--tea-login` to choose the Gitea login (ignored for GitLab).
 Filter with `-l p0` (AND across repeated flags, OR inside one comma list).

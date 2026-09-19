@@ -104,13 +104,13 @@ refs:
 | Field | Type | Rules |
 | --- | --- | --- |
 | `id` | string | Must equal the filename stem; mismatch → quarantine |
-| `brief` | string | One to three sentences of prose summarizing the item. `create` requires `--brief`; `validate` warns when it is missing or runs past three sentences — an item that cannot be briefed that tightly should be split |
+| `brief` | string | One to three sentences of prose summarizing the item. `create` requires `--brief`; `import` derives it from the remote title (else the body's first sentence, capped at 240 code points) unless given explicitly. `validate` warns when it is missing or runs past three sentences — an item that cannot be briefed that tightly should be split |
 | `status` | enum | `open`, `in_progress`, `closed`; blocked is derived, never stored |
 | `deps` | list | Unknown ID → item is blocked and quarantined (dangling dep) |
 | `labels` | list | Free-form; `p0`–`p4` recommended for priority. Optional `config.yaml` `labels` is advisory |
 | `assignee` | string | `human/<name>` or `agent/<id>`; set by `--claim` or `--assign` |
 | `claimed_at` | RFC 3339 | Set by `--claim`, cleared by `release` and `close`; drives stale-claim check |
-| `refs` | list | Paths relative to the repo root when `refs_base: repo` (default for new writes), forward slashes only. Omitted `refs_base` means historical `.awit/items/`-relative refs, rewritten on first mutation |
+| `refs` | list | Paths relative to the repo root when `refs_base: repo` (default for new writes), forward slashes only. Omitted `refs_base` means historical `.awit/items/`-relative refs, rewritten on first mutation. `ref add` refuses a missing target (exit 1, no write) unless `--allow-missing` plans it ahead; nothing else checks existence and `show --full` keeps its `[missing]` report |
 | `external` | mapping | Optional Gitea or GitLab link `{tracker, repo, id, url}`. `tracker` is `gitea` or `gitlab`. `id` is the Gitea issue number or GitLab iid. GitLab `repo` allows subgroups. Invalid or legacy scalar values warn on `validate` and do not quarantine |
 | `alias` | string | Optional human alias, `[A-Za-z][A-Za-z0-9._-]{0,127}`, never ID-shaped; case-insensitively unique across active items (warned, not enforced); lookup-only, never a filename or dep edge |
 
@@ -172,18 +172,18 @@ Seventeen commands; `-p` is gone everywhere, `release`, `validate`, `label`, `ar
 | --- | --- | --- | --- |
 | `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Human | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
 | `awit create <title>` | `--brief`, `-d deps`, `-l labels`, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Both | Mint a snowflake ID, write a lean item; optional Gitea or GitLab mapping |
-| `awit import <issue-url>` | `--brief`, `--alias`, `--tea-login` | Both | One-time snapshot of a Gitea (`tea`) or GitLab (`glab`) issue; keeps number/iid, exact body, labels, open/closed state; refuses tracker-aware duplicates (active or archived). `--tea-login` is Gitea-only |
+| `awit import <issue-url>` | `[--brief]`, `--alias`, `--tea-login` | Both | One-time snapshot of a Gitea (`tea`) or GitLab (`glab`) issue; keeps number/iid, exact body, labels, open/closed state; refuses tracker-aware duplicates (active or archived). Omitted `--brief` derives from the remote title (else the body's first sentence, capped at 240 code points); blank title plus empty body exits 1. `--tea-login` is Gitea-only |
 | `awit external check [key]` | `--tea-login` | Both | Read-only byte-exact body comparison for linked Gitea (`tea`) or GitLab (`glab`) items; `MATCH`/`DRIFT`/`ERROR` rows plus totals; exit 1 on drift/error. `--tea-login` is Gitea-only |
 | `awit external push-body <key>` | `--tea-login` | Both | Explicit local-canonical repair: pushes body bytes (Gitea via `tea`, GitLab via `glab`), refuses ambiguous links and GitLab quick-action bodies, verifies the remote bytes |
 | `awit list [key]` | `-s status`, `-l label`, `--ready`, `--blocked`, `--quarantined`, `--format` | Both | Index view; `[key]` selects exactly one item |
 | `awit label` | `--state open\|closed\|all`, `--format` | Both | Label vocabulary with usage counts; answers "what labels exist and how busy are they" |
 | `awit show <id>` | `--full`, `--refs-only` | Agent | Core item (~200 tokens) or full resolved ref tree |
 | `awit comment <id> [text]` | `--file <path>`, `--author` | Both | Write a timestamped comment or attach an external file; append to `refs` |
-| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--alias`, `--clear-alias`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external`, `--no-push`, `--tea-login` | Both | Mutate frontmatter with a minimal diff; an explicit `--status` also pushes the mapped state (`closed`→closed, `open`/`in_progress`→open) to the linked Gitea or GitLab issue, local-first with a stderr retry warning on remote failure |
-| `awit close <id>` | `--reason`, `--author`, `--no-push`, `--tea-login` | Both | Set `closed`, clear `claimed_at`, append reason as a comment; pushes `closed` to the linked Gitea or GitLab issue unless `--no-push` |
-| `awit release <id>` | `--no-push`, `--tea-login` | Both | Reopen an in-progress or closed item to `open`, clear `assignee` and `claimed_at`; prints `reopened <id>` (plain line, ignores `--format`); pushes `open` to the linked Gitea or GitLab issue unless `--no-push` |
+| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--alias`, `--clear-alias`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external`, `--push=true\|false`, `--no-push`, `--tea-login` | Both | Mutate frontmatter with a minimal diff; an explicit `--status` also pushes the mapped state (`closed`→closed, `open`/`in_progress`→open) to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push`; local-first with a stderr retry warning on remote failure |
+| `awit close <id>` | `--reason`, `--author`, `--push=true\|false`, `--no-push`, `--tea-login` | Both | Set `closed`, clear `claimed_at`, append reason as a comment; pushes `closed` to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push` |
+| `awit release <id>` | `--push=true\|false`, `--no-push`, `--tea-login` | Both | Reopen an in-progress or closed item to `open`, clear `assignee` and `claimed_at`; prints `reopened <id>` (plain line, ignores `--format`); pushes `open` to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push` |
 | `awit dep add\|rm <id> <dep>` | — | Both | Edit `deps` with cycle pre-check |
-| `awit ref add\|rm <id> <path>` | — | Both | Add or remove a repo-root-relative file reference; does not copy, delete, or commit |
+| `awit ref add\|rm <id> <path>` | `add --allow-missing` | Both | Add or remove a repo-root-relative file reference; `add` refuses a missing target (exit 1, no write) unless `--allow-missing` plans it ahead; does not copy, delete, or commit |
 | `awit validate` | `--stale-claims` | Both | Integrity report; non-zero exit on `FAIL`; invalid `external` is a WARN |
 | `awit archive` | `--dry-run` | Human | Move the fixed-point set of closed items to `.awit/archive/`, one collapsed file each |
 | `awit prime` | `--max-tokens`, `-l label` | Agent | Deterministic state graph for prompt injection |
@@ -293,6 +293,7 @@ Six phases; phases 1–2 set the codebase's shape, and the agent surface waits u
 - [ ] `pkg/resolver`: relative-path resolution from a caller-chosen base directory (repo root or `.awit/items/`), slash normalisation, missing-file reporting
 - [ ] `show --full` with delimiter headers per ref; `--refs-only`; cycle-safe if a ref points at another item; `ref add`/`rm`
 - [ ] End-to-end test running the five-step loop against a fixture repo
+- [ ] `ref add` existence check: stat the resolved target before any mutation, `--allow-missing` escape hatch for planned documents
 
 ### Phase 5 — hardening
 

@@ -42,7 +42,7 @@ Parse output with `--format json`; humans get a table, pipes get compact lines.
 | `Unblocks: N` | How many open items transitively wait on this one. Higher = more valuable to finish.                                                                             |
 | `deps`        | IDs this item waits for. Blocked is derived from deps, never stored.                                                                                             |
 | QUARANTINED   | The file or its deps are faulty (cycle, dangling dep, parse error, conflict markers, id mismatch, duplicate id). Excluded from `next`.                           |
-| `refs`        | Paths relative to the repo root when `refs_base: repo` (new writes). Omitted marker means historical `.awit/items/` base until first mutation. Comments and attachments become refs automatically. |
+| `refs`        | Paths relative to the repo root when `refs_base: repo` (new writes). Omitted marker means historical `.awit/items/` base until first mutation. Comments and attachments become refs automatically. `ref add` refuses a missing target unless `--allow-missing`. |
 | `assignee`    | Set by `--claim`. **Stays after `close`** on purpose (audit trail); only `release` clears it.                                                                    |
 | `labels`      | Free-form on items. Optional `.awit/config.yaml` `labels` is advisory: `create`/`update` warn on unknown names they introduce but still store them. `awit label` counts actual use. |
 
@@ -59,14 +59,14 @@ awit show <id> --full            # 3. work item + every ref inlined; read all of
 # 4. build your todo list from the work item (see below)
 # 5. do the work
 awit comment <id> "<what you did, what you verified, what is left>"   # 6. progress note; repeat as needed
-awit close <id> --reason "<one line>"                                  # 7. after EVERY acceptance criterion is verified (pushes closed to the linked external issue unless --no-push)
+awit close <id> --reason "<one line>"                                  # 7. after EVERY acceptance criterion is verified (pushes closed to the linked external issue unless external_push: false or --no-push)
 awit validate                    # 8. must still print PASS
 git add .awit && git commit -m "awit: close <id>"                      # 9. unless the project says the orchestrator commits
 ```
 
 Decisions the baseline agent had to guess, resolved:
 
-- **Finished = `close`.** `release` means "I give up the claim, someone else take it": it returns an in-progress **or closed** item to `open`, clears `assignee` and `claimed_at`, and confirms with a plain `reopened <id>` line (never JSON, even under `--format json`). For linked items `close` pushes `closed` (and `release` pushes `open`) to the linked issue (Gitea via `tea`, GitLab via `glab`) after the local save, under the store lock; an explicit `update --status` pushes the mapped state the same way (`closed`→closed, `open`/`in_progress`→open) and a non-status update never pushes. Local state stays canonical: a remote failure keeps the local work, prints `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>` on stderr, and still exits 0 — retry with `awit update <id> --status <status>`, never by duplicating a close reason. Pass `--no-push` for an explicit offline path (no tool, auth, or network even with malformed metadata), `--tea-login` to choose the Gitea login (ignored for GitLab).
+- **Finished = `close`.** `release` means "I give up the claim, someone else take it": it returns an in-progress **or closed** item to `open`, clears `assignee` and `claimed_at`, and confirms with a plain `reopened <id>` line (never JSON, even under `--format json`). For linked items `close` pushes `closed` (and `release` pushes `open`) to the linked issue (Gitea via `tea`, GitLab via `glab`) after the local save, under the store lock; an explicit `update --status` pushes the mapped state the same way (`closed`→closed, `open`/`in_progress`→open) and a non-status update never pushes. Automatic pushes follow `external_push` in `.awit/config.yaml` (omitted means true); `--push=true|false` overrides one invocation (true `--no-push` equals `--push=false`; `--no-push=false` is neutral). Local state stays canonical: a remote failure keeps the local work, prints `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>` on stderr, and still exits 0 — retry with `awit update <id> --status <status>`, never by duplicating a close reason. A config-disabled skip prints `warning: <id> saved locally; external state push skipped by config external_push: false; push with awit update <id> --status <status> --push=true`. Pass `--no-push` or `--push=false` for an explicit silent offline path (no tool, auth, or network even with malformed metadata), `--tea-login` to choose the Gitea login (ignored for GitLab).
 - **Notes go in `comment`.** `close --reason` is a one-line why, not the report; both create a comment file, so writing the same text in both duplicates it.
 - **Only `next --claim` commits** (so a double claim becomes a merge conflict, which quarantine surfaces). Whether it does follows the commit policy: `--commit=true|false` for one run, `commit: false` in `config.yaml` as the repository default (default `true`); `--no-commit` is the deprecated spelling of `--commit=false`. `comment`, `close`, `release`, `create`, `update`, `dep`, `ref` leave the tree dirty — commit `.awit/` together with your code when you are done: `awit: close <id>` after a close, `awit: release <id>` after a release (otherwise Git still shows your claim to everyone else). If an orchestrator owns commits in this project (see `.omp/agents/orchestrator.md`), do not commit; report instead.
 - **`.awit/.lock` is never committed.** `awit init` gitignores it; if `git status` shows it untracked, add `.awit/.lock` to `.gitignore` first, then `git add .awit`. `init` can also seed this skill into `.claude`, `.omp`, `.opencode`, `.agents` and `.pi` (`--skills` to skip the prompts); unlike the lock, those files are project config and belong in the commit.
@@ -111,7 +111,7 @@ awit create "<imperative title>" \
 
 Then edit `.awit/items/<new-id>.md` **below** the closing `---` — fill `## Summary` and `## Acceptance Criteria` (commands with expected output). Bigger work items follow the project's work item template (in this repo: `plan/implementation-guide.md` §6). Optional `.awit/config.yaml` `template:` (repo-root-relative, forward slashes) replaces the default body with that file's exact bytes; looked up from the repository root even when cwd is nested; absent keeps the skeleton; `import` never reads it. Rules:
 
-- `--brief` is mandatory and must fit three sentences. If it cannot, the work item is two work items.
+- `--brief` is mandatory on `create` (only `import` derives it when omitted, from the remote title or the body's first sentence) and must fit three sentences. If it cannot, the work item is two work items.
 - Priority is a label (`p0` critical path, `p1`, `p2`), never a field. Prefer names listed in `.awit/config.yaml` `labels` (advisory; unknown names warn on create/update and still store). Check `awit label` for names already in use before inventing one.
 - Deps later: `awit dep add <id> <dep>` (id _depends on_ dep). It refuses cycles before writing and prints the chain.
 - Finish with `awit validate` → `PASS`. Warnings about a missing or long brief are yours to fix now.
@@ -153,14 +153,14 @@ When you dispatch workers instead of working yourself:
 | What would I get, no side effects | `awit next` / `awit next -l p0` (`--why` explains the pick on stderr)  |
 | Take work                         | `awit next --claim` (`--commit=false` in tests; `--no-commit` also works) |
 | Look up an item                   | any `<id>` argument also accepts an `alias` (case-insensitive) or `owner/repo#127` / `group/sub/project#127` / `#127`; ambiguity lists the canonical IDs |
-| Import a Gitea or GitLab issue    | `awit import <issue-url> --brief "…" [--alias DTRM-F21 --tea-login name]` (one-time snapshot via `tea` or `glab`; GitLab issue and work_items URLs; `--tea-login` is Gitea-only and ignored for GitLab; tracker-aware duplicates refused) |
+| Import a Gitea or GitLab issue    | `awit import <issue-url> [--brief "…"] [--alias DTRM-F21 --tea-login name]` (one-time snapshot via `tea` or `glab`; omitted `--brief` derives from the remote title, else the body's first sentence capped at 240 code points; GitLab issue and work_items URLs; `--tea-login` is Gitea-only and ignored for GitLab; tracker-aware duplicates refused) |
 | Linked-issue body drift | `awit external check [--tea-login name]` (read-only; exit 1 names every drifted item) / `awit external push-body <id> [--tea-login name]` (explicit local-canonical repair; verifies exact bytes) |
 | Read a work item                     | `awit show <id>` (~200 tokens) / `--full` (refs inlined) / `--refs-only` |
 | Record progress                   | `awit comment <id> "…"` / `--file report.log`                            |
-| Change fields                     | `awit update <id> --status                                               | --brief        | --title | --assign | -l  | --unlabel | --external-* | --clear-external [--no-push --tea-login]` (explicit `--status` also pushes the mapped state to the linked issue; same-status repeats the push as the retry path) |
-| Finish / give back / reopen     | `awit close <id> --reason "…"` (pushes `closed`) / `awit release <id>` (prints `reopened <id>`, pushes `open`) `[--no-push --tea-login]` |
+| Change fields                     | `awit update <id> --status                                               | --brief        | --title | --assign | -l  | --unlabel | --external-* | --clear-external [--push --no-push --tea-login]` (explicit `--status` also pushes the mapped state to the linked issue unless `external_push: false`; same-status repeats the push as the retry path; `--push=true` overrides config) |
+| Finish / give back / reopen     | `awit close <id> --reason "…"` (pushes `closed`) / `awit release <id>` (prints `reopened <id>`, pushes `open`) `[--push --no-push --tea-login]` |
 | Dependencies                      | `awit dep add                                                            | rm <id> <dep>` |
-| File references                   | `awit ref add                                                            | rm <id> <path>` |
+| File references                   | `awit ref add                                                            | rm <id> <path>` (`add` refuses a missing target unless `--allow-missing`) |
 | Integrity                         | `awit validate [--stale-claims]` (exit 1 on FAIL; invalid external is WARN)                        |
 | Everything, filtered              | `awit list -s open -l auth --ready --format json`                        |
 | Label vocabulary                  | `awit label [--state open                                                | closed         | all]`   |
@@ -173,7 +173,7 @@ When you dispatch workers instead of working yourself:
 - `dep rm` to make your own item ready → hides real blockers; the graph is now wrong for everyone.
 - Treating `in_progress (ready)` or a retained `assignee` after close as bugs → both are expected.
 - Claiming a second item while holding one → stale claims for everyone else.
-- Body drift on a linked external issue → never hand-edit either side to match; run `awit external check` to see it, `awit external push-body <id>` to repair from the local canonical bytes. State drift after a failed close/release push → retry with `awit update <id> --status <status>` (same status re-pushes); work offline with `--no-push`, which never touches tea or glab even with malformed metadata.
+- Body drift on a linked external issue → never hand-edit either side to match; run `awit external check` to see it, `awit external push-body <id>` to repair from the local canonical bytes. State drift after a failed close/release push → retry with `awit update <id> --status <status>` (same status re-pushes); a config-disabled skip (`external_push: false`) retries with `--push=true`. Work offline with `--no-push` or `--push=false`, which never touches tea or glab even with malformed metadata.
 - Committing `.awit/` in a project whose orchestrator owns commits → duplicate/misordered history. Check `.omp/agents/` first.
 
 ---

@@ -71,7 +71,9 @@ Additional decisions made while writing work items:
 | Does `archive` commit? | **No**, same as `close`. Holds `Store.Lock`. Output ignores `--format` (like `close`): one `archived <id>` line per item, sorted by ID, then `Archived N items`. `--dry-run` writes nothing, prints `would archive <id>` lines and `skip <id>: dependant <dep-id> not archivable` for every closed item left behind, then `Would archive N items`. Exit 0 even when N = 0. |
 | Release output | **No commit**, same as `close`. Holds `Store.Lock`. Every source state — `open`, `in_progress`, `closed` — ends `open` with `assignee`/`claimed_at` deleted, so release is an idempotent visible action. Output ignores `--format` (like `close` and `archive`): exactly one `reopened <id>` line, printed only after `Store.Save` succeeds; load/write failures print no success line. |
 | `external` mapping | Optional Gitea or GitLab link: `{tracker: gitea\|gitlab, repo, id, url}`. `id` is the Gitea issue number or GitLab iid. Gitea `repo` is two segments; GitLab `repo` is two or more (subgroups allowed). GitLab URLs end in `/<repo>/-/issues/<iid>` or `/<repo>/-/work_items/<iid>` with an optional installation prefix. Local statuses stay `open\|in_progress\|closed`; GitLab wire `opened` maps to local `open` (remote conversion, not YAML). `create`/`update` require `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` together (partial → exit 2, no write). `update --clear-external` is mutually exclusive with those flags. Invalid or legacy scalar `external:` values set `ExternalProblem` and are **not** quarantined; `validate` prints `WARN  <id>: invalid external: <reason>` (JSON: that line on stderr; fault-array schema unchanged). Exit 0 unless graph faults exist. |
-| `external` state push | One-way local→remote propagation, dispatched by tracker (Gitea via `tea`, GitLab via `glab` as `state_event` reopen/close). `close`→`closed`, `release`→`open`, explicit `update --status closed`→`closed`, `update --status open\|in_progress`→`open`; a non-status update, `next --claim`, create, import, comment, ref, and archive never push. All three carry `--no-push` (no tool discovery/auth/network, even with malformed metadata) and `--tea-login` (Gitea-only, ignored for GitLab). Local save first (keeping close's reason/comment and claim-clearing), then `Client.SetState` under the held store lock with the bounded subprocess deadline. Remote failure, a missing tool, invalid metadata, or ambiguous links keep the local mutation and confirmation, print one stderr `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>`, and exit 0; local failure exits 1 with no push. Same-status `update --status` repeats the push (the retry path). Response identity/state and HTTP status are validated; remote state is never GET-read to decide. No retries, queues, or commits. |
+| `external` state push | One-way local→remote propagation, dispatched by tracker (Gitea via `tea`, GitLab via `glab` as `state_event` reopen/close). `close`→`closed`, `release`→`open`, explicit `update --status closed`→`closed`, `update --status open\|in_progress`→`open`; a non-status update, `next --claim`, create, import, comment, ref, and archive never push. Optional `config.yaml external_push:` (omitted → true; independent of `commit`) is the repository default. All three carry `--push=true\|false` (value-based; empty unset; ParseBool spellings) and `--no-push` (kept, not deprecated; `--no-push=false` is neutral) plus `--tea-login` (Gitea-only, ignored for GitLab). Precedence: explicit `--push` or true `--no-push` > config > default true. `--push` plus true `--no-push`, or a non-bool `--push`, is usage error 2 before any mutation. Policy is resolved after openStore and before any setter/Save. Local save first (keeping close's reason/comment and claim-clearing), then `Client.SetState` under the held store lock with the bounded subprocess deadline when the resolved policy is true. A config-only skip of a linked or malformed-linked item prints `warning: <id> saved locally; external state push skipped by config external_push: false; push with awit update <id> --status <status> --push=true` after the local save and before duplicate-link validation, tool discovery, auth, or network; explicit `--push=false` or true `--no-push` is silent; unlinked items are silent. Remote failure, a missing tool, invalid metadata, or ambiguous links keep the local mutation and confirmation, print one stderr `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>`, and exit 0; local failure exits 1 with no push. Same-status `update --status` repeats the push (the retry path). Response identity/state and HTTP status are validated; remote state is never GET-read to decide. No retries, queues, or commits. Explicit `external push-body`, import reads, and `external check` are unaffected. |
+| `ref add` existence check | `ref add` stats the resolved repo-root-absolute target before any mutation; a missing target exits 1 naming the absolute path with no write unless `--allow-missing` is given. `NormalizeRefs`, `Save`, `update`, import, archive and `ref rm` never check existence; read-time `[missing]` reporting is unchanged. |
+| `import --brief` default | Omitted (or empty) `--brief` on `import` derives after fetch validation and before the mutation lock: the normalized remote title when it holds any non-whitespace rune, else the body's first sentence (`.`/`!`/`?` followed by whitespace or end-of-source, the `sentenceCount` boundary; newlines alone never split). Normalization trims outer Unicode whitespace and collapses each inner run to one ASCII space. Derived values cap at 240 Unicode code points (first 239 runes minus trailing space plus U+2026). Explicit text is verbatim and uncapped; a blank remote title is stored unchanged. Blank title plus empty body with no override exits 1 before mint/save. `create --brief` stays required. |
 
 ## 3. Repository layout
 
@@ -174,6 +176,7 @@ type Config struct {
     StaleClaim    Duration      `yaml:"stale_claim"`           // default 2h
     AgentID       string        `yaml:"agent_id,omitempty"`
     Commit        *bool         `yaml:"commit,omitempty"`      // claim-commit default; nil means true (AWIT-0NHDC5DZ)
+    ExternalPush  *bool         `yaml:"external_push,omitempty"` // state-push default; nil means true (AWIT-0NJC0BDV)
     Template      string        `yaml:"template,omitempty"`    // create body file; repo-root-relative; empty = skeleton
 }
 
@@ -193,6 +196,9 @@ func (c Config) Agent(flag string) string
 // ShouldCommit reports the config-only claim-commit answer: nil Commit means true.
 // Explicit next --commit / a true --no-commit override it in nextAction (§2).
 func (c Config) ShouldCommit() bool
+// ShouldPushExternal reports the config-only state-push answer: nil ExternalPush means true.
+// Explicit close/release/update --push / a true --no-push override it (§2). Independent of commit.
+func (c Config) ShouldPushExternal() bool
 ```
 
 ### 4.3 `pkg/item`
@@ -335,7 +341,8 @@ func (s *Store) Save(it *Item) error
 
 // NormalizeRefs rewrites historical items-relative refs to repo-root relative
 // paths via filepath.Rel(Root, Join(ItemsDir(), oldRef)), ToSlash, and sets
-// refs_base: repo. Already-marked items are left untouched. No existence check.
+// refs_base: repo. Already-marked items are left untouched. No existence check:
+// the ref add command stats the target beforehand (--allow-missing opts out).
 // Cross-volume paths that cannot be represented error before any write.
 func (s *Store) NormalizeRefs(it *Item) error
 
@@ -638,11 +645,15 @@ type ExternalCheckRow struct {
 // teax or glabx the same way. Both refuse unsupported trackers before any
 // mutation and change nothing else. maybePushExternalState runs only
 // after the local save under the held store lock and routes through
-// setExternalState; every failure keeps exit 0 with the single retry
-// warning, and --no-push returns before any lookup.
+// setExternalState when push is true; every failure keeps exit 0 with
+// the single retry warning. A false push skips before any lookup:
+// config-only skips emit the external_push: false warning; explicit
+// --push=false or true --no-push is silent. externalPushPolicy is the
+// value-based tri-state (empty --push unset; never cmd.IsSet).
 func setExternalBody(ctx context.Context, ext item.External, teaLogin string, body []byte) error
 func setExternalState(ctx context.Context, ext item.External, teaLogin, state string) error
-func maybePushExternalState(ctx context.Context, cmd *cli.Command, all []*item.Item, it *item.Item, remoteState string)
+func externalPushPolicy(cmd *cli.Command, cfg config.Config) (bool, error)
+func maybePushExternalState(ctx context.Context, cmd *cli.Command, all []*item.Item, it *item.Item, remoteState string, push bool)
 ```
 
 Global flags (defined on the root `*cli.Command`, read via `cmd.Root().String("format")` etc.):

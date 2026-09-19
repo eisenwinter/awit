@@ -27,8 +27,11 @@ set `refs_base: repo` and store paths relative to the repository root
 Items that omit `refs_base` keep the historical `.awit/items/` base until
 their first successful mutation, which rewrites every ref with
 `filepath.Rel` (no existence check) and writes the marker in the same
-atomic save. Resolution never probes both bases. On-disk paths use
-`filepath` (OS separators).
+atomic save. `ref add` stats the resolved repo-root-absolute target before
+any mutation and refuses a missing target (exit 1, item bytes unchanged)
+unless `--allow-missing` plans it ahead; other commands never check, and
+read-time `[missing]` reporting is unchanged. Resolution never probes both
+bases. On-disk paths use `filepath` (OS separators).
 
 ## `config.yaml`
 
@@ -39,6 +42,7 @@ labels: [phase0, phase1, phase2, phase3, phase4, phase5, p0, p1, p2]
 stale_claim: 2h
 agent_id: claude
 commit: false
+external_push: false
 template: plan/workitem-template.md
 ```
 
@@ -49,7 +53,8 @@ template: plan/workitem-template.md
 | `labels` | no | advisory vocabulary. Missing or empty disables warnings. Entries must be nonempty, with no leading/trailing whitespace or control characters; duplicates are deduplicated in memory; matching is case-sensitive. `create`/`update` warn on unknown names they introduce but still store them (exit 0). Not an allowlist |
 | `stale_claim` | no | Go duration (`2h`, `90m`). Missing/zero → `2h` |
 | `agent_id` | no | raw identity; `AWIT_AGENT` overrides; `--author` overrides both |
-| `commit` | no | bool; repository default for `next --claim` git commits. Absent → `true`. `next --commit=true\|false` overrides per invocation; `--no-commit` (deprecated) equals `--commit=false`. Only `next --claim` reads it — never pushing, never another command |
+| `commit` | no | bool; repository default for `next --claim` git commits. Absent → `true`. `next --commit=true\|false` overrides per invocation; `--no-commit` (deprecated) equals `--commit=false`. Only `next --claim` reads it — never pushing, never another command. Independent of `external_push` |
+| `external_push` | no | bool; repository default for automatic linked-issue state pushes from `close`, `release`, and explicit `update --status`. Absent → `true`. `--push=true\|false` overrides per invocation; true `--no-push` equals `--push=false`; `--no-push=false` is neutral. Does not govern `external push-body`, import, or `external check`. Independent of `commit` |
 | `template` | no | repo-root-relative forward-slash path to a body-only Markdown file. Only `create` reads the file. Absolute paths, backslashes, and lexical escape above the repo root fail `Load`. Missing/unreadable/directory/non-UTF-8/conflict-marker files fail `create` (exit 1, no item). Empty file → empty body. Absent/empty keeps the default skeleton. `import` ignores it |
 
 Unknown keys in `config.yaml` are not part of v1; `Load` decodes into a
@@ -98,7 +103,7 @@ Missing required keys or an unknown status → parse error → quarantine
 
 | Key | Type | Rules |
 | --- | --- | --- |
-| `brief` | string | One to three sentences. `create` requires `--brief`. `validate` warns when missing or longer |
+| `brief` | string | One to three sentences. `create` requires `--brief`; `import` derives it from the remote title (else the body's first sentence, capped at 240 code points) unless given explicitly. `validate` warns when missing or longer |
 | `deps` | list of ids | Unknown id → `DANGLING DEP` on this item. Written flow style `[a, b]` |
 | `labels` | list of strings | Free-form. `p0`–`p4` recommended for priority. Flow style. Optional `config.yaml` `labels` is advisory only — unknown names warn on `create`/`update` and still store |
 | `assignee` | string | `human/<name>` or `agent/<id>`. Omitted when empty. Deleted by `release`; kept by `close` as the audit trail |
@@ -215,7 +220,7 @@ without changing the fault-array schema. Show, list, and compact output
 display only a valid link (`gitea owner/repo#127` or
 `gitlab group/sub/project#127`).
 
-`awit import <issue-url> --brief <summary> [--alias X] [--tea-login name]`
+`awit import <issue-url> [--brief <summary>] [--alias X] [--tea-login name]`
 creates an item from an existing Gitea issue through `tea` or GitLab issue
 through `glab`. GitLab is recognized only by the `/-/issues/` or
 `/-/work_items/` URL shape — never by host — and both spellings of the
@@ -230,6 +235,18 @@ never commits. Duplicate identity is `(tracker, normalized installation
 base, exact repo, iid)` across active items and archived item files;
 Gitea and GitLab with the same host/repo/number do not collide. Re-import
 is refused with the existing item or archive path named.
+
+An omitted (or empty) `--brief` is derived after fetch validation and before
+the mutation lock: the normalized remote title when it holds any
+non-whitespace rune, else the body's first sentence (`.`/`!`/`?` followed by
+whitespace or end-of-source, the `sentenceCount` boundary; newlines alone
+never split). Normalization trims outer Unicode whitespace and collapses
+each inner run to one ASCII space; derived values are capped at 240 Unicode
+code points (`…` ellipsis, no space before it). An explicit `--brief` is
+stored verbatim and uncapped; a blank remote title is stored unchanged and
+never replaced by the fallback. Blank title plus empty body with no explicit
+override exits 1 (`cannot derive import brief: remote title and body are
+empty; pass --brief`) before minting.
 
 `awit external check [key] [--tea-login name]` compares the raw local
 body bytes (`Item.Body()`: every byte after the frontmatter closing
@@ -261,13 +278,16 @@ a 2xx status the same way (glab exits nonzero on HTTP errors) and
 refuses column-zero `/command` bodies before any mutation, since GitLab
 would execute them as quick actions instead of storing them.
 
-`awit close <id> [--tea-login name] [--no-push]`, `awit release <id>` with
+`awit close <id> [--tea-login name] [--push=true|false] [--no-push]`, `awit release <id>` with
 the same flags, and `awit update <id> --status <s>` with the same flags
 propagate local state one way to the linked issue: `close` pushes `closed`,
 `release` pushes `open`, and an explicit `--status` pushes `closed` for
 `closed` and `open` for `open`/`in_progress` (a non-status update never
 pushes, and neither do `next --claim`, create, import, comment, ref, or
-archive). `--tea-login` is Gitea-only and ignored for GitLab. The local
+archive). `--tea-login` is Gitea-only and ignored for GitLab. Automatic
+pushes follow `.awit/config.yaml` `external_push:` (omitted → true);
+`--push=true|false` overrides per invocation (true `--no-push` equals
+`--push=false`; `--no-push=false` is neutral). The local
 item is saved first — keeping close's reason comment and claim-clearing —
 then the push runs under the held store lock with the bounded subprocess
 deadline (Gitea: `tea api --login <login> --repo <owner/repo> --include
@@ -282,7 +302,10 @@ ordinary confirmation, print one stderr
 `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>`
 (exit 0), while a local write failure exits 1 and never pushes.
 Repeating `update <id> --status <current>` re-pushes without a queue or
-daemon. `--no-push` performs no tool discovery, auth, or network
+daemon. A config-disabled skip of a linked item prints
+`warning: <id> saved locally; external state push skipped by config external_push: false; push with awit update <id> --status <status> --push=true`
+after the local save and before tool discovery; `--no-push` and `--push=false`
+are silent and perform no tool discovery, auth, or network
 operation, even with malformed metadata.
 
 Byte-exactness relies on a tested `tea` behavior: `tea`'s `-F body=@file`
