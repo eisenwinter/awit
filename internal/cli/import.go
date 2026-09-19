@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/eisenwinter/awit/internal/glabx"
 	"github.com/eisenwinter/awit/pkg/format"
@@ -22,7 +24,7 @@ var importCmd = &cli.Command{
 	Usage:     "Mint a local item from an existing Gitea or GitLab issue (one-time snapshot)",
 	ArgsUsage: "<issue-url>",
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "brief", Usage: "one to three sentences", Required: true},
+		&cli.StringFlag{Name: "brief", Usage: "one to three sentences (default: derived from the remote title or body)"},
 		&cli.StringFlag{Name: "alias", Usage: "short human alias for the new item"},
 		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for a Gitea issue; ignored for GitLab"},
 	},
@@ -78,11 +80,6 @@ func parseIssueURL(ctx context.Context, raw string) (item.External, error) {
 }
 
 func importAction(ctx context.Context, cmd *cli.Command) error {
-	// importCmd is package-level, so urfave's Required check only fires on
-	// the first Main call per process (see createAction); enforce it here.
-	if cmd.String("brief") == "" {
-		return cli.Exit(`Incorrect usage: Required flag "brief" not set (run "awit --help")`, 2)
-	}
 	if cmd.Args().Len() != 1 {
 		return cli.Exit("import needs exactly one issue URL", 2)
 	}
@@ -119,6 +116,16 @@ func importAction(ctx context.Context, cmd *cli.Command) error {
 	default:
 		return fmt.Errorf("unsupported issue state %q for %s#%d (only open and closed can be imported)", issue.State, ext.Repo, ext.ID)
 	}
+	// An explicit --brief is used verbatim (no normalization, truncation or
+	// sentence extraction); --brief="" is the unset value and derives. The
+	// stored title keeps the exact remote bytes either way.
+	brief := cmd.String("brief")
+	if brief == "" {
+		brief = deriveImportBrief(issue.Title, issue.Body)
+		if brief == "" {
+			return fmt.Errorf("cannot derive import brief: remote title and body are empty; pass --brief")
+		}
+	}
 	// Labels are the exact remote label names, first-seen deduplicated.
 	// Local default labels are NOT merged: an import is a historical
 	// snapshot, not a fresh create.
@@ -143,7 +150,7 @@ func importAction(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	it := item.New(newID, issue.Title, cmd.String("brief"), nil, labels)
+	it := item.New(newID, issue.Title, brief, nil, labels)
 	it.SetStatus(status)
 	ext.ID = issue.Number // the repository issue number, never the database id
 	if err := it.SetExternal(&ext); err != nil {
@@ -181,6 +188,127 @@ func importAction(ctx context.Context, cmd *cli.Command) error {
 		Unblocks: 0,
 		External: it.External,
 	})
+}
+
+// maxDerivedBriefRunes caps automatically derived import briefs in Unicode
+// code points, not bytes.
+const maxDerivedBriefRunes = 240
+
+// deriveImportBrief derives the brief for an import without an explicit
+// --brief. A title holding any non-whitespace rune wins and is used whole;
+// otherwise the body's first sentence is used, stopping at the first '.',
+// '!' or '?' immediately followed by whitespace or end-of-source (the same
+// boundary convention as sentenceCount). The chosen source is trimmed of
+// leading/trailing Unicode whitespace with each internal run collapsed to
+// one ASCII space; Markdown, case and punctuation are untouched. Derived
+// values are capped at maxDerivedBriefRunes code points. Both sources
+// normalizing to empty yields "". The scan accumulates at most the capped
+// candidate plus one rune of lookahead, so an arbitrarily long remote body
+// is never copied or normalized in full.
+func deriveImportBrief(title string, body []byte) string {
+	useTitle := false
+	for _, r := range title {
+		if !unicode.IsSpace(r) {
+			useTitle = true
+			break
+		}
+	}
+	// next yields source runes one at a time without copying the body.
+	pos := 0
+	next := func() (rune, bool) {
+		if useTitle {
+			if pos >= len(title) {
+				return 0, false
+			}
+			r, w := utf8.DecodeRuneInString(title[pos:])
+			pos += w
+			return r, true
+		}
+		if pos >= len(body) {
+			return 0, false
+		}
+		r, w := utf8.DecodeRune(body[pos:])
+		pos += w
+		return r, true
+	}
+	var out []rune
+	pendingSpace := false
+	var pendingPunct rune // body '.', '!' or '?' awaiting its follower
+	// emit appends one normalized rune, collapsing a pending whitespace run
+	// to a single ASCII space. It reports true when non-space content lies
+	// beyond the cap, in which case out is left at the cap for truncation.
+	emit := func(r rune) bool {
+		if pendingSpace && len(out) > 0 {
+			if len(out) == maxDerivedBriefRunes {
+				return true
+			}
+			out = append(out, ' ')
+		}
+		pendingSpace = false
+		if len(out) == maxDerivedBriefRunes {
+			return true
+		}
+		out = append(out, r)
+		return false
+	}
+	for {
+		r, ok := next()
+		if !ok {
+			break
+		}
+		if unicode.IsSpace(r) {
+			if pendingPunct != 0 {
+				// Punctuation followed by whitespace ends the body
+				// sentence; the punctuation is kept, with any pending
+				// space flushed before it like any other rune.
+				if emit(pendingPunct) {
+					return truncateDerivedBrief(out)
+				}
+				return string(out)
+			}
+			pendingSpace = true
+			continue
+		}
+		if pendingPunct != 0 {
+			if emit(pendingPunct) {
+				return truncateDerivedBrief(out)
+			}
+			pendingPunct = 0
+		}
+		if !useTitle && (r == '.' || r == '!' || r == '?') {
+			pendingPunct = r
+			continue
+		}
+		if emit(r) {
+			return truncateDerivedBrief(out)
+		}
+	}
+	if pendingPunct != 0 {
+		// Punctuation at end-of-source ends the sentence; it is kept,
+		// with any pending space flushed before it like any other rune.
+		if emit(pendingPunct) {
+			return truncateDerivedBrief(out)
+		}
+	}
+	return string(out)
+}
+
+// truncateDerivedBrief caps an over-long derived candidate at
+// maxDerivedBriefRunes code points: the first 239 runes minus any trailing
+// normalized space, plus U+2026. The result holds no space before the
+// ellipsis and is at most 240 runes of valid UTF-8.
+func truncateDerivedBrief(out []rune) string {
+	prefix := out
+	if len(prefix) > maxDerivedBriefRunes {
+		prefix = prefix[:maxDerivedBriefRunes]
+	}
+	if len(prefix) == maxDerivedBriefRunes {
+		prefix = prefix[:maxDerivedBriefRunes-1]
+	}
+	for len(prefix) > 0 && prefix[len(prefix)-1] == ' ' {
+		prefix = prefix[:len(prefix)-1]
+	}
+	return string(append(prefix, '…'))
 }
 
 // validateImportCandidate serializes the would-be item and refuses anything

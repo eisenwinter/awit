@@ -356,14 +356,166 @@ func TestImportInvalidAlias(t *testing.T) {
 	assertNoItems(t, repo)
 }
 
-func TestImportRequiresBrief(t *testing.T) {
+func TestImportDefaultsBriefFromTitle(t *testing.T) {
 	repo, stub := importRepo(t)
 	writeTeaIssue(t, stub, 127, faithfulIssue)
-	code, _, stderr := run(t, "--repo", repo, "import", "https://forge.example/owner/repo/issues/127")
-	if code != 2 {
-		t.Fatalf("exit %d, want 2 (stderr %q)", code, stderr)
+	code, stdout, stderr := run(t, "--repo", repo, "import",
+		"https://forge.example/owner/repo/issues/127", "--tea-login", "sandbox")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	it := readItem(t, repo, itemIDFromCompact(t, stdout))
+	if it.Brief != "Fix header parsing" {
+		t.Fatalf("brief = %q", it.Brief)
+	}
+	if string(it.Body()) != "Line one.\n\nLine two.\n" {
+		t.Fatalf("body changed: %q", it.Body())
+	}
+}
+
+func TestDeriveImportBrief(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		title string
+		body  string
+		want  string
+	}{
+		{"title wins over body", "Fix header parsing", "Line one.\n\nLine two.\n", "Fix header parsing"},
+		{"title whitespace normalized", "  Fix\tparser\r\nbehavior  ", "anything", "Fix parser behavior"},
+		{"title kept whole past punctuation", "Fix it. Really!", "Body here.", "Fix it. Really!"},
+		{"blank title falls back to body", "   ", "First line\ncontinues. Next sentence!", "First line continues."},
+		{"bang boundary", "", "Version 1.2 works! Next.", "Version 1.2 works!"},
+		{"question boundary", "", "What now? Later.", "What now?"},
+		{"no terminator uses body", "", "No punctuation\nsecond line", "No punctuation second line"},
+		{"embedded punctuation ignored", "", "Version 1.2 works ok", "Version 1.2 works ok"},
+		{"newline is not a boundary", "", "First line\nSecond line. Third.", "First line Second line."},
+		{"punctuation at end of source", "", "Ends here.", "Ends here."},
+		{"punctuation without trailing space continues", "", "Wait!No space. End.", "Wait!No space."},
+		{"space before terminator kept", "", "hello . Next", "hello ."},
+		{"space before EOS punct exact fit", "", strings.Repeat("a", 238) + " .", strings.Repeat("a", 238) + " ."},
+		{"space before terminator past cap truncates", "", strings.Repeat("x", 240) + " . Next", strings.Repeat("x", 239) + "…"},
+		{"crlf and tabs collapse", "", "a\tb\r\nc", "a b c"},
+		{"exact 240 runes kept", strings.Repeat("é", 240), "", strings.Repeat("é", 240)},
+		{"241 runes truncated with ellipsis", strings.Repeat("é", 241), "", strings.Repeat("é", 239) + "…"},
+		{"multibyte body truncation", "", strings.Repeat("é", 241), strings.Repeat("é", 239) + "…"},
+		{"trailing space before ellipsis dropped", strings.Repeat("a", 238) + " " + strings.Repeat("b", 10), "", strings.Repeat("a", 238) + "…"},
+		{"long title not split at sentence", strings.Repeat("x.", 200), "", strings.Repeat("x.", 119) + "x…"},
+		{"empty sources", "", "", ""},
+		{"whitespace sources", " \t\n ", "  \r\n ", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := deriveImportBrief(tc.title, []byte(tc.body)); got != tc.want {
+				t.Fatalf("deriveImportBrief(%q, %q) = %q, want %q", tc.title, tc.body, got, tc.want)
+			}
+		})
+	}
+	if got := deriveImportBrief("T", nil); got != "T" {
+		t.Fatalf("nil body with title: got %q, want %q", got, "T")
+	}
+}
+
+func TestImportBodyFallbackBrief(t *testing.T) {
+	repo, stub := importRepo(t)
+	writeTeaIssue(t, stub, 127, `{"number": 127, "title": "   ", "body": "First line\ncontinues. Next sentence!", "state": "open"}`)
+	code, stdout, stderr := run(t, "--repo", repo, "import",
+		"https://forge.example/owner/repo/issues/127", "--tea-login", "sandbox")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	it := readItem(t, repo, itemIDFromCompact(t, stdout))
+	if it.Brief != "First line continues." {
+		t.Fatalf("brief = %q", it.Brief)
+	}
+	if it.Title != "   " {
+		t.Fatalf("blank remote title must be stored unchanged, got %q", it.Title)
+	}
+}
+
+func TestImportEmptySourcesRefused(t *testing.T) {
+	repo, stub := importRepo(t)
+	writeTeaIssue(t, stub, 127, `{"number": 127, "title": "  ", "body": null, "state": "open"}`)
+	code, _, stderr := run(t, "--repo", repo, "import",
+		"https://forge.example/owner/repo/issues/127", "--tea-login", "sandbox")
+	if code != 1 {
+		t.Fatalf("exit %d, want 1 (stderr %q)", code, stderr)
+	}
+	const want = "Error: cannot derive import brief: remote title and body are empty; pass --brief"
+	if !strings.Contains(stderr, want) {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
 	}
 	assertNoItems(t, repo)
+}
+
+func TestImportExplicitBriefAllowsEmptySources(t *testing.T) {
+	repo, stub := importRepo(t)
+	writeTeaIssue(t, stub, 127, `{"number": 127, "title": "  ", "body": "   ", "state": "open"}`)
+	code, stdout, stderr := run(t, "--repo", repo, "import",
+		"https://forge.example/owner/repo/issues/127", "--brief", "Chosen summary.", "--tea-login", "sandbox")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	it := readItem(t, repo, itemIDFromCompact(t, stdout))
+	if it.Brief != "Chosen summary." {
+		t.Fatalf("brief = %q, want the explicit value unchanged", it.Brief)
+	}
+}
+
+func TestImportExplicitLongBriefUncapped(t *testing.T) {
+	repo, stub := importRepo(t)
+	writeTeaIssue(t, stub, 127, faithfulIssue)
+	long := strings.Repeat("é", 300)
+	code, stdout, stderr := run(t, "--repo", repo, "import",
+		"https://forge.example/owner/repo/issues/127", "--brief", long, "--tea-login", "sandbox")
+	if code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr)
+	}
+	it := readItem(t, repo, itemIDFromCompact(t, stdout))
+	if it.Brief != long {
+		t.Fatalf("explicit brief must be stored unchanged, got %d runes", len([]rune(it.Brief)))
+	}
+}
+
+func TestImportRepeatedMainExplicitThenDerived(t *testing.T) {
+	repo, stub := importRepo(t)
+	writeTeaIssue(t, stub, 127, faithfulIssue)
+	code, _, stderr := run(t, "--repo", repo, "import",
+		"https://forge.example/owner/repo/issues/127", "--brief", "Chosen summary.", "--tea-login", "sandbox")
+	if code != 0 {
+		t.Fatalf("first import: exit %d stderr %q", code, stderr)
+	}
+	// Omitted brief on a repeated Main must derive, not exit 2: the same URL
+	// now refuses as a duplicate (exit 1), proving the brief guard passed.
+	for _, args := range [][]string{
+		{"--repo", repo, "import", "https://forge.example/owner/repo/issues/127", "--tea-login", "sandbox"},
+		{"--repo", repo, "import", "https://forge.example/owner/repo/issues/127", "--brief", "", "--tea-login", "sandbox"},
+	} {
+		code, _, stderr = run(t, args...)
+		if code != 1 {
+			t.Fatalf("repeated import %q: exit %d, want 1 (stderr %q)", args, code, stderr)
+		}
+		if strings.Contains(stderr, "Required flag") {
+			t.Fatalf("repeated import %q: stderr %q, brief must derive on later Main calls", args, stderr)
+		}
+	}
+}
+
+func TestImportGitLabDefaultsBriefFromTitle(t *testing.T) {
+	repo, stub := importGitLabRepo(t)
+	writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabFaithfulIssue)
+	code, stdout, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL)
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	it := readItem(t, repo, itemIDFromCompact(t, stdout))
+	if it.Brief != "Imported issue" {
+		t.Fatalf("brief = %q", it.Brief)
+	}
+	if string(it.Body()) != "Intro\r\nlast  " {
+		t.Fatalf("body changed: %q", it.Body())
+	}
+	if n := countGlabPUTs(t, stub); n != 0 {
+		t.Fatalf("import performed %d remote PUT(s)", n)
+	}
 }
 
 func TestImportRejectsBadURL(t *testing.T) {
@@ -969,16 +1121,21 @@ func TestImportGitLabURLs(t *testing.T) {
 		}
 		assertNoItems(t, repo)
 	})
-	t.Run("missing brief on repeated Main", func(t *testing.T) {
+	t.Run("derived brief on repeated Main", func(t *testing.T) {
 		repo, stub := importGitLabRepo(t)
 		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabFaithfulIssue)
 		code, _, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL, "--brief", "Imported GitLab issue.")
 		if code != 0 {
 			t.Fatalf("first import: exit %d stderr %q", code, stderr)
 		}
+		// The omitted brief must derive on later Main calls, not exit 2:
+		// the same URL now refuses as a duplicate (exit 1).
 		code, _, stderr = run(t, "--repo", repo, "import", gitlabWorkItemsURL)
-		if code != 2 {
-			t.Fatalf("second Main without brief: exit %d, want 2 (stderr %q)", code, stderr)
+		if code != 1 {
+			t.Fatalf("second Main without brief: exit %d, want 1 (stderr %q)", code, stderr)
+		}
+		if strings.Contains(stderr, "Required flag") {
+			t.Fatalf("stderr = %q, brief must derive on repeated Main calls", stderr)
 		}
 	})
 }
