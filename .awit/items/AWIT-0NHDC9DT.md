@@ -3,10 +3,11 @@ id: AWIT-0NHDC9DT
 title: 'config: warn on labels outside the declared repository vocabulary'
 brief: >-
   Add optional config labels as an advisory vocabulary and warn about unknown labels introduced through create/update. Keep free-form labels usable and preserve observed label-count semantics.
-status: open
+status: closed
 deps: [AWIT-0ND56A3G, AWIT-0ND56H3G, AWIT-0NF68SDG, AWIT-0ND5763G]
 labels: [phase5, p2]
-refs: []
+refs_base: repo
+refs: [.awit/comments/AWIT-0NHDC9DT/20260919T154852Z-orchestrator.md]
 ---
 ## Summary
 
