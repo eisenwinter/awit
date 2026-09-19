@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -95,6 +96,30 @@ func mergeLabels(defaults, flags []string) []string {
 		out = []string{}
 	}
 	return out
+}
+
+func warnUnknownLabels(cmd *cli.Command, vocab, labels []string) {
+	if len(vocab) == 0 {
+		return
+	}
+	known := make(map[string]bool, len(vocab))
+	for _, v := range vocab {
+		known[v] = true
+	}
+	seen := make(map[string]bool)
+	var unknown []string
+	for _, l := range labels {
+		if l == "" || known[l] || seen[l] {
+			continue
+		}
+		seen[l] = true
+		unknown = append(unknown, l)
+	}
+	if len(unknown) == 0 {
+		return
+	}
+	slices.Sort(unknown)
+	fmt.Fprintf(cmd.Root().ErrWriter, "warning: unknown labels: %s (declare them in .awit/config.yaml labels)\n", strings.Join(unknown, ", "))
 }
 
 func detectFormat(cmd *cli.Command) (format.Format, error) {
@@ -189,6 +214,7 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 	if err := s.Save(it); err != nil {
 		return err
 	}
+	warnUnknownLabels(cmd, s.Config.Labels, it.Labels)
 	f, err := detectFormat(cmd)
 	if err != nil {
 		return err

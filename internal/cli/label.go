@@ -13,7 +13,7 @@ import (
 
 var labelCmd = &cli.Command{
 	Name:  "label",
-	Usage: "Show the label vocabulary with usage counts",
+	Usage: "Show observed label usage counts",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "state",
@@ -47,13 +47,15 @@ func labelAction(_ context.Context, cmd *cli.Command) error {
 }
 
 // labelCounts builds the label vocabulary rows over the parseable items.
-// Labels are never declared anywhere (guide §2): the vocabulary is whatever
-// the items use. state is one of open|closed|all and was validated by the
-// caller: "open" counts every status except closed, "closed" only closed,
-// "all" everything. Graph quarantine is irrelevant here — a parseable item
-// with a dangling dep still carries its labels — and unparseable files are
-// not in items at all, so they never count. Rows sort by count descending,
-// then label ascending, so the output is deterministic.
+// Optional config.yaml labels is an advisory vocabulary only: this command
+// still reports actual use (guide §2). Used undeclared labels count; unused
+// declared names do not. state is one of open|closed|all and was validated
+// by the caller: "open" counts every status except closed, "closed" only
+// closed, "all" everything. Graph quarantine is irrelevant here — a
+// parseable item with a dangling dep still carries its labels — and
+// unparseable files are not in items at all, so they never count. Rows
+// sort by count descending, then label ascending, so the output is
+// deterministic.
 func labelCounts(items []*item.Item, state string) []format.LabelCount {
 	counts := make(map[string]int)
 	for _, it := range items {

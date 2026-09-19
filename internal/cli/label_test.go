@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/item"
 )
 
@@ -218,6 +220,23 @@ Invalid YAML on purpose; this label must not count.
 	want := "auth 1\np1 1\n"
 	if stdout != want {
 		t.Fatalf("stdout = %q, want %q (ghost must be absent, quarantined 0001 counted)", stdout, want)
+	}
+}
+
+func TestLabelCountsIncludesUsedUndeclaredExcludesUnusedDeclared(t *testing.T) {
+	dir := initRepo(t)
+	writeDefaultLabels(t, dir, []byte("prefix: AWIT\nlabels: [p1]\nstale_claim: 2h\n"))
+	seedItem(t, dir, "AWIT-TEST0001", "T", "A test item.", []string{"typo"})
+	code, stdout, stderr := run(t, "--repo", dir, "--format", "json", "label", "--state", "all")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	var rows []format.LabelCount
+	if err := json.Unmarshal([]byte(stdout), &rows); err != nil {
+		t.Fatalf("json: %v (stdout %q)", err, stdout)
+	}
+	if len(rows) != 1 || rows[0].Label != "typo" || rows[0].Count != 1 {
+		t.Fatalf("rows = %+v, want [{typo 1}] (used undeclared in, declared unused out)", rows)
 	}
 }
 

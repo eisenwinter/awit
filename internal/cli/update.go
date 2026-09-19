@@ -81,6 +81,10 @@ func updateAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	prev := make(map[string]bool, len(it.Labels))
+	for _, l := range it.Labels {
+		prev[l] = true
+	}
 	// Echo order is fixed: status, title, brief, assignee, labels, alias, external.
 	var changed []string
 	if status != "" {
@@ -162,6 +166,13 @@ func updateAction(_ context.Context, cmd *cli.Command) error {
 	if err := s.Save(it); err != nil {
 		return err
 	}
+	var introduced []string
+	for _, l := range it.Labels {
+		if !prev[l] {
+			introduced = append(introduced, l)
+		}
+	}
+	warnUnknownLabels(cmd, s.Config.Labels, introduced)
 	w := cmd.Root().Writer
 	for _, c := range changed {
 		fmt.Fprintf(w, "updated %s: %s\n", it.ID, c)

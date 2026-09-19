@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
 	"gopkg.in/yaml.v3"
 )
@@ -18,7 +19,8 @@ const FileName = "config.yaml"
 type Config struct {
 	Prefix        string   `yaml:"prefix"`
 	DefaultLabels []string `yaml:"default_labels,omitempty"`
-	StaleClaim    Duration `yaml:"stale_claim"` // default 2h
+	Labels        []string `yaml:"labels,omitempty"` // advisory vocabulary; empty disables warnings
+	StaleClaim    Duration `yaml:"stale_claim"`      // default 2h
 	AgentID       string   `yaml:"agent_id,omitempty"`
 	// Commit is the repository default for `next --claim` git commits.
 	// nil (the key is absent) means the documented default: commit. Only
@@ -84,6 +86,11 @@ func Load(awitDir string) (Config, error) {
 	if err := validateTemplatePath(c.Template); err != nil {
 		return Config{}, err
 	}
+	labels, err := normalizeLabels(c.Labels)
+	if err != nil {
+		return Config{}, err
+	}
+	c.Labels = labels
 	return c, nil
 }
 
@@ -144,4 +151,31 @@ func windowsAbs(p string) bool {
 		return false
 	}
 	return len(p) == 2 || p[2] == '/'
+}
+
+func normalizeLabels(in []string) ([]string, error) {
+	if len(in) == 0 {
+		return in, nil
+	}
+	seen := make(map[string]bool, len(in))
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if s == "" {
+			return nil, errors.New("config: labels entry must be nonempty")
+		}
+		if strings.TrimSpace(s) != s {
+			return nil, errors.New("config: labels entry must not have leading or trailing whitespace")
+		}
+		for _, r := range s {
+			if unicode.IsControl(r) {
+				return nil, errors.New("config: labels entry must not contain control characters")
+			}
+		}
+		if seen[s] {
+			continue
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	return out, nil
 }

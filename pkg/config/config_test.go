@@ -316,3 +316,70 @@ func TestTemplateWriteRoundTrip(t *testing.T) {
 		t.Fatalf("Template = %q", loaded.Template)
 	}
 }
+
+func TestDeclaredLabelsLoad(t *testing.T) {
+	tests := []struct {
+		name string
+		yaml string
+		want []string
+		err  string
+	}{
+		{name: "missing disables", yaml: "prefix: AWIT\n"},
+		{name: "empty disables", yaml: "prefix: AWIT\nlabels: []\n"},
+		{name: "keeps order and case", yaml: "prefix: AWIT\nlabels: [p1, P1, phase5]\n", want: []string{"p1", "P1", "phase5"}},
+		{name: "dedupes in memory", yaml: "prefix: AWIT\nlabels: [p1, p1, p2]\n", want: []string{"p1", "p2"}},
+		{name: "rejects empty", yaml: "prefix: AWIT\nlabels: [\"\"]\n", err: "config: labels entry must be nonempty"},
+		{name: "rejects leading space", yaml: "prefix: AWIT\nlabels: [\" p1\"]\n", err: "config: labels entry must not have leading or trailing whitespace"},
+		{name: "rejects trailing space", yaml: "prefix: AWIT\nlabels: [\"p1 \"]\n", err: "config: labels entry must not have leading or trailing whitespace"},
+		{name: "rejects control", yaml: "prefix: AWIT\nlabels: [\"p1\\u0001\"]\n", err: "config: labels entry must not contain control characters"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, FileName), []byte(tt.yaml), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			c, err := Load(dir)
+			if tt.err != "" {
+				if err == nil || err.Error() != tt.err {
+					t.Fatalf("Load() error = %v, want %q", err, tt.err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slicesEqual(c.Labels, tt.want) {
+				t.Fatalf("Labels = %q, want %q", c.Labels, tt.want)
+			}
+		})
+	}
+}
+
+func TestDeclaredLabelsWriteRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	c := Default("AWIT")
+	c.Labels = []string{"phase5", "p1"}
+	if err := c.Write(dir); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slicesEqual(loaded.Labels, []string{"phase5", "p1"}) {
+		t.Fatalf("Labels = %q, want [phase5 p1]", loaded.Labels)
+	}
+}
+
+func slicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
