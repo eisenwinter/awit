@@ -3,11 +3,11 @@ id: AWIT-0NJ6A0DG
 title: 'external: route body checks and local-first state pushes to GitLab'
 brief: >-
   Extend existing external checks, explicit body repair, and local-first state delivery to linked GitLab issues. Preserve Gitea output, exit, warning, locking, and offline contracts while using glab's verified body/state operations.
-status: open
+status: closed
 deps: [AWIT-0NJ69QDP, AWIT-0NJ69VDN]
 labels: [phase5, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NJ6A0DG/20260919T192437Z-orchestrator.md]
 ---
 ## Summary
 
