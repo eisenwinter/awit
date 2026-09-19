@@ -179,9 +179,9 @@ Seventeen commands; `-p` is gone everywhere, `release`, `validate`, `label`, `ar
 | `awit label` | `--state open\|closed\|all`, `--format` | Both | Label vocabulary with usage counts; answers "what labels exist and how busy are they" |
 | `awit show <id>` | `--full`, `--refs-only` | Agent | Core item (~200 tokens) or full resolved ref tree |
 | `awit comment <id> [text]` | `--file <path>`, `--author` | Both | Write a timestamped comment or attach an external file; append to `refs` |
-| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--alias`, `--clear-alias`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external` | Both | Mutate frontmatter with a minimal diff |
-| `awit close <id>` | `--reason` | Both | Set `closed`, clear `claimed_at`, append reason as a comment |
-| `awit release <id>` | — | Both | Reopen an in-progress or closed item to `open`, clear `assignee` and `claimed_at`; prints `reopened <id>` (plain line, ignores `--format`) |
+| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--alias`, `--clear-alias`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external`, `--no-push`, `--tea-login` | Both | Mutate frontmatter with a minimal diff; an explicit `--status` also pushes the mapped state (`closed`→closed, `open`/`in_progress`→open) to the linked Gitea issue, local-first with a stderr retry warning on remote failure |
+| `awit close <id>` | `--reason`, `--author`, `--no-push`, `--tea-login` | Both | Set `closed`, clear `claimed_at`, append reason as a comment; pushes `closed` to the linked Gitea issue unless `--no-push` |
+| `awit release <id>` | `--no-push`, `--tea-login` | Both | Reopen an in-progress or closed item to `open`, clear `assignee` and `claimed_at`; prints `reopened <id>` (plain line, ignores `--format`); pushes `open` to the linked Gitea issue unless `--no-push` |
 | `awit dep add\|rm <id> <dep>` | — | Both | Edit `deps` with cycle pre-check |
 | `awit ref add\|rm <id> <path>` | — | Both | Add or remove a repo-root-relative file reference; does not copy, delete, or commit |
 | `awit validate` | `--stale-claims` | Both | Integrity report; non-zero exit on `FAIL`; invalid `external` is a WARN |

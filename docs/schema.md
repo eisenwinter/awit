@@ -202,6 +202,28 @@ authoritative), and verifies the remote took the exact bytes — against the
 PATCH response, or a GET of the same issue when the response omits the
 body. A mismatch is an error, never success.
 
+`awit close <id> [--tea-login name] [--no-push]`, `awit release <id>` with
+the same flags, and `awit update <id> --status <s>` with the same flags
+propagate local state one way to the linked issue: `close` pushes `closed`,
+`release` pushes `open`, and an explicit `--status` pushes `closed` for
+`closed` and `open` for `open`/`in_progress` (a non-status update never
+pushes, and neither do `next --claim`, create, import, comment, ref, or
+archive). The local item is saved first — keeping close's reason comment
+and claim-clearing — then the push runs under the held store lock with the
+bounded subprocess deadline (`tea api --login <login> --repo <owner/repo>
+--include -X PATCH -f state=<open|closed>
+repos/<owner>/<repo>/issues/<n>`), requiring a 2xx status and verifying
+the response confirms the issue number, installation, and state (GET
+fallback when the response omits it; the remote is never read to decide).
+Local state stays canonical: remote failure, missing tea, invalid
+metadata, or ambiguous duplicate links keep the local mutation and its
+ordinary confirmation, print one stderr
+`warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>`
+(exit 0), while a local write failure exits 1 and never pushes.
+Repeating `update <id> --status <current>` re-pushes without a queue or
+daemon. `--no-push` performs no tea discovery, auth, or network operation,
+even with malformed metadata.
+
 Byte-exactness relies on a tested `tea` behavior: `tea`'s `-F body=@file`
 reader strips exactly one terminal LF, so awit writes the transport file
 as the body plus one extra LF (private temp-then-rename file, mode 0600,

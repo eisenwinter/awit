@@ -39,9 +39,9 @@ prints `awit dev`.
 | `awit label` | `--state open\|closed\|all`, `--format` | Observed label usage counts (not the config vocabulary) |
 | `awit show <id>` | `--full`, `--refs-only` | Core item or full resolved ref tree |
 | `awit comment <id> [text]` | `--file <path>`, `--author` | Timestamped comment or attached file; append to `refs` |
-| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--alias`, `--clear-alias`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external` | Mutate frontmatter with a minimal diff |
-| `awit close <id>` | `--reason`, `--author` | Set `closed`, clear `claimed_at`; does not git-commit |
-| `awit release <id>` | — | Reopen an in-progress or closed item as `open`, clear `assignee` and `claimed_at`; prints `reopened <id>` (plain line, ignores `--format`) |
+| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--alias`, `--clear-alias`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external`, `--no-push`, `--tea-login` | Mutate frontmatter with a minimal diff; an explicit `--status` also pushes the mapped state (`closed`→closed, `open`/`in_progress`→open) to the linked Gitea issue, local-first with a stderr retry warning on remote failure |
+| `awit close <id>` | `--reason`, `--author`, `--no-push`, `--tea-login` | Set `closed`, clear `claimed_at`; does not git-commit; pushes `closed` to the linked Gitea issue unless `--no-push` |
+| `awit release <id>` | `--no-push`, `--tea-login` | Reopen an in-progress or closed item as `open`, clear `assignee` and `claimed_at`; prints `reopened <id>` (plain line, ignores `--format`); pushes `open` to the linked Gitea issue unless `--no-push` |
 | `awit dep add\|rm <id> <dep>` | — | Edit `deps` with cycle pre-check |
 | `awit ref add\|rm <id> <path>` | — | Add or remove a repo-root-relative file reference; does not copy, delete, or commit |
 | `awit validate` | `--stale-claims` | Integrity report; non-zero exit on `FAIL`; invalid `external` is a WARN |
@@ -80,6 +80,15 @@ Then `prime` again. `--claim` writes `status: in_progress`, `assignee`,
 `commit: false` line in `.awit/config.yaml` sets the repository default,
 and `--no-commit` is the deprecated spelling of `--commit=false`.
 `close` is a plain file write; the human or agent commits when done.
+For linked items `close` pushes `closed` (and `release` pushes `open`) to
+the Gitea issue through `tea` after the local save, under the store lock;
+an explicit `update --status` pushes the mapped state the same way, and a
+non-status update never pushes. Local state stays canonical: a remote
+failure keeps the local mutation, prints
+`warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>`
+on stderr, and still exits 0. Pass `--no-push` for an explicit offline path
+(no tea discovery, auth, or network, even with malformed metadata), or
+`--tea-login` to choose the tea login.
 Filter with `-l p0` (AND across repeated flags, OR inside one comma list).
 
 ## Status

@@ -47,14 +47,14 @@ awit show <id> --full            # 3. work item + every ref inlined; read all of
 # 4. build your todo list from the work item (see below)
 # 5. do the work
 awit comment <id> "<what you did, what you verified, what is left>"   # 6. progress note; repeat as needed
-awit close <id> --reason "<one line>"                                  # 7. after EVERY acceptance criterion is verified
+awit close <id> --reason "<one line>"                                  # 7. after EVERY acceptance criterion is verified (pushes closed to the linked Gitea issue unless --no-push)
 awit validate                    # 8. must still print PASS
 git add .awit && git commit -m "awit: close <id>"                      # 9. unless the project says the orchestrator commits
 ```
 
 Decisions the baseline agent had to guess, resolved:
 
-- **Finished = `close`.** `release` means "I give up the claim, someone else take it": it returns an in-progress **or closed** item to `open`, clears `assignee` and `claimed_at`, and confirms with a plain `reopened <id>` line (never JSON, even under `--format json`).
+- **Finished = `close`.** `release` means "I give up the claim, someone else take it": it returns an in-progress **or closed** item to `open`, clears `assignee` and `claimed_at`, and confirms with a plain `reopened <id>` line (never JSON, even under `--format json`). For linked items `close` pushes `closed` (and `release` pushes `open`) to Gitea after the local save, under the store lock; an explicit `update --status` pushes the mapped state the same way (`closed`→closed, `open`/`in_progress`→open) and a non-status update never pushes. Local state stays canonical: a remote failure keeps the local work, prints `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>` on stderr, and still exits 0 — retry with `awit update <id> --status <status>`, never by duplicating a close reason. Pass `--no-push` for an explicit offline path (no tea, auth, or network even with malformed metadata), `--tea-login` to choose the login.
 - **Notes go in `comment`.** `close --reason` is a one-line why, not the report; both create a comment file, so writing the same text in both duplicates it.
 - **Only `next --claim` commits** (so a double claim becomes a merge conflict, which quarantine surfaces). Whether it does follows the commit policy: `--commit=true|false` for one run, `commit: false` in `config.yaml` as the repository default (default `true`); `--no-commit` is the deprecated spelling of `--commit=false`. `comment`, `close`, `release`, `create`, `update`, `dep`, `ref` leave the tree dirty — commit `.awit/` together with your code when you are done: `awit: close <id>` after a close, `awit: release <id>` after a release (otherwise Git still shows your claim to everyone else). If an orchestrator owns commits in this project (see `.omp/agents/orchestrator.md`), do not commit; report instead.
 - **`.awit/.lock` is never committed.** `awit init` gitignores it; if `git status` shows it untracked, add `.awit/.lock` to `.gitignore` first, then `git add .awit`. `init` can also seed this skill into `.claude`, `.omp`, `.opencode`, `.agents` and `.pi` (`--skills` to skip the prompts); unlike the lock, those files are project config and belong in the commit.
@@ -145,8 +145,8 @@ When you dispatch workers instead of working yourself:
 | Linked-issue body drift | `awit external check [--tea-login name]` (read-only; exit 1 names every drifted item) / `awit external push-body <id> [--tea-login name]` (explicit local-canonical repair; verifies exact bytes) |
 | Read a work item                     | `awit show <id>` (~200 tokens) / `--full` (refs inlined) / `--refs-only` |
 | Record progress                   | `awit comment <id> "…"` / `--file report.log`                            |
-| Change fields                     | `awit update <id> --status                                               | --brief        | --title | --assign | -l  | --unlabel | --external-* | --clear-external` |
-| Finish / give back / reopen     | `awit close <id> --reason "…"` / `awit release <id>` (prints `reopened <id>`) |
+| Change fields                     | `awit update <id> --status                                               | --brief        | --title | --assign | -l  | --unlabel | --external-* | --clear-external [--no-push --tea-login]` (explicit `--status` also pushes the mapped state to the linked issue; same-status repeats the push as the retry path) |
+| Finish / give back / reopen     | `awit close <id> --reason "…"` (pushes `closed`) / `awit release <id>` (prints `reopened <id>`, pushes `open`) `[--no-push --tea-login]` |
 | Dependencies                      | `awit dep add                                                            | rm <id> <dep>` |
 | File references                   | `awit ref add                                                            | rm <id> <path>` |
 | Integrity                         | `awit validate [--stale-claims]` (exit 1 on FAIL; invalid external is WARN)                        |
@@ -161,7 +161,7 @@ When you dispatch workers instead of working yourself:
 - `dep rm` to make your own item ready → hides real blockers; the graph is now wrong for everyone.
 - Treating `in_progress (ready)` or a retained `assignee` after close as bugs → both are expected.
 - Claiming a second item while holding one → stale claims for everyone else.
-- Body drift on a linked Gitea issue → never hand-edit either side to match; run `awit external check` to see it, `awit external push-body <id>` to repair from the local canonical bytes.
+- Body drift on a linked Gitea issue → never hand-edit either side to match; run `awit external check` to see it, `awit external push-body <id>` to repair from the local canonical bytes. State drift after a failed close/release push → retry with `awit update <id> --status <status>` (same status re-pushes); work offline with `--no-push`, which never touches tea even with malformed metadata.
 - Committing `.awit/` in a project whose orchestrator owns commits → duplicate/misordered history. Check `.omp/agents/` first.
 
 ---

@@ -71,7 +71,7 @@ Additional decisions made while writing work items:
 | Does `archive` commit? | **No**, same as `close`. Holds `Store.Lock`. Output ignores `--format` (like `close`): one `archived <id>` line per item, sorted by ID, then `Archived N items`. `--dry-run` writes nothing, prints `would archive <id>` lines and `skip <id>: dependant <dep-id> not archivable` for every closed item left behind, then `Would archive N items`. Exit 0 even when N = 0. |
 | Release output | **No commit**, same as `close`. Holds `Store.Lock`. Every source state — `open`, `in_progress`, `closed` — ends `open` with `assignee`/`claimed_at` deleted, so release is an idempotent visible action. Output ignores `--format` (like `close` and `archive`): exactly one `reopened <id>` line, printed only after `Store.Save` succeeds; load/write failures print no success line. |
 | `external` mapping | Optional Gitea link: `{tracker: gitea, repo: owner/repo, id: <issue number>, url: <http(s)>}`. `id` is the repository issue number. `create`/`update` require `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` together (partial → exit 2, no write). `update --clear-external` is mutually exclusive with those flags. Invalid or legacy scalar `external:` values set `ExternalProblem` and are **not** quarantined; `validate` prints `WARN  <id>: invalid external: <reason>` (JSON: that line on stderr; fault-array schema unchanged). Exit 0 unless graph faults exist. |
-| `Bytes()` dirty tracking | `Parse` keeps the original source bytes. `Bytes()` returns them unchanged until a setter runs. After any setter, `Bytes()` re-encodes the YAML node with `\n` fences and the exact body. `New` starts dirty. `SetBody` stores a copy with no newline conversion. An identical `SetExternal` is a no-op. |
+| `external` state push | One-way local→Gitea propagation only. `close`→`closed`, `release`→`open`, explicit `update --status closed`→`closed`, `update --status open\|in_progress`→`open`; a non-status update, `next --claim`, create, import, comment, ref, and archive never push. All three carry `--no-push` (no tea discovery/auth/network, even with malformed metadata) and `--tea-login`. Local save first (keeping close's reason/comment and claim-clearing), then `Client.SetState` under the held store lock with the bounded subprocess deadline. Remote failure, missing tea, invalid metadata, or ambiguous links keep the local mutation and confirmation, print one stderr `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>`, and exit 0; local failure exits 1 with no push. Same-status `update --status` repeats the push (the retry path). Response identity/state and HTTP status are validated; remote state is never GET-read to decide. No retries, queues, or commits. |
 
 ## 3. Repository layout
 
@@ -677,6 +677,14 @@ func IssueBase(raw string) (string, error)
 // the same issue when the response omits the body. Mismatch is an error.
 // Supported tea: 0.16.0 (one-LF behavior pinned by TestTeaBodyRoundTrip).
 func (c *Client) SetBody(ctx context.Context, number int64, body []byte) error
+// SetState replaces the state of the given repository issue number with
+// exactly "open" or "closed" (PATCH -f state=<want>). It requires a 2xx
+// status, confirms the issue number (and installation, when the response
+// carries a URL), and verifies the remote state equals the pushed state —
+// against the PATCH response, or a GET of the same issue when the response
+// omits the state. Mismatch is an error. The remote is never read to
+// decide what to write.
+func (c *Client) SetState(ctx context.Context, number int64, state string) error
 ```
 
 ### `internal/skill`
