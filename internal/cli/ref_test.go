@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -109,9 +112,30 @@ func TestRefAddAlreadyPresent(t *testing.T) {
 	}
 }
 
-func TestRefAddMissingTargetAllowed(t *testing.T) {
+func TestRefAddMissingTargetDoesNotSave(t *testing.T) {
 	dir := dualBaseRepo(t)
+	itemPath := filepath.Join(dir, ".awit", "items", "AWIT-TEST0001.md")
+	before, err := os.ReadFile(itemPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	code, stdout, stderr := run(t, "--repo", dir, "ref", "add", "AWIT-TEST0001", "docs/planned.md")
+	want := fmt.Sprintf("Error: ref target does not exist: %q; use --allow-missing to add it anyway\n", filepath.Join(dir, "docs", "planned.md"))
+	if code != 1 || stdout != "" || stderr != want {
+		t.Fatalf("exit %d, stdout %q, stderr %q; want %q", code, stdout, stderr, want)
+	}
+	after, err := os.ReadFile(itemPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("rejected add saved the item")
+	}
+}
+
+func TestRefAddMissingTargetAllowedExplicit(t *testing.T) {
+	dir := dualBaseRepo(t)
+	code, stdout, stderr := run(t, "--repo", dir, "ref", "add", "AWIT-TEST0001", "docs/planned.md", "--allow-missing")
 	if code != 0 || stderr != "" {
 		t.Fatalf("exit %d stderr %q", code, stderr)
 	}
@@ -119,11 +143,144 @@ func TestRefAddMissingTargetAllowed(t *testing.T) {
 		t.Fatalf("stdout = %q", stdout)
 	}
 	it := readItem(t, dir, "AWIT-TEST0001")
-	got := resolver.Resolve(dir, []string{"docs/planned.md"})
-	if got[0].Err == nil {
-		t.Fatal("planned ref should be missing")
-	}
 	if it.Refs[len(it.Refs)-1] != "docs/planned.md" {
+		t.Fatalf("refs = %v", it.Refs)
+	}
+	code, stdout, stderr = run(t, "--repo", dir, "show", "--full", "AWIT-TEST0001")
+	if code != 0 || stderr != "" {
+		t.Fatalf("show: exit %d stderr %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "[missing]") {
+		t.Fatalf("planned ref should render [missing]:\n%s", stdout)
+	}
+	writeRepoFile(t, filepath.Join(dir, "docs", "planned.md"), "PLAN\n")
+	got := resolver.Resolve(dir, []string{"docs/planned.md"})
+	if got[0].Err != nil || string(got[0].Content) != "PLAN\n" {
+		t.Fatalf("created planned doc should resolve: %+v", got[0])
+	}
+}
+
+func TestRefAddMissingTargetNestedCwd(t *testing.T) {
+	dir := dualBaseRepo(t)
+	nested := filepath.Join(dir, "pkg", "item")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(nested)
+	code, stdout, stderr := run(t, "--repo", dir, "ref", "add", "AWIT-TEST0001", "docs/planned.md")
+	want := fmt.Sprintf("Error: ref target does not exist: %q; use --allow-missing to add it anyway\n", filepath.Join(dir, "docs", "planned.md"))
+	if code != 1 || stdout != "" || stderr != want {
+		t.Fatalf("exit %d, stdout %q, stderr %q; want %q", code, stdout, stderr, want)
+	}
+}
+
+func TestRefAddMissingTargetBackslashNormalized(t *testing.T) {
+	dir := dualBaseRepo(t)
+	code, stdout, stderr := run(t, "--repo", dir, "ref", "add", "AWIT-TEST0001", `docs\planned.md`)
+	want := fmt.Sprintf("Error: ref target does not exist: %q; use --allow-missing to add it anyway\n", filepath.Join(dir, "docs", "planned.md"))
+	if code != 1 || stdout != "" || stderr != want {
+		t.Fatalf("exit %d, stdout %q, stderr %q; want %q", code, stdout, stderr, want)
+	}
+	code, stdout, stderr = run(t, "--repo", dir, "ref", "add", "AWIT-TEST0001", `docs\planned.md`, "--allow-missing")
+	if code != 0 || stderr != "" {
+		t.Fatalf("allow-missing: exit %d stderr %q", code, stderr)
+	}
+	if stdout != "ref added AWIT-TEST0001: docs/planned.md\n" {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
+func TestRefAddDuplicateMissingTarget(t *testing.T) {
+	dir := dualBaseRepo(t)
+	code, _, stderr := run(t, "--repo", dir, "ref", "add", "AWIT-TEST0001", "docs/planned.md", "--allow-missing")
+	if code != 0 || stderr != "" {
+		t.Fatalf("first add: exit %d stderr %q", code, stderr)
+	}
+	if err := os.RemoveAll(filepath.Join(dir, "docs")); err != nil {
+		t.Fatal(err)
+	}
+	itemPath := filepath.Join(dir, ".awit", "items", "AWIT-TEST0001.md")
+	before, err := os.ReadFile(itemPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := run(t, "--repo", dir, "ref", "add", "AWIT-TEST0001", "docs/planned.md")
+	want := fmt.Sprintf("Error: ref target does not exist: %q; use --allow-missing to add it anyway\n", filepath.Join(dir, "docs", "planned.md"))
+	if code != 1 || stdout != "" || stderr != want {
+		t.Fatalf("duplicate missing: exit %d, stdout %q, stderr %q; want %q", code, stdout, stderr, want)
+	}
+	after, err := os.ReadFile(itemPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("rejected duplicate add saved the item")
+	}
+	code, stdout, stderr = run(t, "--repo", dir, "ref", "add", "AWIT-TEST0001", "docs/planned.md", "--allow-missing")
+	if code != 0 || stderr != "" {
+		t.Fatalf("duplicate allow-missing: exit %d stderr %q", code, stderr)
+	}
+	if stdout != "ref already present AWIT-TEST0001: docs/planned.md\n" {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
+func TestRefAddExistingDirAllowed(t *testing.T) {
+	dir := dualBaseRepo(t)
+	code, stdout, stderr := run(t, "--repo", dir, "ref", "add", "AWIT-TEST0001", "docs/notes")
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if stdout != "ref added AWIT-TEST0001: docs/notes\n" {
+		t.Fatalf("stdout = %q", stdout)
+	}
+}
+
+func TestRefAddUnstatableTarget(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("ENOTDIR surfaces as ErrNotExist on Windows, which --allow-missing waives")
+	}
+	dir := dualBaseRepo(t)
+	itemPath := filepath.Join(dir, ".awit", "items", "AWIT-TEST0001.md")
+	before, err := os.ReadFile(itemPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := run(t, "--repo", dir, "ref", "add", "AWIT-TEST0001", "notes.txt/sub.md", "--allow-missing")
+	if code != 1 || stdout != "" || !strings.Contains(stderr, "Error: cannot stat ref target") {
+		t.Fatalf("exit %d stdout %q stderr %q", code, stdout, stderr)
+	}
+	after, err := os.ReadFile(itemPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("unstatable add saved the item")
+	}
+}
+
+func TestRefAddAllowMissingKeepsAbsoluteRejection(t *testing.T) {
+	dir := dualBaseRepo(t)
+	code, _, stderr := run(t, "--repo", dir, "ref", "add", "AWIT-TEST0001", filepath.Join(dir, "docs", "notes", "x.md"), "--allow-missing")
+	if code != 1 || !strings.Contains(stderr, "Error:") {
+		t.Fatalf("absolute with flag: exit %d stderr %q", code, stderr)
+	}
+	code, _, stderr = run(t, "--repo", dir, "ref", "add", "AWIT-TEST0001", "", "--allow-missing")
+	if code == 0 {
+		t.Fatalf("empty path with flag succeeded, stderr %q", stderr)
+	}
+}
+
+func TestUpdateMigratesMissingLegacyRefs(t *testing.T) {
+	dir := initRepo(t)
+	raw := "---\nid: AWIT-TEST0001\ntitle: Legacy\nbrief: Missing legacy ref.\nstatus: open\ndeps: []\nlabels: []\nrefs:\n  - gone.txt\n---\n\n## Summary\n"
+	writeRepoFile(t, filepath.Join(dir, ".awit", "items", "AWIT-TEST0001.md"), raw)
+	code, _, stderr := run(t, "--repo", dir, "update", "AWIT-TEST0001", "--brief", "Updated summary.")
+	if code != 0 || stderr != "" {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	it := readItem(t, dir, "AWIT-TEST0001")
+	if len(it.Refs) != 1 || it.Refs[0] != ".awit/items/gone.txt" {
 		t.Fatalf("refs = %v", it.Refs)
 	}
 }

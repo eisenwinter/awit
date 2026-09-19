@@ -2,7 +2,9 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"slices"
@@ -20,6 +22,9 @@ var refCmd = &cli.Command{
 			Name:      "add",
 			Usage:     "Add a repo-root-relative file reference",
 			ArgsUsage: "<id> <path>",
+			Flags: []cli.Flag{
+				&cli.BoolFlag{Name: "allow-missing", Usage: "add the reference even when the target does not exist yet"},
+			},
 			Action: func(_ context.Context, cmd *cli.Command) error {
 				if cmd.Args().Len() != 2 {
 					return cli.Exit("ref add needs <id> <path>", 2)
@@ -76,6 +81,19 @@ func refAdd(cmd *cli.Command, id, raw string) error {
 	it, err := loadItem(s, id)
 	if err != nil {
 		return err
+	}
+	abs, err := filepath.Abs(filepath.Join(s.Root, filepath.FromSlash(p)))
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(abs); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			if !cmd.Bool("allow-missing") {
+				return fmt.Errorf("ref target does not exist: %q; use --allow-missing to add it anyway", abs)
+			}
+		} else {
+			return fmt.Errorf("cannot stat ref target %q: %w", abs, err)
+		}
 	}
 	if err := s.NormalizeRefs(it); err != nil {
 		return err
