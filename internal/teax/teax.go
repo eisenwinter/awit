@@ -12,7 +12,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -74,13 +76,15 @@ func diag(op string, stderr []byte, err error) error {
 	return fmt.Errorf("tea %s: %v: %s", op, err, msg)
 }
 
-// splitResponse parses `tea api --include` output: an HTTP status line,
-// header lines, a blank line, then the body. tea exits zero even on HTTP
+// splitInclude parses the --include block tea prints on **stderr**: an HTTP
+// status line, header lines, a blank line. It returns the status code and
+// the remaining stderr (tea diagnostics) with the block removed, so response
+// headers are never forwarded into errors. tea exits zero even on HTTP
 // errors, so the status line is the authoritative success signal.
-func splitResponse(out []byte) (status int, body []byte, err error) {
-	line, rest, _ := bytes.Cut(out, []byte("\n"))
+func splitInclude(stderr []byte) (status int, rest []byte, err error) {
+	line, rem, _ := bytes.Cut(stderr, []byte("\n"))
 	if !bytes.HasPrefix(line, []byte("HTTP/")) {
-		return 0, nil, fmt.Errorf("no HTTP status line in tea output (is this tea with --include support?)")
+		return 0, nil, fmt.Errorf("no HTTP status line in tea stderr (is this tea with --include support?)")
 	}
 	fields := strings.Fields(string(line))
 	if len(fields) < 2 {
@@ -90,31 +94,36 @@ func splitResponse(out []byte) (status int, body []byte, err error) {
 	if err != nil {
 		return 0, nil, fmt.Errorf("malformed HTTP status line %q", strings.TrimSpace(string(line)))
 	}
-	body = rest
-	for len(body) > 0 {
-		l, r, _ := bytes.Cut(body, []byte("\n"))
+	for len(rem) > 0 {
+		l, r, _ := bytes.Cut(rem, []byte("\n"))
 		if len(bytes.TrimSpace(l)) == 0 {
-			body = r
-			return status, body, nil
+			return status, r, nil
 		}
-		body = r
+		rem = r
 	}
 	return status, nil, nil
 }
 
 // api runs `tea api` and returns the HTTP status code and response body.
-// Flags always precede the endpoint.
-func (c *Client) api(ctx context.Context, method, endpoint string) (int, []byte, error) {
-	args := []string{"api", "--login", c.Login, "--repo", c.Repo, "--include", "-X", method, endpoint}
+// Flags always precede the endpoint. tea prints the --include status block
+// on stderr and the bare response body on stdout.
+func (c *Client) api(ctx context.Context, method, endpoint string, extra ...string) (int, []byte, error) {
+	args := []string{"api", "--login", c.Login, "--repo", c.Repo, "--include", "-X", method}
+	args = append(args, extra...)
+	args = append(args, endpoint)
 	out, stderr, err := run(ctx, args...)
+	status, rest, serr := splitInclude(stderr)
 	if err != nil {
-		return 0, nil, diag("api "+method+" "+endpoint, stderr, err)
+		if serr != nil {
+			// No include block at all: forward the raw diagnostics.
+			rest = stderr
+		}
+		return 0, nil, diag("api "+method+" "+endpoint, rest, err)
 	}
-	status, body, err := splitResponse(out)
-	if err != nil {
-		return 0, nil, fmt.Errorf("tea api %s %s: %w", method, endpoint, err)
+	if serr != nil {
+		return 0, nil, fmt.Errorf("tea api %s %s: %w", method, endpoint, serr)
 	}
-	return status, body, nil
+	return status, out, nil
 }
 
 // IssueBase normalizes an issue URL to its installation base:
@@ -274,4 +283,107 @@ func (c *Client) GetIssue(ctx context.Context, number int64) (Issue, error) {
 		iss.Labels = append(iss.Labels, *l.Name)
 	}
 	return iss, nil
+}
+
+// transportFile writes body plus exactly one transport LF to a private
+// temporary file: tea's -F @file reader strips one terminal LF, so the extra
+// LF leaves the original body intact (including empty bodies, zero or more
+// terminal newlines, and CRLF). The file is written temp-then-rename with
+// mode 0600 and closed before tea opens it; cleanup deletes it and must run
+// on every exit path.
+func transportFile(body []byte) (path string, cleanup func(), err error) {
+	dir, err := os.MkdirTemp("", "awit-tea-body-*")
+	if err != nil {
+		return "", nil, err
+	}
+	cleanup = func() { os.RemoveAll(dir) }
+	tmp, err := os.CreateTemp(dir, ".tmp-*") // mode 0600
+	if err != nil {
+		cleanup()
+		return "", nil, err
+	}
+	payload := make([]byte, 0, len(body)+1)
+	payload = append(payload, body...)
+	payload = append(payload, '\n')
+	if _, err := tmp.Write(payload); err != nil {
+		tmp.Close()
+		cleanup()
+		return "", nil, err
+	}
+	if err := tmp.Close(); err != nil {
+		cleanup()
+		return "", nil, err
+	}
+	final := filepath.Join(dir, "body")
+	if err := os.Rename(tmp.Name(), final); err != nil {
+		cleanup()
+		return "", nil, err
+	}
+	return final, cleanup, nil
+}
+
+// SetBody replaces the body of the given repository issue number with
+// exactly the provided bytes. It never touches title, labels, or state.
+// A 2xx status is required (tea exits zero on HTTP errors), the response
+// must confirm the issue number (and installation, when it carries a URL),
+// and the remote body must equal the pushed bytes — verified against the
+// PATCH response, or with a GET of the same issue when the response omits
+// the body. A mismatch is an error, never success.
+func (c *Client) SetBody(ctx context.Context, number int64, body []byte) error {
+	payload, cleanup, err := transportFile(body)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	owner, name, _ := strings.Cut(c.Repo, "/")
+	endpoint := "repos/" + url.PathEscape(owner) + "/" + url.PathEscape(name) + "/issues/" + strconv.FormatInt(number, 10)
+	status, respBody, err := c.api(ctx, "PATCH", endpoint, "-F", "body=@"+payload)
+	if err != nil {
+		return err
+	}
+	if status < 200 || status > 299 {
+		return fmt.Errorf("tea api PATCH %s: HTTP %d", endpoint, status)
+	}
+	return c.verifyBody(ctx, number, body, respBody)
+}
+
+// verifyBody confirms the remote took exactly the pushed bytes. A response
+// without a body field falls back to a GET of the same issue.
+func (c *Client) verifyBody(ctx context.Context, number int64, want, respBody []byte) error {
+	if len(bytes.TrimSpace(respBody)) > 0 {
+		var raw struct {
+			Number  *int64  `json:"number"`
+			Body    *string `json:"body"`
+			HTMLURL string  `json:"html_url"`
+		}
+		if err := json.Unmarshal(respBody, &raw); err != nil {
+			return fmt.Errorf("malformed issue response: %w", err)
+		}
+		if raw.Number == nil || *raw.Number != number {
+			return fmt.Errorf("push verification failed for issue #%d: the response did not confirm the issue number", number)
+		}
+		if raw.HTMLURL != "" {
+			base, err := IssueBase(raw.HTMLURL)
+			if err != nil || base != c.BaseURL {
+				return fmt.Errorf("push verification failed for issue #%d: response URL %q is not on %s", number, raw.HTMLURL, c.BaseURL)
+			}
+		}
+		if raw.Body != nil {
+			if !bytes.Equal([]byte(*raw.Body), want) {
+				return fmt.Errorf("push verification failed for issue #%d: remote body (%d bytes) does not equal the local bytes (%d bytes)", number, len(*raw.Body), len(want))
+			}
+			return nil
+		}
+	}
+	iss, err := c.GetIssue(ctx, number)
+	if err != nil {
+		return fmt.Errorf("push verification failed for issue #%d: %w", number, err)
+	}
+	if iss.Number != number {
+		return fmt.Errorf("push verification failed for issue #%d: GET returned issue #%d", number, iss.Number)
+	}
+	if !bytes.Equal(iss.Body, want) {
+		return fmt.Errorf("push verification failed for issue #%d: remote body (%d bytes) does not equal the local bytes (%d bytes)", number, len(iss.Body), len(want))
+	}
+	return nil
 }

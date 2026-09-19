@@ -9,16 +9,25 @@
 // `user` or `repos_owner_repo_issues_127`. Every invocation appends one
 // JSON array of its argv to TEA_STUB_DIR/argv.log.
 //
+// Like real tea, the --include status block goes to stderr and the bare
+// response body to stdout. A PATCH with `-F body=@<file>` mimics tea's
+// reader (strips exactly one terminal LF), stores the decoded body into
+// <endpoint>.json like Gitea would, and answers with the patched issue.
+//
 // Environment knobs:
 //
-//	TEA_STUB_NO_API=1      behave like a tea too old for the api subcommand
-//	TEA_STUB_API_EXIT=N    force exit code N for api calls (after printing)
-//	TEA_STUB_API_STDERR=s  print s on stderr for api calls
+//	TEA_STUB_NO_API=1           behave like a tea too old for the api subcommand
+//	TEA_STUB_API_EXIT=N         force exit code N for api calls (after printing)
+//	TEA_STUB_API_STDERR=s       print s on stderr for api calls
+//	TEA_STUB_PATCH_NO_STORE=1   acknowledge the PATCH but never store the body
+//	TEA_STUB_PATCH_OMIT_BODY=1  answer the PATCH without the body field
+//	TEA_STUB_PATCH_WRONG_NUMBER=1  answer the PATCH with issue number+1
 package main
 
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -62,12 +71,25 @@ func api(dir string, args []string) {
 			return
 		}
 	}
-	if s := os.Getenv("TEA_STUB_API_STDERR"); s != "" {
-		fmt.Fprintln(os.Stderr, s)
-	}
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "stub: api needs an endpoint")
 		os.Exit(1)
+	}
+	method := "GET"
+	var typedFields []string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "-X":
+			if i+1 < len(args) {
+				method = args[i+1]
+				i++
+			}
+		case "-F":
+			if i+1 < len(args) {
+				typedFields = append(typedFields, args[i+1])
+				i++
+			}
+		}
 	}
 	endpoint := args[len(args)-1]
 	key := strings.ReplaceAll(endpoint, "/", "_")
@@ -75,17 +97,101 @@ func api(dir string, args []string) {
 	if b, err := os.ReadFile(filepath.Join(dir, key+".status")); err == nil {
 		status = strings.TrimSpace(string(b))
 	}
+	if strings.HasPrefix(status, "2") {
+		for _, f := range typedFields {
+			k, v, ok := strings.Cut(f, "=")
+			if !ok || k != "body" || !strings.HasPrefix(v, "@") {
+				continue
+			}
+			data, err := os.ReadFile(v[1:])
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "stub: read %s: %v\n", v, err)
+				os.Exit(1)
+			}
+			// tea's -F key=@file reader strips exactly one terminal LF.
+			applyPatch(dir, key, endpoint, strings.TrimSuffix(string(data), "\n"))
+		}
+	}
 	body := "{}"
 	if b, err := os.ReadFile(filepath.Join(dir, key+".json")); err == nil {
 		body = string(b)
 	}
-	fmt.Printf("HTTP/1.1 %s STUB\nContent-Type: application/json; charset=utf-8\n\n%s", status, body)
+	if method == "PATCH" {
+		if b, err := os.ReadFile(filepath.Join(dir, key+".patch-response")); err == nil {
+			body = string(b)
+		}
+	}
+	fmt.Fprintf(os.Stderr, "HTTP/1.1 %s STUB\nContent-Type: application/json; charset=utf-8\n\n", status)
+	if s := os.Getenv("TEA_STUB_API_STDERR"); s != "" {
+		fmt.Fprintln(os.Stderr, s)
+	}
+	fmt.Print(body)
 	if s := os.Getenv("TEA_STUB_API_EXIT"); s != "" {
 		n, err := strconv.Atoi(s)
 		if err != nil {
 			n = 1
 		}
 		os.Exit(n)
+	}
+}
+
+// applyPatch mimics a Gitea issue PATCH: the decoded body becomes the
+// stored issue body (<key>.json) and the PATCH response
+// (<key>.patch-response), unless a knob says otherwise.
+func applyPatch(dir, key, endpoint, decoded string) {
+	stored := map[string]any{}
+	if b, err := os.ReadFile(filepath.Join(dir, key+".json")); err == nil {
+		if err := json.Unmarshal(b, &stored); err != nil {
+			fmt.Fprintf(os.Stderr, "stub: %s.json: %v\n", key, err)
+			os.Exit(1)
+		}
+	}
+	if _, ok := stored["number"]; !ok {
+		tail := endpoint[strings.LastIndex(endpoint, "/")+1:]
+		n, err := strconv.Atoi(tail)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "stub: no issue number in %q\n", endpoint)
+			os.Exit(1)
+		}
+		stored["number"] = float64(n)
+	}
+	patched := map[string]any{}
+	for k, v := range stored {
+		patched[k] = v
+	}
+	patched["body"] = decoded
+	resp := patched
+	if os.Getenv("TEA_STUB_PATCH_NO_STORE") == "" {
+		stored = patched
+	} else {
+		// The server acknowledges but keeps the old body.
+		resp = stored
+	}
+	if os.Getenv("TEA_STUB_PATCH_WRONG_NUMBER") == "1" {
+		resp = maps.Clone(resp)
+		resp["number"] = stored["number"].(float64) + 1
+	}
+	if os.Getenv("TEA_STUB_PATCH_OMIT_BODY") == "1" {
+		resp = maps.Clone(resp)
+		delete(resp, "body")
+	}
+	b, err := json.Marshal(resp)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "stub: marshal patch response: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dir, key+".patch-response"), b, 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "stub: %v\n", err)
+		os.Exit(1)
+	}
+	b, err = json.Marshal(stored)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "stub: marshal stored: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dir, key+".json"), b, 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "stub: %v\n", err)
+		os.Exit(1)
 	}
 }
 

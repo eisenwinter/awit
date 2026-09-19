@@ -141,6 +141,7 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *cli.Command {
 			refCmd,
 			commentCmd,
 			labelCmd,
+			externalCmd,
 		},
 	}
 }
