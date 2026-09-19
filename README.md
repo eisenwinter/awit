@@ -41,7 +41,7 @@ a quick action instead of storing it).
 | --- | --- | --- |
 | `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
 | `awit create <title>` | `--brief`, `-d` deps, `-l` labels, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Mint a snowflake ID, write a lean item; optional Gitea or GitLab mapping; optional `config.template` body |
-| `awit import <issue-url>` | `--brief`, `--alias`, `--tea-login` | One-time snapshot of an existing Gitea issue via `tea`: keeps the issue number, exact body, labels and open/closed state; refuses duplicates |
+| `awit import <issue-url>` | `--brief`, `--alias`, `--tea-login` | One-time snapshot of an existing Gitea (`tea`) or GitLab (`glab`) issue: keeps number/iid, exact body, labels and open/closed state; refuses tracker-aware duplicates. `--tea-login` is Gitea-only and ignored for GitLab |
 | `awit external check [key]` | `--tea-login` | Read-only byte-exact body comparison for linked items; `MATCH`/`DRIFT`/`ERROR` rows plus totals; exit 1 on any drift or error |
 | `awit external push-body <key>` | `--tea-login` | Explicit repair: push local body bytes to the linked Gitea issue through `tea`; refuses ambiguous links; verifies the remote took the exact bytes |
 | `awit list [key]` | `-s` status, `-l` label, `--ready`, `--blocked`, `--quarantined`, `--format` | Index view; `[key]` selects exactly one item |
@@ -150,8 +150,18 @@ Wherever a command takes an item — `show`, `list`, `next`, `update`,
 `close`, `release`, `comment`, `dep`, `ref`, `external check`,
 `external push-body` — the argument may be the
 canonical ID (`AWIT-XXXXXXXX`, exact, always wins), a case-insensitive
-`alias`, or an external key `owner/repo#127` / `#127` (bare numbers must be
-unique). Ambiguous keys are refused with the matching canonical IDs.
+`alias`, or an external key `owner/repo#127` / `group/sub/project#127` /
+`#127` (bare numbers must be unique). Ambiguous keys — including the same
+repo and number on two trackers or hosts — are refused with the matching
+canonical IDs.
+
+GitLab issue and work_items URLs import the same way; the stored URL is
+the input spelling, and `group/sub/project#127` looks up a subgroup project:
+
+```sh
+awit import https://forge.example/group/sub/project/-/work_items/127 \
+  --brief "Imported GitLab issue." --alias GL-IMPORT
+```
 
 ## Contributing
 

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/eisenwinter/awit/internal/glabx"
 	"github.com/eisenwinter/awit/internal/teax"
 	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
@@ -227,22 +228,17 @@ func externalPushBodyAction(ctx context.Context, cmd *cli.Command) error {
 }
 
 // duplicateExternalLinks returns the canonical IDs of every parseable item
-// carrying the same installation base, repo, and issue number, sorted.
+// carrying the same tracker, installation base, repo, and issue number, sorted.
 func duplicateExternalLinks(items []*item.Item, want item.External) []string {
-	base, err := teax.IssueBase(want.URL)
+	base, err := externalBase(want)
 	if err != nil {
 		return []string{}
 	}
 	var out []string
 	for _, it := range items {
-		if it.External == nil || it.External.Repo != want.Repo || it.External.ID != want.ID {
-			continue
+		if sameImportIdentity(base, want, it.External) {
+			out = append(out, it.ID)
 		}
-		hb, err := teax.IssueBase(it.External.URL)
-		if err != nil || hb != base {
-			continue
-		}
-		out = append(out, it.ID)
 	}
 	sort.Strings(out)
 	return out
@@ -257,4 +253,60 @@ func joinIDs(ids []string) string {
 		out += id
 	}
 	return out
+}
+
+// externalIssue is the CLI-owned snapshot of a remote issue. It is not a
+// public provider or transport abstraction.
+type externalIssue struct {
+	Number int64
+	Title  string
+	Body   []byte
+	Labels []string
+	State  string
+	URL    string
+}
+
+// externalBase dispatches to teax.IssueBase for Gitea and glabx.IssueBase
+// for GitLab. Gitea base semantics are preserved exactly.
+func externalBase(ext item.External) (string, error) {
+	switch ext.Tracker {
+	case "gitea":
+		return teax.IssueBase(ext.URL)
+	case "gitlab":
+		return glabx.IssueBase(ext)
+	default:
+		return "", fmt.Errorf("invalid external: tracker must be gitea or gitlab")
+	}
+}
+
+// getExternalIssue opens the matching concrete client, fetches once, and
+// converts the same-shaped Issue into externalIssue. Conversion copies
+// slice headers, not body buffers. --tea-login is Gitea-only and is never
+// passed to glab. There is no transport abstraction or persistent client
+// cache.
+func getExternalIssue(ctx context.Context, ext item.External, teaLogin string) (externalIssue, error) {
+	switch ext.Tracker {
+	case "gitea":
+		client, err := teax.Open(ctx, ext, teaLogin)
+		if err != nil {
+			return externalIssue{}, err
+		}
+		iss, err := client.GetIssue(ctx, ext.ID)
+		if err != nil {
+			return externalIssue{}, err
+		}
+		return externalIssue{Number: iss.Number, Title: iss.Title, Body: iss.Body, Labels: iss.Labels, State: iss.State, URL: iss.URL}, nil
+	case "gitlab":
+		client, err := glabx.Open(ctx, ext)
+		if err != nil {
+			return externalIssue{}, err
+		}
+		iss, err := client.GetIssue(ctx, ext.ID)
+		if err != nil {
+			return externalIssue{}, err
+		}
+		return externalIssue{Number: iss.Number, Title: iss.Title, Body: iss.Body, Labels: iss.Labels, State: iss.State, URL: iss.URL}, nil
+	default:
+		return externalIssue{}, fmt.Errorf("unsupported tracker %q", ext.Tracker)
+	}
 }

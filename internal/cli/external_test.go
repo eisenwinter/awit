@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/eisenwinter/awit/internal/teax/teaxtest"
+	"github.com/eisenwinter/awit/pkg/item"
 )
 
 // writeExternalItem writes an item file with exact body bytes; extYAML is
@@ -316,5 +317,60 @@ func TestExternalPushBodyUsageError(t *testing.T) {
 	code, _, _ := run(t, "--repo", repo, "external", "push-body")
 	if code != 2 {
 		t.Fatalf("exit %d, want 2", code)
+	}
+}
+
+func TestExternalDuplicateTrackerIdentity(t *testing.T) {
+	glIssues := item.External{Tracker: "gitlab", Repo: "group/project", ID: 127,
+		URL: "https://forge.example/group/project/-/issues/127"}
+	glWork := item.External{Tracker: "gitlab", Repo: "group/project", ID: 127,
+		URL: "https://forge.example/group/project/-/work_items/127"}
+	gitea := item.External{Tracker: "gitea", Repo: "group/project", ID: 127,
+		URL: "https://forge.example/group/project/issues/127"}
+	glHost := item.External{Tracker: "gitlab", Repo: "group/project", ID: 127,
+		URL: "https://other.example/group/project/-/issues/127"}
+	glPrefix := item.External{Tracker: "gitlab", Repo: "group/project", ID: 127,
+		URL: "https://forge.example/gitlab/group/project/-/issues/127"}
+	glIID := item.External{Tracker: "gitlab", Repo: "group/project", ID: 128,
+		URL: "https://forge.example/group/project/-/issues/128"}
+	glRepo := item.External{Tracker: "gitlab", Repo: "other/project", ID: 127,
+		URL: "https://forge.example/other/project/-/issues/127"}
+	items := []*item.Item{
+		{ID: "AWIT-TEST0001", External: &glIssues},
+		{ID: "AWIT-TEST0002", External: &glWork},
+		{ID: "AWIT-TEST0003", External: &gitea},
+		{ID: "AWIT-TEST0004", External: &glHost},
+		{ID: "AWIT-TEST0005", External: &glPrefix},
+		{ID: "AWIT-TEST0006", External: &glIID},
+		{ID: "AWIT-TEST0007", External: &glRepo},
+		{ID: "AWIT-TEST0008"},
+	}
+	got := duplicateExternalLinks(items, glIssues)
+	if strings.Join(got, ",") != "AWIT-TEST0001,AWIT-TEST0002" {
+		t.Fatalf("gitlab issues identity = %v, want TEST0001 and TEST0002 (work_items spelling)", got)
+	}
+	got = duplicateExternalLinks(items, glWork)
+	if strings.Join(got, ",") != "AWIT-TEST0001,AWIT-TEST0002" {
+		t.Fatalf("gitlab work_items identity = %v", got)
+	}
+	got = duplicateExternalLinks(items, gitea)
+	if strings.Join(got, ",") != "AWIT-TEST0003" {
+		t.Fatalf("gitea identity = %v, want only TEST0003 (same host/repo/number, different tracker)", got)
+	}
+	got = duplicateExternalLinks(items, glHost)
+	if strings.Join(got, ",") != "AWIT-TEST0004" {
+		t.Fatalf("other host = %v, want only TEST0004", got)
+	}
+	got = duplicateExternalLinks(items, glPrefix)
+	if strings.Join(got, ",") != "AWIT-TEST0005" {
+		t.Fatalf("other prefix = %v, want only TEST0005", got)
+	}
+	got = duplicateExternalLinks(items, glIID)
+	if strings.Join(got, ",") != "AWIT-TEST0006" {
+		t.Fatalf("other iid = %v, want only TEST0006", got)
+	}
+	got = duplicateExternalLinks(items, glRepo)
+	if strings.Join(got, ",") != "AWIT-TEST0007" {
+		t.Fatalf("other repo = %v, want only TEST0007", got)
 	}
 }

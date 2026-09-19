@@ -130,10 +130,13 @@ Every command that takes an item argument (`show`, `list`, `next`,
 `update`, `close`, `release`, `comment`, `dep`, `ref`, `external check`,
 `external push-body`) accepts, in precedence order: the canonical ID
 (exact, case-sensitive, always wins), an alias (case-insensitive), or an
-external key `owner/repo#<n>` or bare `#<n>` matched against valid
-`external:` metadata (the bare form must be unique). Ambiguity is an error
-listing the matching canonical IDs; unknown keys error as `unknown item <key>`
-and never become filesystem paths.
+external key `owner/repo#<n>` (GitLab subgroups: `group/sub/project#127`)
+or bare `#<n>` matched against valid `external:` metadata (the bare form
+must be unique). Ambiguity — including the same repo and number on two
+trackers or hosts — is an error listing the matching canonical IDs;
+unknown keys error as `unknown item <key>` and never become filesystem
+paths. There is no new lookup syntax and no tracker prefix on the key;
+aliases and canonical IDs disambiguate.
 
 ### Optional key: `external`
 
@@ -178,8 +181,7 @@ import every GitLab work-item type.
 
 Local statuses remain `open|in_progress|closed`. GitLab wire `opened` maps to
 local `open` and wire `closed` to `closed`; that conversion is remote
-integration, not YAML parsing. Import and remote writes for GitLab are not
-part of this schema change.
+integration, not YAML parsing.
 
 GitLab transport and auth (wrapper contract, `internal/glabx`, qualified
 against glab 1.118.0): glab is pre-authenticated by the operator — awit
@@ -214,14 +216,20 @@ display only a valid link (`gitea owner/repo#127` or
 `gitlab group/sub/project#127`).
 
 `awit import <issue-url> --brief <summary> [--alias X] [--tea-login name]`
-creates an item from an existing Gitea issue through the `tea` CLI: the
-item is a one-time snapshot with the issue number as `external.id`, the
-decoded body byte-exact, the remote labels first-seen deduplicated (local
-default labels are not merged), and `open`/`closed` mapped to the same
-local status (other states are refused). Import never writes remote state
-and never commits. Re-importing the same installation base + repo + issue
-number — whether the earlier import is active or archived — is refused
-with the existing item or archive path named.
+creates an item from an existing Gitea issue through `tea` or GitLab issue
+through `glab`. GitLab is recognized only by the `/-/issues/` or
+`/-/work_items/` URL shape — never by host — and both spellings of the
+same issue are one identity. The item is a one-time snapshot: Gitea
+`number` or GitLab `iid` as `external.id`, the decoded body/description
+byte-exact, remote labels first-seen exact-name deduplicated (local
+default labels are not merged), and `open`/`closed` (GitLab wire
+`opened`→`open`) mapped to the same local status (other states are
+refused). The stored URL is the validated input URL. `--tea-login` is
+Gitea-only and ignored for GitLab. Import never writes remote state and
+never commits. Duplicate identity is `(tracker, normalized installation
+base, exact repo, iid)` across active items and archived item files;
+Gitea and GitLab with the same host/repo/number do not collide. Re-import
+is refused with the existing item or archive path named.
 
 `awit external check [key] [--tea-login name]` compares the raw local
 body bytes (`Item.Body()`: every byte after the frontmatter closing

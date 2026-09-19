@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eisenwinter/awit/internal/glabx/glabxtest"
 	"github.com/eisenwinter/awit/internal/teax/teaxtest"
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/item"
@@ -686,5 +687,501 @@ func assertNoItems(t *testing.T, repo string) {
 		if strings.HasSuffix(e.Name(), ".md") {
 			t.Fatalf("refused import left item file %s", e.Name())
 		}
+	}
+}
+
+// --- GitLab import ---
+
+const gitlabFaithfulIssue = `{"id":987654,"iid":127,"title":"Imported issue","description":"Intro\r\nlast  ","labels":["area::api","comma,label","area::api"],"state":"opened","web_url":"https://forge.example/group/sub/project/-/work_items/127"}`
+
+const gitlabSubProject = "group/sub/project"
+const gitlabSubIssueKey = "projects_group%2Fsub%2Fproject_issues_127"
+const gitlabWorkItemsURL = "https://forge.example/group/sub/project/-/work_items/127"
+const gitlabIssuesURL = "https://forge.example/group/sub/project/-/issues/127"
+
+func importGitLabRepo(t *testing.T) (repo, stubDir string) {
+	t.Helper()
+	repo = initRepo(t)
+	stubDir = glabxtest.Install(t)
+	writeGitLabUser(t, stubDir)
+	return repo, stubDir
+}
+
+func writeGitLabUser(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, "user.json"), []byte(`{"id":42,"username":"tester"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeGitLabIssue(t *testing.T, dir, key, bodyJSON string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, key+".json"), []byte(bodyJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func gitlabIssueJSON(title, description, state, webURL string, labels string) string {
+	return `{"id":987654,"iid":127,"title":` + quote(title) + `,"description":` + description + `,"labels":` + labels + `,"state":` + quote(state) + `,"web_url":` + quote(webURL) + `}`
+}
+
+func countGlabPUTs(t *testing.T, dir string) int {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(dir, "argv.log"))
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		if line == "" {
+			continue
+		}
+		var args []string
+		if err := json.Unmarshal([]byte(line), &args); err != nil {
+			t.Fatalf("argv.log line %q: %v", line, err)
+		}
+		joined := strings.Join(args, " ")
+		if len(args) > 0 && args[0] == "api" && strings.Contains(joined, "--method PUT") {
+			n++
+		}
+	}
+	return n
+}
+
+func gitlabExtYAML(repo string, n int, url string) string {
+	return fmt.Sprintf(`external:
+  tracker: gitlab
+  repo: %s
+  id: %d
+  url: %s
+`, repo, n, url)
+}
+
+func TestImportGitLabFaithful(t *testing.T) {
+	repo, stub := importGitLabRepo(t)
+	writeDefaultLabels(t, repo, []byte("prefix: AWIT\ndefault_labels: [phase1, p0]\nstale_claim: 2h\n"))
+	writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabFaithfulIssue)
+	code, stdout, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL,
+		"--brief", "Imported GitLab issue.", "--alias", "GL-IMPORT", "--tea-login", "sandbox")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	id := itemIDFromCompact(t, stdout)
+	it := readItem(t, repo, id)
+	if it.Title != "Imported issue" || it.Brief != "Imported GitLab issue." || it.Status != item.StatusOpen {
+		t.Fatalf("item = %+v", it)
+	}
+	if it.External == nil || it.External.Tracker != "gitlab" || it.External.Repo != gitlabSubProject ||
+		it.External.ID != 127 || it.External.URL != gitlabWorkItemsURL {
+		t.Fatalf("External = %+v", it.External)
+	}
+	if got := strings.Join(it.Labels, ","); got != "area::api,comma,label" {
+		t.Fatalf("labels = %q, want first-seen exact names without config defaults", got)
+	}
+	if it.Alias != "GL-IMPORT" {
+		t.Fatalf("Alias = %q", it.Alias)
+	}
+	if string(it.Body()) != "Intro\r\nlast  " {
+		t.Fatalf("body = %q, want the exact decoded description", it.Body())
+	}
+	if it.Assignee != "" || it.ClaimedAt != nil {
+		t.Fatalf("import must not infer a claim: assignee=%q claimed=%v", it.Assignee, it.ClaimedAt)
+	}
+	raw, err := os.ReadFile(it.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "987654") {
+		t.Fatalf("global id leaked into the item file:\n%s", raw)
+	}
+	if n := countGlabPUTs(t, stub); n != 0 {
+		t.Fatalf("import performed %d remote PUT(s)", n)
+	}
+}
+
+func TestImportGitLabClosedAndNull(t *testing.T) {
+	t.Run("closed", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabIssueJSON("Done", `"b"`, "closed", gitlabIssuesURL, `[]`))
+		code, stdout, stderr := run(t, "--repo", repo, "import", gitlabIssuesURL, "--brief", "Imported GitLab issue.")
+		if code != 0 {
+			t.Fatalf("exit %d stderr %q", code, stderr)
+		}
+		it := readItem(t, repo, itemIDFromCompact(t, stdout))
+		if it.Status != item.StatusClosed {
+			t.Fatalf("status = %q, want closed", it.Status)
+		}
+		if !strings.HasPrefix(stdout, "["+it.ID+"] closed ") {
+			t.Fatalf("stdout = %q, want closed status in the compact line", stdout)
+		}
+		if n := countGlabPUTs(t, stub); n != 0 {
+			t.Fatalf("import performed %d remote PUT(s)", n)
+		}
+	})
+	t.Run("null description", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabIssueJSON("T", `null`, "opened", gitlabWorkItemsURL, `[]`))
+		code, stdout, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL, "--brief", "Imported GitLab issue.")
+		if code != 0 {
+			t.Fatalf("exit %d stderr %q", code, stderr)
+		}
+		it := readItem(t, repo, itemIDFromCompact(t, stdout))
+		if len(it.Body()) != 0 {
+			t.Fatalf("null description must map to empty, got %q", it.Body())
+		}
+	})
+}
+
+func TestImportGitLabURLs(t *testing.T) {
+	t.Run("issues shape stores input URL", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabIssueJSON("Imported issue", `"body"`, "opened", gitlabWorkItemsURL, `[]`))
+		code, stdout, stderr := run(t, "--repo", repo, "import", gitlabIssuesURL, "--brief", "Imported GitLab issue.")
+		if code != 0 {
+			t.Fatalf("exit %d stderr %q", code, stderr)
+		}
+		it := readItem(t, repo, itemIDFromCompact(t, stdout))
+		if it.External == nil || it.External.URL != gitlabIssuesURL || it.External.ID != 127 {
+			t.Fatalf("External = %+v, want input issues URL preserved", it.External)
+		}
+	})
+	t.Run("work_items shape", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabFaithfulIssue)
+		code, stdout, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL, "--brief", "Imported GitLab issue.")
+		if code != 0 {
+			t.Fatalf("exit %d stderr %q", code, stderr)
+		}
+		it := readItem(t, repo, itemIDFromCompact(t, stdout))
+		if it.External == nil || it.External.URL != gitlabWorkItemsURL {
+			t.Fatalf("External = %+v", it.External)
+		}
+	})
+	t.Run("installation prefix", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		if err := os.WriteFile(filepath.Join(stub, "config-subfolder"), []byte("apps/gitlab"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		prefixed := "https://example.com/apps/gitlab/group/sub/project/-/issues/127"
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabIssueJSON("T", `"b"`, "opened", prefixed, `[]`))
+		code, stdout, stderr := run(t, "--repo", repo, "import", prefixed, "--brief", "Imported GitLab issue.")
+		if code != 0 {
+			t.Fatalf("exit %d stderr %q", code, stderr)
+		}
+		it := readItem(t, repo, itemIDFromCompact(t, stdout))
+		if it.External == nil || it.External.Repo != gitlabSubProject || it.External.URL != prefixed {
+			t.Fatalf("External = %+v", it.External)
+		}
+	})
+	t.Run("rejects merge requests", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabFaithfulIssue)
+		code, _, stderr := run(t, "--repo", repo, "import",
+			"https://forge.example/group/sub/project/-/merge_requests/127", "--brief", "Imported GitLab issue.")
+		if code != 2 {
+			t.Fatalf("exit %d, want 2 (stderr %q)", code, stderr)
+		}
+		assertNoItems(t, repo)
+	})
+	t.Run("rejects other slash-dash resources", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabFaithfulIssue)
+		code, _, stderr := run(t, "--repo", repo, "import",
+			"https://forge.example/group/sub/project/-/snippets/127", "--brief", "Imported GitLab issue.")
+		if code != 2 {
+			t.Fatalf("exit %d, want 2 (stderr %q)", code, stderr)
+		}
+		assertNoItems(t, repo)
+	})
+	t.Run("does not detect GitLab from host alone", func(t *testing.T) {
+		repo := initRepo(t)
+		glabxtest.Install(t)
+		teaxtest.HideTea(t)
+		code, _, stderr := run(t, "--repo", repo, "import",
+			"https://gitlab.com/owner/repo/issues/127", "--brief", "Imported GitLab issue.")
+		if code != 1 {
+			t.Fatalf("exit %d, want 1 (stderr %q)", code, stderr)
+		}
+		if !strings.Contains(stderr, "install tea") {
+			t.Fatalf("stderr = %q, want Gitea tea path, not GitLab detection from gitlab.com", stderr)
+		}
+		if strings.Contains(stderr, "glab") {
+			t.Fatalf("stderr = %q, gitlab.com without /-/ must not take the GitLab path", stderr)
+		}
+		assertNoItems(t, repo)
+	})
+	t.Run("missing glab", func(t *testing.T) {
+		repo := initRepo(t)
+		glabxtest.HideGlab(t)
+		code, _, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL, "--brief", "Imported GitLab issue.")
+		if code != 1 {
+			t.Fatalf("exit %d, want 1 (stderr %q)", code, stderr)
+		}
+		if !strings.Contains(stderr, "install glab") {
+			t.Fatalf("stderr = %q, want install glab hint", stderr)
+		}
+		assertNoItems(t, repo)
+	})
+	t.Run("invalid auth", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		if err := os.WriteFile(filepath.Join(stub, "user.json"), []byte(`{"id":0}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabFaithfulIssue)
+		code, _, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL, "--brief", "Imported GitLab issue.")
+		if code != 1 {
+			t.Fatalf("exit %d, want 1 (stderr %q)", code, stderr)
+		}
+		if !strings.Contains(stderr, "auth") && !strings.Contains(stderr, "glab auth") {
+			t.Fatalf("stderr = %q, want auth failure", stderr)
+		}
+		assertNoItems(t, repo)
+	})
+	t.Run("malformed schema", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, `{"iid":127}`)
+		code, _, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL, "--brief", "Imported GitLab issue.")
+		if code != 1 {
+			t.Fatalf("exit %d, want 1 (stderr %q)", code, stderr)
+		}
+		assertNoItems(t, repo)
+	})
+	t.Run("identity mismatch", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabIssueJSON("T", `"b"`, "opened",
+			"https://forge.example/other/project/-/issues/127", `[]`))
+		code, _, stderr := run(t, "--repo", repo, "import", gitlabIssuesURL, "--brief", "Imported GitLab issue.")
+		if code != 1 {
+			t.Fatalf("exit %d, want 1 (stderr %q)", code, stderr)
+		}
+		assertNoItems(t, repo)
+	})
+	t.Run("conflict markers refused", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		body := "before\n<<<<<<< line\nmiddle\n=======\nother\n>>>>>>> line\nafter\n"
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabIssueJSON("T", quote(body), "opened", gitlabWorkItemsURL, `[]`))
+		code, _, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL, "--brief", "Imported GitLab issue.")
+		if code != 1 {
+			t.Fatalf("exit %d, want 1 (stderr %q)", code, stderr)
+		}
+		if !strings.Contains(stderr, "conflict") || !strings.Contains(stderr, "reconcil") {
+			t.Fatalf("stderr = %q, want conflict-marker refusal with reconcile hint", stderr)
+		}
+		assertNoItems(t, repo)
+	})
+	t.Run("missing brief on repeated Main", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabFaithfulIssue)
+		code, _, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL, "--brief", "Imported GitLab issue.")
+		if code != 0 {
+			t.Fatalf("first import: exit %d stderr %q", code, stderr)
+		}
+		code, _, stderr = run(t, "--repo", repo, "import", gitlabWorkItemsURL)
+		if code != 2 {
+			t.Fatalf("second Main without brief: exit %d, want 2 (stderr %q)", code, stderr)
+		}
+	})
+}
+
+func TestImportGitLabDuplicateIdentity(t *testing.T) {
+	t.Run("active same link", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabFaithfulIssue)
+		code, stdout, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL, "--brief", "Imported GitLab issue.")
+		if code != 0 {
+			t.Fatalf("first import: exit %d stderr %q", code, stderr)
+		}
+		first := readItem(t, repo, itemIDFromCompact(t, stdout))
+		before, err := os.ReadFile(first.Path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		code, _, stderr = run(t, "--repo", repo, "import", gitlabIssuesURL, "--brief", "Duplicate must refuse.")
+		if code != 1 {
+			t.Fatalf("second import: exit %d, want 1 (stderr %q)", code, stderr)
+		}
+		if !strings.Contains(stderr, first.ID) {
+			t.Fatalf("stderr = %q, want the existing item id %s", stderr, first.ID)
+		}
+		after, err := os.ReadFile(first.Path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(before) != string(after) {
+			t.Fatal("duplicate import modified the existing item")
+		}
+		ents, err := os.ReadDir(filepath.Join(repo, ".awit", "items"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(ents) != 1 {
+			t.Fatalf("duplicate import created files: %d entries", len(ents))
+		}
+		if n := countGlabPUTs(t, stub); n != 0 {
+			t.Fatalf("import performed %d remote PUT(s)", n)
+		}
+	})
+	t.Run("archived same link", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabFaithfulIssue)
+		archDir := filepath.Join(repo, ".awit", "archive")
+		if err := os.MkdirAll(archDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		archPath := filepath.Join(archDir, "AWIT-TEST0009.md")
+		writeItemFile(t, archPath, "AWIT-TEST0009", gitlabExtYAML(gitlabSubProject, 127, gitlabIssuesURL))
+		code, _, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL, "--brief", "Imported GitLab issue.")
+		if code != 1 {
+			t.Fatalf("exit %d, want 1 (stderr %q)", code, stderr)
+		}
+		if !strings.Contains(stderr, "AWIT-TEST0009") {
+			t.Fatalf("stderr = %q, want the archive path naming AWIT-TEST0009", stderr)
+		}
+		assertNoItems(t, repo)
+	})
+	t.Run("same number other tracker succeeds", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		const glURL = "https://forge.example/group/project/-/issues/127"
+		writeGitLabIssue(t, stub, "projects_group%2Fproject_issues_127", gitlabIssueJSON("Imported issue", `"b"`, "opened", glURL, `[]`))
+		writeItemFile(t, filepath.Join(repo, ".awit", "items", "AWIT-TEST0001.md"), "AWIT-TEST0001",
+			`external:
+  tracker: gitea
+  repo: group/project
+  id: 127
+  url: https://forge.example/group/project/issues/127
+`)
+		code, stdout, stderr := run(t, "--repo", repo, "import", glURL, "--brief", "Imported GitLab issue.")
+		if code != 0 {
+			t.Fatalf("exit %d stderr %q", code, stderr)
+		}
+		it := readItem(t, repo, itemIDFromCompact(t, stdout))
+		if it.External == nil || it.External.Tracker != "gitlab" || it.ID == "AWIT-TEST0001" {
+			t.Fatalf("want a new GitLab import beside the Gitea item, got %+v", it)
+		}
+		if got := readItem(t, repo, "AWIT-TEST0001"); got.External == nil || got.External.Tracker != "gitea" {
+			t.Fatalf("gitea item mutated: %+v", got.External)
+		}
+	})
+	t.Run("same number other host succeeds", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabFaithfulIssue)
+		writeItemFile(t, filepath.Join(repo, ".awit", "items", "AWIT-TEST0001.md"), "AWIT-TEST0001",
+			gitlabExtYAML(gitlabSubProject, 127, "https://other.example/group/sub/project/-/issues/127"))
+		code, stdout, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL, "--brief", "Imported GitLab issue.")
+		if code != 0 {
+			t.Fatalf("exit %d stderr %q", code, stderr)
+		}
+		it := readItem(t, repo, itemIDFromCompact(t, stdout))
+		if it.ID == "AWIT-TEST0001" || it.External == nil || it.External.URL != gitlabWorkItemsURL {
+			t.Fatalf("want a distinct host import, got %+v", it)
+		}
+	})
+	t.Run("same number other prefix succeeds", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabFaithfulIssue)
+		writeItemFile(t, filepath.Join(repo, ".awit", "items", "AWIT-TEST0001.md"), "AWIT-TEST0001",
+			gitlabExtYAML(gitlabSubProject, 127, "https://forge.example/gitlab/group/sub/project/-/issues/127"))
+		code, stdout, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL, "--brief", "Imported GitLab issue.")
+		if code != 0 {
+			t.Fatalf("exit %d stderr %q", code, stderr)
+		}
+		it := readItem(t, repo, itemIDFromCompact(t, stdout))
+		if it.ID == "AWIT-TEST0001" {
+			t.Fatal("prefixed GitLab link must not collide with a root install")
+		}
+	})
+	t.Run("uninspectable archive refuses", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabFaithfulIssue)
+		archDir := filepath.Join(repo, ".awit", "archive")
+		if err := os.MkdirAll(archDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		badPath := filepath.Join(archDir, "AWIT-TEST0008.md")
+		if err := os.WriteFile(badPath, []byte("---\ntitle: [unclosed\n---\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		code, _, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL, "--brief", "Imported GitLab issue.")
+		if code != 1 {
+			t.Fatalf("exit %d, want 1 (stderr %q)", code, stderr)
+		}
+		if !strings.Contains(stderr, "AWIT-TEST0008") {
+			t.Fatalf("stderr = %q, want the uninspectable path named", stderr)
+		}
+		assertNoItems(t, repo)
+	})
+	t.Run("invalid external metadata refuses uniqueness", func(t *testing.T) {
+		repo, stub := importGitLabRepo(t)
+		writeGitLabIssue(t, stub, gitlabSubIssueKey, gitlabFaithfulIssue)
+		writeItemFile(t, filepath.Join(repo, ".awit", "items", "AWIT-TEST0001.md"), "AWIT-TEST0001",
+			`external:
+  tracker: gitlab
+  repo: group/sub/project
+  id: 127
+  url: not-a-url
+`)
+		before, err := os.ReadFile(filepath.Join(repo, ".awit", "items", "AWIT-TEST0001.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		code, _, stderr := run(t, "--repo", repo, "import", gitlabWorkItemsURL, "--brief", "Imported GitLab issue.")
+		if code != 1 {
+			t.Fatalf("exit %d, want 1 (stderr %q)", code, stderr)
+		}
+		if !strings.Contains(stderr, "AWIT-TEST0001") {
+			t.Fatalf("stderr = %q, want the uninspectable item named", stderr)
+		}
+		after, err := os.ReadFile(filepath.Join(repo, ".awit", "items", "AWIT-TEST0001.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(before) != string(after) {
+			t.Fatal("refused import modified the uninspectable item")
+		}
+		ents, err := os.ReadDir(filepath.Join(repo, ".awit", "items"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(ents) != 1 {
+			t.Fatalf("refused import created files: %d entries", len(ents))
+		}
+	})
+}
+
+func TestExternalLookupGitLab(t *testing.T) {
+	dir := initRepo(t)
+	writeItemFile(t, filepath.Join(dir, ".awit", "items", "AWIT-TEST0001.md"), "AWIT-TEST0001",
+		gitlabExtYAML(gitlabSubProject, 127, gitlabWorkItemsURL)+"alias: GL-IMPORT\n")
+	writeItemFile(t, filepath.Join(dir, ".awit", "items", "AWIT-TEST0002.md"), "AWIT-TEST0002",
+		`external:
+  tracker: gitea
+  repo: owner/repo
+  id: 127
+  url: https://forge.example/owner/repo/issues/127
+`)
+	code, stdout, stderr := run(t, "--repo", dir, "show", "group/sub/project#127")
+	if code != 0 || !strings.Contains(stdout, "[AWIT-TEST0001]") {
+		t.Fatalf("subgroup lookup: exit %d stdout %q stderr %q", code, stdout, stderr)
+	}
+	code, stdout, stderr = run(t, "--repo", dir, "show", "GL-IMPORT")
+	if code != 0 || !strings.Contains(stdout, "[AWIT-TEST0001]") {
+		t.Fatalf("alias lookup: exit %d stdout %q stderr %q", code, stdout, stderr)
+	}
+	code, stdout, stderr = run(t, "--repo", dir, "show", "AWIT-TEST0001")
+	if code != 0 || !strings.Contains(stdout, "[AWIT-TEST0001]") {
+		t.Fatalf("canonical lookup: exit %d stdout %q stderr %q", code, stdout, stderr)
+	}
+	code, _, stderr = run(t, "--repo", dir, "show", "#127")
+	if code != 1 {
+		t.Fatalf("bare #127: exit %d, want 1 (stderr %q)", code, stderr)
+	}
+	i1 := strings.Index(stderr, "AWIT-TEST0001")
+	i2 := strings.Index(stderr, "AWIT-TEST0002")
+	if i1 < 0 || i2 < 0 || i1 > i2 {
+		t.Fatalf("stderr = %q, want both canonical ids sorted", stderr)
+	}
+	code, stdout, stderr = run(t, "--repo", dir, "show", "owner/repo#127")
+	if code != 0 || !strings.Contains(stdout, "[AWIT-TEST0002]") {
+		t.Fatalf("gitea qualified lookup: exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
 }

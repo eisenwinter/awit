@@ -589,11 +589,32 @@ func toEntry(n *graph.Node) format.Entry
 
 // resolveItemID maps a user-supplied key to a canonical item ID: exact
 // canonical ID first, then alias (case-insensitive), then external key
-// owner/repo#<n> or unique bare #<n>. Ambiguity lists sorted canonical IDs;
-// unknown keys error as "unknown item <key>". Store.Load stays
+// owner/repo#<n> (GitLab subgroups: group/sub/project#127) or unique
+// bare #<n>. Ambiguity across trackers or hosts lists sorted canonical
+// IDs; unknown keys error as "unknown item <key>". Store.Load stays
 // canonical-ID-only; every show/list/next/mutation/dep call site resolves
 // through this helper, under the mutation lock for writers.
 func resolveItemID(items []*item.Item, key string) (string, error)
+func parseIssueURL(ctx context.Context, raw string) (item.External, error)
+func refuseDuplicateImport(s *item.Store, ext item.External) error
+func sameImportIdentity(base string, want item.External, have *item.External) bool
+func duplicateExternalLinks(items []*item.Item, want item.External) []string
+// CLI-owned snapshot, not a public provider/transport abstraction.
+type externalIssue struct {
+    Number int64
+    Title  string
+    Body   []byte
+    Labels []string
+    State  string
+    URL    string
+}
+// externalBase dispatches to teax.IssueBase(ext.URL) for Gitea and
+// glabx.IssueBase(ext) for GitLab. Gitea base semantics are preserved.
+func externalBase(ext item.External) (string, error)
+// getExternalIssue opens the matching concrete client, fetches once, and
+// converts its same-shaped Issue into externalIssue (slice-header copy,
+// not body buffers). --tea-login is Gitea-only and is never passed to glab.
+func getExternalIssue(ctx context.Context, ext item.External, teaLogin string) (externalIssue, error)
 // ExternalCheckRow is one row of `external check` output. Result is
 // match, drift, or error; auth/read failures are error rows, never drift.
 type ExternalCheckRow struct {

@@ -172,7 +172,7 @@ Seventeen commands; `-p` is gone everywhere, `release`, `validate`, `label`, `ar
 | --- | --- | --- | --- |
 | `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Human | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
 | `awit create <title>` | `--brief`, `-d deps`, `-l labels`, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Both | Mint a snowflake ID, write a lean item; optional Gitea or GitLab mapping |
-| `awit import <issue-url>` | `--brief`, `--alias`, `--tea-login` | Both | One-time snapshot of a Gitea issue via `tea`; keeps number, exact body, labels, open/closed state; refuses duplicates (active or archived) |
+| `awit import <issue-url>` | `--brief`, `--alias`, `--tea-login` | Both | One-time snapshot of a Gitea (`tea`) or GitLab (`glab`) issue; keeps number/iid, exact body, labels, open/closed state; refuses tracker-aware duplicates (active or archived). `--tea-login` is Gitea-only |
 | `awit external check [key]` | `--tea-login` | Both | Read-only byte-exact body comparison for linked items; `MATCH`/`DRIFT`/`ERROR` rows plus totals; exit 1 on drift/error |
 | `awit external push-body <key>` | `--tea-login` | Both | Explicit local-canonical repair via `tea`: pushes body bytes, refuses ambiguous links, verifies the remote bytes |
 | `awit list [key]` | `-s status`, `-l label`, `--ready`, `--blocked`, `--quarantined`, `--format` | Both | Index view; `[key]` selects exactly one item |
@@ -191,7 +191,7 @@ Seventeen commands; `-p` is gone everywhere, `release`, `validate`, `label`, `ar
 
 Global flags: `--format`, `--repo <path>` (locate `.awit/` explicitly instead of walking up), `--no-color`.
 
-Every `<id>` argument (and `dep`/`create -d` values) accepts a canonical ID (exact, wins), an alias (case-insensitive), or an external key `owner/repo#<n>` / unique bare `#<n>`; ambiguity is an error naming the canonical IDs.
+Every `<id>` argument (and `dep`/`create -d` values) accepts a canonical ID (exact, wins), an alias (case-insensitive), or an external key `owner/repo#<n>` / `group/sub/project#<n>` / unique bare `#<n>`; ambiguity (including the same repo and number on two trackers or hosts) is an error naming the canonical IDs.
 
 ## Agent surface
 
@@ -302,7 +302,7 @@ Six phases; phases 1–2 set the codebase's shape, and the agent surface waits u
 - [ ] goreleaser config, version embedding, `README` with the agent loop
 - [ ] `init --skills`: detect `.claude`, `.omp`, `.opencode`, `.agents`, `.pi` and offer to seed the driving-awit skill from an embedded asset
 - [ ] Structured `external:` Gitea or GitLab mapping (`tracker`, `repo`, issue `id`/`iid`, `url`); invalid values warn, do not quarantine
-- [ ] GitLab remote access through the concrete `internal/glabx` wrapper only (pre-authenticated `glab` 1.118.0 subprocess: verified byte-exact description writes, `state_event` close/reopen, column-zero quick-action refusal). No shared transport/provider framework, no login management, no MRs, no body rewriting; CLI wiring for GitLab import/check/push-body is later work, so those commands stay Gitea-only until then
+- [ ] GitLab remote access through the concrete `internal/glabx` wrapper only (pre-authenticated `glab` 1.118.0 subprocess: verified byte-exact description writes, `state_event` close/reopen, column-zero quick-action refusal). No shared transport/provider framework, no login management, no MRs, no body rewriting. `awit import` accepts GitLab issue and work_items URLs; `external check` / `push-body` remain Gitea-only until later CLI wiring
 - [ ] `archive`: fixed-point eligibility, comment collapse, attachment move, `--dry-run`; `validate` stays `PASS` afterwards
 
 ## Open questions

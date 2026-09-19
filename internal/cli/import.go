@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/eisenwinter/awit/internal/teax"
+	"github.com/eisenwinter/awit/internal/glabx"
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
@@ -19,27 +19,45 @@ import (
 
 var importCmd = &cli.Command{
 	Name:      "import",
-	Usage:     "Mint a local item from an existing Gitea issue (one-time snapshot)",
+	Usage:     "Mint a local item from an existing Gitea or GitLab issue (one-time snapshot)",
 	ArgsUsage: "<issue-url>",
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "brief", Usage: "one to three sentences", Required: true},
 		&cli.StringFlag{Name: "alias", Usage: "short human alias for the new item"},
-		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for the issue's instance"},
+		&cli.StringFlag{Name: "tea-login", Usage: "tea login name for a Gitea issue; ignored for GitLab"},
 	},
 	Action: importAction,
 }
 
-// parseIssueURL turns https://host[/prefix]/owner/repo/issues/<n> into a
-// Gitea external mapping, validated by item.ValidateExternal.
-func parseIssueURL(raw string) (item.External, error) {
+// parseIssueURL turns an issue URL into a Gitea or GitLab external mapping.
+// GitLab is recognized only by the explicit /-/issues/ or /-/work_items/
+// path shape — never by host — and other /-/ resources are refused before
+// the Gitea branch. GitLab prefix resolution is delegated to glabx.
+func parseIssueURL(ctx context.Context, raw string) (item.External, error) {
 	bad := func() (item.External, error) {
-		return item.External{}, cli.Exit(fmt.Sprintf("Incorrect usage: issue URL %q must look like https://host/owner/repo/issues/123 (run \"awit --help\")", raw), 2)
+		return item.External{}, cli.Exit(fmt.Sprintf("Incorrect usage: issue URL %q must look like https://host/owner/repo/issues/123 or https://host/group/project/-/issues/123 (run \"awit --help\")", raw), 2)
 	}
 	u, err := url.Parse(raw)
 	if err != nil || !u.IsAbs() || (u.Scheme != "http" && u.Scheme != "https") {
 		return bad()
 	}
 	segs := strings.Split(strings.Trim(u.Path, "/"), "/")
+	for i := range segs {
+		if segs[i] != "-" {
+			continue
+		}
+		if i+2 == len(segs)-1 && (segs[i+1] == "issues" || segs[i+1] == "work_items") {
+			if n, err := strconv.ParseInt(segs[i+2], 10, 64); err != nil || n <= 0 {
+				return bad()
+			}
+			ext, err := glabx.ParseIssueURL(ctx, raw)
+			if err != nil {
+				return item.External{}, err
+			}
+			return ext, nil
+		}
+		return bad()
+	}
 	if len(segs) < 4 || segs[len(segs)-2] != "issues" {
 		return bad()
 	}
@@ -68,7 +86,7 @@ func importAction(ctx context.Context, cmd *cli.Command) error {
 	if cmd.Args().Len() != 1 {
 		return cli.Exit("import needs exactly one issue URL", 2)
 	}
-	ext, err := parseIssueURL(cmd.Args().First())
+	ext, err := parseIssueURL(ctx, cmd.Args().First())
 	if err != nil {
 		return err
 	}
@@ -84,12 +102,8 @@ func importAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	noteWalkedUp(cmd, s)
 	// Preflight and fetch happen before the mutation lock: no local state
-	// is touched while the network is involved.
-	client, err := teax.Open(ctx, ext, cmd.String("tea-login"))
-	if err != nil {
-		return err
-	}
-	issue, err := client.GetIssue(ctx, ext.ID)
+	// is touched while the network is involved. --tea-login is Gitea-only.
+	issue, err := getExternalIssue(ctx, ext, cmd.String("tea-login"))
 	if err != nil {
 		return err
 	}
@@ -187,13 +201,14 @@ func validateImportCandidate(it *item.Item) error {
 }
 
 // refuseDuplicateImport enforces import identity under the store lock: the
-// same normalized installation base + repo + issue number may exist at most
-// once across active items and archived item files. A file that cannot be
-// inspected refuses the import instead of claiming uniqueness. Archived
-// items remain excluded from the graph; this scan is an import-identity
-// guard only.
+// same tracker + normalized installation base + repo + issue number may
+// exist at most once across active items and archived item files. A file
+// that cannot be inspected — including invalid external metadata — refuses
+// the import instead of claiming uniqueness. Missing external metadata is
+// not a match. Archived items remain excluded from the graph; this scan is
+// an import-identity guard only.
 func refuseDuplicateImport(s *item.Store, ext item.External) error {
-	base, err := teax.IssueBase(ext.URL)
+	base, err := externalBase(ext)
 	if err != nil {
 		return err
 	}
@@ -205,6 +220,9 @@ func refuseDuplicateImport(s *item.Store, ext item.External) error {
 		return fmt.Errorf("cannot verify import uniqueness: %s is broken (%s); fix it first", b.Path, b.Reason)
 	}
 	for _, it := range items {
+		if it.ExternalProblem != "" {
+			return fmt.Errorf("cannot verify import uniqueness: %s has invalid external metadata (%s); fix it first", it.Path, it.ExternalProblem)
+		}
 		if sameImportIdentity(base, ext, it.External) {
 			return fmt.Errorf("issue %s#%d was already imported as %s (%s); import is a one-time snapshot, not an update", ext.Repo, ext.ID, it.ID, it.Path)
 		}
@@ -232,6 +250,9 @@ func refuseDuplicateImport(s *item.Store, ext item.External) error {
 		if err != nil {
 			return fmt.Errorf("cannot verify import uniqueness: %s does not parse: %w", p, err)
 		}
+		if arch.ExternalProblem != "" {
+			return fmt.Errorf("cannot verify import uniqueness: %s has invalid external metadata (%s); fix it first", p, arch.ExternalProblem)
+		}
 		if sameImportIdentity(base, ext, arch.External) {
 			return fmt.Errorf("issue %s#%d was already imported and archived as %s; import is a one-time snapshot, not an update", ext.Repo, ext.ID, p)
 		}
@@ -240,9 +261,9 @@ func refuseDuplicateImport(s *item.Store, ext item.External) error {
 }
 
 func sameImportIdentity(base string, want item.External, have *item.External) bool {
-	if have == nil || have.Repo != want.Repo || have.ID != want.ID {
+	if have == nil || have.Tracker != want.Tracker || have.Repo != want.Repo || have.ID != want.ID {
 		return false
 	}
-	hb, err := teax.IssueBase(have.URL)
+	hb, err := externalBase(*have)
 	return err == nil && hb == base
 }

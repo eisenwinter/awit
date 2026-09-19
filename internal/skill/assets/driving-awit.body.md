@@ -148,8 +148,8 @@ When you dispatch workers instead of working yourself:
 | Whole picture                     | `awit prime`                                                             |
 | What would I get, no side effects | `awit next` / `awit next -l p0` (`--why` explains the pick on stderr)  |
 | Take work                         | `awit next --claim` (`--commit=false` in tests; `--no-commit` also works) |
-| Look up an item                   | any `<id>` argument also accepts an `alias` (case-insensitive) or `owner/repo#127` / `#127`; ambiguity lists the canonical IDs |
-| Import a Gitea issue              | `awit import <issue-url> --brief "…" [--alias DTRM-F21 --tea-login name]` (one-time snapshot via `tea`; duplicates refused) |
+| Look up an item                   | any `<id>` argument also accepts an `alias` (case-insensitive) or `owner/repo#127` / `group/sub/project#127` / `#127`; ambiguity lists the canonical IDs |
+| Import a Gitea or GitLab issue    | `awit import <issue-url> --brief "…" [--alias DTRM-F21 --tea-login name]` (one-time snapshot via `tea` or `glab`; GitLab issue and work_items URLs; `--tea-login` is Gitea-only and ignored for GitLab; tracker-aware duplicates refused) |
 | Linked-issue body drift | `awit external check [--tea-login name]` (read-only; exit 1 names every drifted item) / `awit external push-body <id> [--tea-login name]` (explicit local-canonical repair; verifies exact bytes) |
 | Read a work item                     | `awit show <id>` (~200 tokens) / `--full` (refs inlined) / `--refs-only` |
 | Record progress                   | `awit comment <id> "…"` / `--file report.log`                            |
@@ -162,7 +162,7 @@ When you dispatch workers instead of working yourself:
 | Label vocabulary                  | `awit label [--state open                                                | closed         | all]`   |
 
 - Pushing a body with a `/command` line at column zero (even inside a fenced code block) → GitLab would execute it as a quick action instead of storing it. The push is refused before any mutation; move the slash line away from column zero and retry. awit never rewrites the body to make it safe.
-- Expecting `import`, `external check`, or `external push-body` for GitLab links → those commands are Gitea-only today; GitLab remote access is a package API (`internal/glabx`) until later work wires it to the CLI. Declare GitLab links with `--external-*` but change neither side by hand.
+- Expecting `external check` or `external push-body` for GitLab links → those commands are Gitea-only today; GitLab body/state CLI wiring is later work. Import GitLab issues with `awit import`; declare links with `--external-*` but do not push GitLab bodies by hand.
 
 - Editing frontmatter by hand → id/status drift, quarantine for others. Use `update`.
 - Writing the implementation report into `close --reason` → duplicated comment; put it in `comment`.
