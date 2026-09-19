@@ -3,11 +3,11 @@ id: AWIT-0NJ69VDN
 title: 'import: snapshot GitLab issues and preserve tracker-aware identity'
 brief: >-
   Extend issue import to GitLab issue and work_items URLs through glab, retaining iid, exact description, labels, and initial state. Make duplicate identity tracker-aware while preserving aliases, subgroup lookup, atomic saving, and Gitea import behavior.
-status: open
+status: closed
 deps: [AWIT-0NJ69JDP, AWIT-0NJ69QDP]
 labels: [phase5, p0]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NJ69VDN/20260919T190902Z-orchestrator.md]
 ---
 ## Summary
 
