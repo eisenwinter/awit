@@ -26,6 +26,15 @@ awit --version
 A release build prints `awit <version>`. A `go build` without ldflags
 prints `awit dev`.
 
+Linked external issues need their tracker's CLI, pre-authenticated by you:
+Gitea via `tea` (`tea login add`), GitLab via `glab` 1.118.0
+(`glab auth login --hostname <host>`; check with
+`glab auth status --hostname <host>`). awit never logs in, manages tokens,
+or writes tracker configuration. GitLab description writes travel
+byte-exact with no line-ending adaptation, and a body with a column-zero
+`/command` line is refused before any mutation (GitLab would execute it as
+a quick action instead of storing it).
+
 ## Commands
 
 | Command | Flags | Purpose |

@@ -19,6 +19,14 @@ awit --repo <dir>                 # only if cwd is not inside the repo
 
 So setting `AWIT_AGENT` is not what makes those commands work — it is what makes the audit trail true. Unset, the work still happens and is attributed to a human who did not do it.
 
+Linked external issues need their tracker's CLI, pre-authenticated by you —
+awit never logs in, selects logins, or reads tokens:
+
+- Gitea via `tea` (`tea login add`; pass `--tea-login name` to choose one).
+- GitLab via `glab` 1.118.0 (`glab auth login --hostname <host>`; check with
+  `glab auth status --hostname <host>`). A missing or rejected glab says so
+  explicitly — repair the setup it names instead of working around it.
+
 Parse output with `--format json`; humans get a table, pipes get compact lines.
 
 ## Vocabulary
@@ -153,7 +161,8 @@ When you dispatch workers instead of working yourself:
 | Everything, filtered              | `awit list -s open -l auth --ready --format json`                        |
 | Label vocabulary                  | `awit label [--state open                                                | closed         | all]`   |
 
-## Common mistakes
+- Pushing a body with a `/command` line at column zero (even inside a fenced code block) → GitLab would execute it as a quick action instead of storing it. The push is refused before any mutation; move the slash line away from column zero and retry. awit never rewrites the body to make it safe.
+- Expecting `import`, `external check`, or `external push-body` for GitLab links → those commands are Gitea-only today; GitLab remote access is a package API (`internal/glabx`) until later work wires it to the CLI. Declare GitLab links with `--external-*` but change neither side by hand.
 
 - Editing frontmatter by hand → id/status drift, quarantine for others. Use `update`.
 - Writing the implementation report into `close --reason` → duplicated comment; put it in `comment`.

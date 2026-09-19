@@ -302,6 +302,7 @@ Six phases; phases 1–2 set the codebase's shape, and the agent surface waits u
 - [ ] goreleaser config, version embedding, `README` with the agent loop
 - [ ] `init --skills`: detect `.claude`, `.omp`, `.opencode`, `.agents`, `.pi` and offer to seed the driving-awit skill from an embedded asset
 - [ ] Structured `external:` Gitea or GitLab mapping (`tracker`, `repo`, issue `id`/`iid`, `url`); invalid values warn, do not quarantine
+- [ ] GitLab remote access through the concrete `internal/glabx` wrapper only (pre-authenticated `glab` 1.118.0 subprocess: verified byte-exact description writes, `state_event` close/reopen, column-zero quick-action refusal). No shared transport/provider framework, no login management, no MRs, no body rewriting; CLI wiring for GitLab import/check/push-body is later work, so those commands stay Gitea-only until then
 - [ ] `archive`: fixed-point eligibility, comment collapse, attachment move, `--dry-run`; `validate` stays `PASS` afterwards
 
 ## Open questions

@@ -82,6 +82,9 @@ internal/cli/
   init.go create.go import.go list.go label.go show.go comment.go update.go close.go release.go dep.go ref.go external.go validate.go prime.go next.go archive.go
   *_test.go                      command tests drive Main() with args and capture stdout/stderr
 internal/teax/teax.go            concrete `tea` subprocess wrapper (no provider interface, no HTTP client)
+internal/glabx/glabx.go           concrete `glab` subprocess wrapper (no provider interface, no HTTP client)
+internal/glabx/glabxtest/         portable glabstub installer for subprocess tests
+internal/glabx/testdata/glabstub/ fake `glab`: scripted config/api, nonzero exit on HTTP errors
 internal/skill/skill.go          Targets, Detect, Render; assets/ holds the embedded driving-awit body and frontmatter
 pkg/id/id.go                     snowflake IDs
 pkg/config/config.go             config.yaml
@@ -686,6 +689,89 @@ func (c *Client) SetBody(ctx context.Context, number int64, body []byte) error
 // decide what to write.
 func (c *Client) SetState(ctx context.Context, number int64, state string) error
 ```
+
+### 4.13 `internal/glabx`
+
+```go
+package glabx
+
+// Concrete `glab` CLI subprocess wrapper. exec.CommandContext with an
+// explicit argv, no shell, disconnected stdin, separate stdout/stderr,
+// 30s deadline per operation. glab exits nonzero on HTTP errors, so the
+// exit is checked first and the stdout --include status block second.
+// Tokens and response headers are never forwarded.
+type Issue struct {
+    Number int64 // decoded iid, never the global id
+    Title  string
+    Body   []byte // raw decoded description (null → empty)
+    Labels []string
+    State  string // normalized open or closed
+    URL    string // validated web_url
+}
+type Client struct{ Host, Repo, BaseURL string }
+// ParseIssueURL accepts only the two issue-link shapes and resolves the
+// host's effective installation subfolder through read-only
+// `glab config get subfolder --host <URL host>` (unset means root;
+// GITLAB_SUBFOLDER wins inside glab). Only that verified prefix is
+// stripped, on a segment boundary; without one every segment stays, so a
+// prefix is never guessed.
+func ParseIssueURL(ctx context.Context, raw string) (item.External, error)
+// IssueBase validates the complete GitLab mapping and normalizes it to
+// scheme://host[/prefix]: scheme and host lowercased, port and
+// installation-path case retained. Different schemes, ports, or prefixes
+// never compare equal. It is also the import duplicate-identity comparison.
+func IssueBase(issue item.External) (string, error)
+// Open checks the glab binary, compares effective subfolder, api_host, and
+// api_protocol for the link host against the URL's installation base
+// (contradictory overrides fail with configuration guidance; an explicit
+// non-default port without a matching api_host fails because glab
+// --hostname cannot address ports), then verifies auth via GET user
+// (positive numeric id required). Pre-authenticated only: never logs in,
+// selects logins, reads tokens, or writes configuration.
+func Open(ctx context.Context, issue item.External) (*Client, error)
+func (c *Client) GetIssue(ctx context.Context, number int64) (Issue, error)
+// SetBody replaces the description with exactly the provided bytes
+// (PUT -F description=@<raw transport file>, body-only request). The
+// transport file carries exactly body — no LF adaptation — as a private
+// temp-then-rename file (mode 0600), closed before glab opens it, deleted
+// on every exit. Quick-action-shaped bodies are refused before any file or
+// subprocess exists (see below). Requires 2xx, verified identity, and
+// bytes.Equal on the returned/read-back description. Mismatch is an error.
+// Supported glab: 1.118.0 (raw behavior pinned by TestGlabBodyRoundTrip).
+func (c *Client) SetBody(ctx context.Context, number int64, body []byte) error
+// SetState replaces the state with exactly "open" or "closed"
+// (PUT -f state_event=reopen|close, state-only request). Verification
+// mirrors SetBody with normalized state. The remote is never read to
+// decide what to write, and nothing is retried.
+func (c *Client) SetState(ctx context.Context, number int64, state string) error
+```
+
+Every API request passes `--hostname <bare link host>` (glab rejects
+host:port there; the child `GITLAB_HOST` is pinned to the same host so
+unrelated checkout remotes and default hosts never select the issue) with
+an explicit single-segment encoded endpoint
+`projects/<url.PathEscape(full project path)>/issues/<iid>` — never
+`:id`/`:fullpath` placeholders. The installation subfolder belongs to
+glab's verified API base, not the project parameter. Child prompting is
+disabled and HTTP debug output stripped.
+
+GET requires a positive matching `iid`, string `title`, present
+string-or-null `description`, array-of-string `labels`, wire state
+`opened|closed` (normalized to `open|closed`), and a `web_url` that
+verifies against the complete repo, iid, and installation base (either
+`issues` or `work_items` spelling). The global `id` is ignored entirely.
+PUT responses must not contradict identity or the requested result: a
+present wrong identity, malformed JSON, a wrongly typed field, or a
+present mismatch is an error; only a valid partial response missing the
+changed field (or an empty 2xx body) falls back to a GET of the same
+issue.
+
+Body safety (`validateBody`, always before any mutation): invalid UTF-8 is
+refused, and any line beginning at column zero with slash followed by a
+lowercase ASCII letter (`(?m)^/[a-z]+`, arguments and unknown commands
+included) is refused — with no Markdown parsing and no exemption for
+fenced code blocks, which the diagnostic names. awit never rewrites a
+body to make it safe.
 
 ### `internal/skill`
 

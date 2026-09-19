@@ -181,6 +181,23 @@ local `open` and wire `closed` to `closed`; that conversion is remote
 integration, not YAML parsing. Import and remote writes for GitLab are not
 part of this schema change.
 
+GitLab transport and auth (wrapper contract, `internal/glabx`, qualified
+against glab 1.118.0): glab is pre-authenticated by the operator — awit
+never logs in, selects logins, reads tokens, or writes configuration, and
+only the named non-secret settings (`subfolder`, `api_host`,
+`api_protocol`) are ever read. The effective installation subfolder for
+the link host decides the repo segments (`GITLAB_SUBFOLDER` wins inside
+glab); contradictory `api_host`/`api_protocol`/subfolder overrides fail
+instead of targeting another instance. Every request is host-scoped
+(`--hostname` carries the bare link host — glab rejects host:port there —
+with one `%2F`-encoded project segment). Description writes travel
+byte-exact: the transport file holds exactly the body, no line-ending is
+added or stripped, and delivery needs 2xx, verified identity, and
+`bytes.Equal` on the returned/read-back description. A body with any
+column-zero `/lowercase` line is refused before any mutation — GitLab
+would execute it as a quick action instead of storing it, even inside
+fenced code blocks, which awit does not exempt and never rewrites around.
+
 `awit create` and `awit update` take `--external-tracker`, `--external-repo`,
 `--external-id`, and `--external-url` together; a partial set is a usage
 error (exit 2) and writes nothing. `awit update --clear-external` removes
