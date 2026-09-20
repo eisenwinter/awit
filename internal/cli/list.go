@@ -23,7 +23,7 @@ var listCmd = &cli.Command{
 		&cli.StringSliceFlag{Name: "status", Aliases: []string{"s"}, Usage: "filter by status (open, in_progress, closed); repeatable, OR"},
 		&cli.StringSliceFlag{Name: "label", Aliases: []string{"l"}, Usage: "AND across flags, OR within a flag"},
 		&cli.BoolFlag{Name: "ready", Usage: "include ready items"},
-		&cli.BoolFlag{Name: "blocked", Usage: "include blocked items"},
+		&cli.BoolFlag{Name: "blocked", Usage: "include blocked items (open deps or a manual block)"},
 		&cli.BoolFlag{Name: "quarantined", Usage: "include quarantined items"},
 	},
 	Action: listAction,

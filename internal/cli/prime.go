@@ -10,6 +10,9 @@ import (
 var primeCmd = &cli.Command{
 	Name:  "prime",
 	Usage: "Print deterministic state snapshot for prompt injection",
+	Description: `Manually blocked items appear under BLOCKED with their reason, never
+under READY. A tight --max-tokens budget can shed blocked rows; run
+awit list --blocked for the full queue.`,
 	// urfave splits slice-flag values on "," by default, which would turn
 	// "-l p0,p1" into two ANDed groups. Disable it so SplitLabels sees
 	// each -l occurrence intact (OR within a flag, AND across flags).

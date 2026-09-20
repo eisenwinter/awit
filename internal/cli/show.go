@@ -127,6 +127,9 @@ func defaultView(n *graph.Node) string {
 		assignee = "-"
 	}
 	fmt.Fprintf(&b, "assignee: %s\n", assignee)
+	if e.BlockedReason != "" {
+		fmt.Fprintf(&b, "blocked_reason: %s\n", e.BlockedReason)
+	}
 	fmt.Fprintf(&b, "brief: %s\n", e.Brief)
 	if n.Item.External != nil {
 		x := n.Item.External

@@ -131,6 +131,8 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *cli.Command {
 			updateCmd,
 			closeCmd,
 			releaseCmd,
+			blockCmd,
+			unblockCmd,
 			archiveCmd,
 			validateCmd,
 			listCmd,
@@ -318,19 +320,19 @@ func parseExternalKey(key string) (repo string, num int64, ok bool) {
 	}
 	return repo, n, true
 }
-
 func toEntry(n *graph.Node) format.Entry {
 	e := format.Entry{
-		ID:       n.Item.ID,
-		Title:    n.Item.Title,
-		Brief:    n.Item.Brief,
-		Status:   string(n.Item.Status),
-		Labels:   n.Item.Labels,
-		Deps:     n.Item.Deps,
-		Assignee: n.Item.Assignee,
-		Alias:    n.Item.Alias,
-		Unblocks: n.UnblockCount,
-		External: n.Item.External,
+		ID:            n.Item.ID,
+		Title:         n.Item.Title,
+		Brief:         n.Item.Brief,
+		Status:        string(n.Item.Status),
+		BlockedReason: n.Item.BlockedReason,
+		Labels:        n.Item.Labels,
+		Deps:          n.Item.Deps,
+		Assignee:      n.Item.Assignee,
+		Alias:         n.Item.Alias,
+		Unblocks:      n.UnblockCount,
+		External:      n.Item.External,
 	}
 	if e.Labels == nil {
 		e.Labels = []string{}

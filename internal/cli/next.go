@@ -21,6 +21,9 @@ var nextCmd = &cli.Command{
 	Name:      "next",
 	Usage:     "Print the top unblocked item, or [id], optionally claiming it",
 	ArgsUsage: "[id]",
+	Description: `Ranked selection skips manually blocked items. An explicit [id] without
+--claim is a lookup, so it can print a blocked item. To claim one, resolve
+the recorded condition and run awit unblock <id> first.`,
 	// urfave splits slice-flag values on "," by default, which would turn
 	// "-l auth,db" into two ANDed groups. Disable it so SplitLabels sees
 	// each -l occurrence intact (OR within a flag, AND across flags).
@@ -270,6 +273,9 @@ func refuseClaim(n *graph.Node) error {
 	}
 	if n.Item.Status == item.StatusClosed {
 		return cli.Exit(fmt.Sprintf("%s is closed; awit release %s to reopen it", id, id), 1)
+	}
+	if n.Item.BlockedReason != "" {
+		return cli.Exit(fmt.Sprintf("%s is manually blocked (%s); awit unblock %s once resolved", id, n.Item.BlockedReason, id), 1)
 	}
 	if n.Blocked {
 		return cli.Exit(fmt.Sprintf("%s is blocked by %s", id, strings.Join(n.OpenDepIDs(), ", ")), 1)

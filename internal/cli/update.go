@@ -13,7 +13,7 @@ import (
 var updateCmd = &cli.Command{
 	Name: "update", Usage: "Change fields on an existing item", ArgsUsage: "<id>",
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "status", Usage: "set status: `open`, in_progress or closed"},
+		&cli.StringFlag{Name: "status", Usage: "set status: `open`, in_progress or closed; closed clears any manual block"},
 		&cli.StringFlag{Name: "brief"},
 		&cli.StringFlag{Name: "assign"},
 		&cli.StringFlag{Name: "title"},
@@ -102,6 +102,9 @@ func updateAction(ctx context.Context, cmd *cli.Command) error {
 		it.SetStatus(st)
 		if st == item.StatusClosed {
 			it.SetClaimedAt(nil)
+			if err := it.SetBlockedReason(""); err != nil {
+				return err
+			}
 		}
 		changed = append(changed, "status="+string(st))
 	}

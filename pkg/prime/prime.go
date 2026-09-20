@@ -43,25 +43,28 @@ func entryOf(n *graph.Node) format.Entry {
 		faults = append(faults, "["+string(f.Reason)+"] "+f.Detail)
 	}
 	return format.Entry{
-		ID:       n.Item.ID,
-		Title:    n.Item.Title,
-		Brief:    n.Item.Brief,
-		Status:   string(n.Item.Status),
-		State:    state,
-		Labels:   append([]string(nil), n.Item.Labels...),
-		Deps:     n.DepIDs(),
-		Assignee: n.Item.Assignee,
-		Unblocks: n.UnblockCount,
-		Faults:   faults,
+		ID:            n.Item.ID,
+		Title:         n.Item.Title,
+		Brief:         n.Item.Brief,
+		Status:        string(n.Item.Status),
+		State:         state,
+		BlockedReason: n.Item.BlockedReason,
+		Labels:        append([]string(nil), n.Item.Labels...),
+		Deps:          n.DepIDs(),
+		Assignee:      n.Item.Assignee,
+		Unblocks:      n.UnblockCount,
+		Faults:        faults,
 	}
 }
-
 func blockedLine(n *graph.Node) string {
-	deps := n.OpenDepIDs()
-	if len(deps) == 0 {
-		return fmt.Sprintf("[%s] %s", n.Item.ID, n.Item.Title)
+	base := fmt.Sprintf("[%s] %s", n.Item.ID, n.Item.Title)
+	if deps := n.OpenDepIDs(); len(deps) > 0 {
+		base = fmt.Sprintf("[%s] %s <- %s", n.Item.ID, n.Item.Title, strings.Join(deps, ", "))
 	}
-	return fmt.Sprintf("[%s] %s <- %s", n.Item.ID, n.Item.Title, strings.Join(deps, ", "))
+	if reason := n.Item.BlockedReason; reason != "" {
+		base += fmt.Sprintf(" | Blocked reason: %s (awit unblock %s)", reason, n.Item.ID)
+	}
+	return base
 }
 
 // Render writes the snapshot: GRAPH WARNINGS (omitted when empty),

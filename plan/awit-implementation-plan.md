@@ -34,7 +34,7 @@ Seven decisions from the review are locked. The `priority` field is gone, IDs ar
 | Frontmatter writes | `yaml.v3` Node editing; only changed scalars rewritten | `awit update` produces a one-line git diff; unknown keys, order and body stay intact |
 | Comment filenames | `<UTC seconds>-<author>.md`, e.g. `20260917T143205Z-claude.md`; `-2` suffix on collision | Per-day sequence numbers collide across branches |
 | Claims | Soft claim: writes `status`, `assignee`, `claimed_at`, then commits (`awit: claim <id>`) unless the commit policy says no — `--commit=false`, a true `--no-commit`, or `commit: false` in `config.yaml` | A claim is invisible to other worktrees until pushed; committing makes the double-claim a merge conflict, which quarantine surfaces. Repositories whose orchestrator owns commits opt out once in config instead of per command |
-| Manual block | Optional stored `blocked_reason` (non-empty = held); readiness needs no hold plus all deps closed; malformed holds are `PARSE ERROR` | A `blocked` label with zero open deps is unrepresentable otherwise; failing closed keeps unreadable holds unselectable without a new status or quarantine category |
+| Manual block | Optional stored `blocked_reason` (non-empty = held); readiness needs no hold plus all deps closed; malformed holds are `PARSE ERROR`. CLI: `block` stores/replaces the reason (open + claim cleared, one save) and refuses closed items; `unblock` removes only it; `release` and non-closing `update --status` preserve it, `close`/closing `update --status` clear it; ranked `next` skips held items, `--claim` refuses them, lookup still prints them; read surfaces carry the reason (`prime` rows, `list`/`next`/`show` views, `blocked_reason` in JSON) | A `blocked` label with zero open deps is unrepresentable otherwise; failing closed keeps unreadable holds unselectable without a new status or quarantine category |
 
 ### ID layout
 
@@ -168,7 +168,7 @@ Cycle: AWIT-0K7M2QX9 -> AWIT-0K7LZ9RT -> AWIT-0K7M1B4C -> AWIT-0K7M2QX9
 
 ## CLI command matrix
 
-Seventeen commands; `-p` is gone everywhere, `release`, `validate`, `label`, `archive`, `import`, `ref` and `external` are new, and every list-shaped output honours `--format compact|table|json` (compact when stdout is not a TTY).
+Nineteen commands; `-p` is gone everywhere, `release`, `validate`, `label`, `archive`, `import`, `ref`, `external`, `block` and `unblock` are new, and every list-shaped output honours `--format compact|table|json` (compact when stdout is not a TTY).
 
 | Command | Flags | User | Purpose |
 | --- | --- | --- | --- |
@@ -182,8 +182,10 @@ Seventeen commands; `-p` is gone everywhere, `release`, `validate`, `label`, `ar
 | `awit show <id>` | `--full`, `--refs-only` | Agent | Core item (~200 tokens) or full resolved ref tree |
 | `awit comment <id> [text]` | `--file <path>`, `--author` | Both | Write a timestamped comment or attach an external file; append to `refs` |
 | `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--alias`, `--clear-alias`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external`, `--push=true\|false`, `--no-push`, `--tea-login` | Both | Mutate frontmatter with a minimal diff; an explicit `--status` also pushes the mapped state (`closed`→closed, `open`/`in_progress`→open) to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push`; local-first with a stderr retry warning on remote failure |
-| `awit close <id>` | `--reason`, `--author`, `--push=true\|false`, `--no-push`, `--tea-login` | Both | Set `closed`, clear `claimed_at`, append reason as a comment; pushes `closed` to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push` |
-| `awit release <id>` | `--push=true\|false`, `--no-push`, `--tea-login` | Both | Reopen an in-progress or closed item to `open`, clear `assignee` and `claimed_at`; prints `reopened <id>` (plain line, ignores `--format`); pushes `open` to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push` |
+| `awit close <id>` | `--reason`, `--author`, `--push=true\|false`, `--no-push`, `--tea-login` | Both | Set `closed`, clear `claimed_at` and any manual block, append reason as a comment; pushes `closed` to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push` |
+| `awit release <id>` | `--push=true\|false`, `--no-push`, `--tea-login` | Both | Reopen an in-progress or closed item to `open`, clear `assignee` and `claimed_at`; any manual block stays; prints `reopened <id>` (plain line, ignores `--format`); pushes `open` to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push` |
+| `awit block <id>` | `--reason` | Both | Pause an item with a recorded reason: store/replace `blocked_reason`, set `open`, clear the claim in one save; refuse closed items; plain `blocked <id>: <reason>` line; never touches git or the tracker |
+| `awit unblock <id>` | — | Both | Remove only the manual block; never claims, reopens, or pushes; idempotent; plain `unblocked <id>` line |
 | `awit dep add\|rm <id> <dep>` | — | Both | Edit `deps` with cycle pre-check |
 | `awit ref add\|rm <id> <path>` | `add --allow-missing` | Both | Add or remove a repo-root-relative file reference; `add` refuses a missing target (exit 1, no write) unless `--allow-missing` plans it ahead; does not copy, delete, or commit |
 | `awit validate` | `--stale-claims` | Both | Integrity report; non-zero exit on `FAIL`; invalid `external` is a WARN |

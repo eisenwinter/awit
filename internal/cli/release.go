@@ -10,7 +10,7 @@ import (
 )
 
 var releaseCmd = &cli.Command{
-	Name: "release", Usage: "Return an in-progress or closed item to open and clear its claim", ArgsUsage: "<id>",
+	Name: "release", Usage: "Return an item to open and clear its claim; any manual block stays", ArgsUsage: "<id>",
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "push", Usage: "`true|false` overrides the external-push policy (config.yaml external_push:, default true)"},
 		&cli.BoolFlag{Name: "no-push", Usage: "skip pushing the reopened state to the linked external issue"},

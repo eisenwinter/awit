@@ -61,18 +61,19 @@ func IsTerminal(f *os.File) bool {
 // Entry is the format-neutral row. The graph → Entry conversion lives in
 // internal/cli; this package never imports pkg/graph.
 type Entry struct {
-	ID       string         `json:"id"`
-	Title    string         `json:"title"`
-	Brief    string         `json:"brief,omitempty"`
-	Status   string         `json:"status"`
-	State    string         `json:"state"` // ready | blocked | closed | quarantined
-	Labels   []string       `json:"labels"`
-	Deps     []string       `json:"deps"`
-	Assignee string         `json:"assignee,omitempty"`
-	Alias    string         `json:"alias,omitempty"`
-	Unblocks int            `json:"unblocks"` // -1 when quarantined
-	Faults   []string       `json:"faults,omitempty"`
-	External *item.External `json:"external,omitempty"`
+	ID            string         `json:"id"`
+	Title         string         `json:"title"`
+	Brief         string         `json:"brief,omitempty"`
+	Status        string         `json:"status"`
+	State         string         `json:"state"` // ready | blocked | closed | quarantined
+	BlockedReason string         `json:"blocked_reason,omitempty"`
+	Labels        []string       `json:"labels"`
+	Deps          []string       `json:"deps"`
+	Assignee      string         `json:"assignee,omitempty"`
+	Alias         string         `json:"alias,omitempty"`
+	Unblocks      int            `json:"unblocks"` // -1 when quarantined
+	Faults        []string       `json:"faults,omitempty"`
+	External      *item.External `json:"external,omitempty"`
 }
 
 func labelsOrDash(labels []string) string {
@@ -93,6 +94,9 @@ func Line(e Entry) string {
 	}
 	if label := externalLabel(e.External); label != "" {
 		s += " | External: " + label
+	}
+	if e.BlockedReason != "" {
+		s += " | Blocked reason: " + e.BlockedReason
 	}
 	return s
 }
@@ -129,7 +133,8 @@ func writeJSON(w io.Writer, v any) error {
 // Write renders entries in the given format. JSON is always an array, indented
 // two spaces, with a trailing newline; an empty input renders "[]\n".
 // Table columns are ID, STATUS, STATE, TITLE, LABELS, UNBLOCKS, left aligned
-// with a two-space gutter and an uppercase header row.
+// with a two-space gutter and an uppercase header row. A BLOCKED_REASON column
+// is added only when any displayed row has a manual block reason.
 func Write(w io.Writer, f Format, entries []Entry) error {
 	switch f {
 	case Compact:
@@ -140,13 +145,16 @@ func Write(w io.Writer, f Format, entries []Entry) error {
 		}
 		return nil
 	case Table:
-		hasAlias, hasExt := false, false
+		hasAlias, hasExt, hasBlocked := false, false, false
 		for _, e := range entries {
 			if e.Alias != "" {
 				hasAlias = true
 			}
 			if e.External != nil {
 				hasExt = true
+			}
+			if e.BlockedReason != "" {
+				hasBlocked = true
 			}
 		}
 		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
@@ -156,6 +164,9 @@ func Write(w io.Writer, f Format, entries []Entry) error {
 		}
 		if hasExt {
 			header += "\tEXTERNAL"
+		}
+		if hasBlocked {
+			header += "\tBLOCKED_REASON"
 		}
 		if _, err := fmt.Fprintln(tw, header); err != nil {
 			return err
@@ -167,6 +178,9 @@ func Write(w io.Writer, f Format, entries []Entry) error {
 			}
 			if hasExt {
 				cells = append(cells, externalLabel(e.External))
+			}
+			if hasBlocked {
+				cells = append(cells, e.BlockedReason)
 			}
 			if _, err := fmt.Fprintln(tw, strings.Join(cells, "\t")); err != nil {
 				return err
@@ -184,9 +198,9 @@ func Write(w io.Writer, f Format, entries []Entry) error {
 }
 
 // WriteOne renders a single entry: compact → Line; table → a "key: value"
-// block in the order ID, Title, Status, State, Labels, Deps, Assignee,
-// Unblocks, Brief, Faults, skipping empty values (Unblocks is always printed
-// because 0 and -1 are meaningful); json → a single object.
+// block in the order ID, Title, Status, State, Blocked reason, Labels, Deps,
+// Assignee, Unblocks, Brief, Faults, skipping empty values (Unblocks is always
+// printed because 0 and -1 are meaningful); json → a single object.
 func WriteOne(w io.Writer, f Format, e Entry) error {
 	switch f {
 	case Compact:
@@ -198,6 +212,7 @@ func WriteOne(w io.Writer, f Format, e Entry) error {
 			{"Title", e.Title},
 			{"Status", e.Status},
 			{"State", e.State},
+			{"Blocked reason", e.BlockedReason},
 			{"Labels", strings.Join(e.Labels, ",")},
 			{"Deps", strings.Join(e.Deps, ",")},
 			{"Assignee", e.Assignee},

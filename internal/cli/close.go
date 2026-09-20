@@ -10,7 +10,7 @@ import (
 )
 
 var closeCmd = &cli.Command{
-	Name: "close", Usage: "Mark an item closed and clear its claim", ArgsUsage: "<id>",
+	Name: "close", Usage: "Mark an item closed, clearing the claim timestamp and any manual block", ArgsUsage: "<id>",
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "reason"},
 		&cli.StringFlag{Name: "author"},
@@ -46,6 +46,9 @@ func closeAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	it.SetStatus(item.StatusClosed)
 	it.SetClaimedAt(nil)
+	if err := it.SetBlockedReason(""); err != nil {
+		return err
+	}
 	if reason := cmd.String("reason"); reason != "" {
 		author, err := resolveAuthor(cmd.String("author"), s.Root, s.Config)
 		if err != nil {

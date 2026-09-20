@@ -152,11 +152,23 @@ permit. Edges, cycle detection, unblock counts, the critical path, and
 archive eligibility are unchanged — held nodes stay structural, exactly
 like dep-blocked nodes today.
 
+Lifecycle: `awit block <id> --reason "<obstacle and release condition>"`
+stores or replaces the reason, sets `open`, and clears the claim in one
+save; a repeated `block` replaces the reason, and blocking a closed item
+is refused. `awit unblock <id>` removes only the reason and never claims
+or reopens. `release` and `update --status open|in_progress` preserve the
+hold; `close` and `update --status closed` clear it. Ranked `next`
+selection skips held items and every `--claim` of one is refused; an
+explicit `next <id>` lookup still prints it. Read surfaces render the
+cause: `prime` BLOCKED rows carry `| Blocked reason: <reason>
+(awit unblock <id>)`, `list`/`next`/`show` human views show the reason,
+and JSON rows carry `blocked_reason` with `state: "blocked"`.
+
 ### Item lookup keys
 
 Every command that takes an item argument (`show`, `list`, `next`,
-`update`, `close`, `release`, `comment`, `dep`, `ref`, `external check`,
-`external push-body`) accepts, in precedence order: the canonical ID
+`update`, `close`, `release`, `block`, `unblock`, `comment`, `dep`, `ref`,
+`external check`, `external push-body`) accepts, in precedence order: the canonical ID
 (exact, case-sensitive, always wins), an alias (case-insensitive), or an
 external key `owner/repo#<n>` (GitLab subgroups: `group/sub/project#127`)
 or bare `#<n>` matched against valid `external:` metadata (the bare form

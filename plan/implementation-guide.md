@@ -73,7 +73,7 @@ Additional decisions made while writing work items:
 | `external` mapping | Optional Gitea or GitLab link: `{tracker: gitea\|gitlab, repo, id, url}`. `id` is the Gitea issue number or GitLab iid. Gitea `repo` is two segments; GitLab `repo` is two or more (subgroups allowed). GitLab URLs end in `/<repo>/-/issues/<iid>` or `/<repo>/-/work_items/<iid>` with an optional installation prefix. Local statuses stay `open\|in_progress\|closed`; GitLab wire `opened` maps to local `open` (remote conversion, not YAML). `create`/`update` require `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` together (partial → exit 2, no write). `update --clear-external` is mutually exclusive with those flags. Invalid or legacy scalar `external:` values set `ExternalProblem` and are **not** quarantined; `validate` prints `WARN  <id>: invalid external: <reason>` (JSON: that line on stderr; fault-array schema unchanged). Exit 0 unless graph faults exist. |
 | `external` state push | One-way local→remote propagation, dispatched by tracker (Gitea via `tea`, GitLab via `glab` as `state_event` reopen/close). `close`→`closed`, `release`→`open`, explicit `update --status closed`→`closed`, `update --status open\|in_progress`→`open`; a non-status update, `next --claim`, create, import, comment, ref, and archive never push. Optional `config.yaml external_push:` (omitted → true; independent of `commit`) is the repository default. All three carry `--push=true\|false` (value-based; empty unset; ParseBool spellings) and `--no-push` (kept, not deprecated; `--no-push=false` is neutral) plus `--tea-login` (Gitea-only, ignored for GitLab). Precedence: explicit `--push` or true `--no-push` > config > default true. `--push` plus true `--no-push`, or a non-bool `--push`, is usage error 2 before any mutation. Policy is resolved after openStore and before any setter/Save. Local save first (keeping close's reason/comment and claim-clearing), then `Client.SetState` under the held store lock with the bounded subprocess deadline when the resolved policy is true. A config-only skip of a linked or malformed-linked item prints `warning: <id> saved locally; external state push skipped by config external_push: false; push with awit update <id> --status <status> --push=true` after the local save and before duplicate-link validation, tool discovery, auth, or network; explicit `--push=false` or true `--no-push` is silent; unlinked items are silent. Remote failure, a missing tool, invalid metadata, or ambiguous links keep the local mutation and confirmation, print one stderr `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>`, and exit 0; local failure exits 1 with no push. Same-status `update --status` repeats the push (the retry path). Response identity/state and HTTP status are validated; remote state is never GET-read to decide. No retries, queues, or commits. Explicit `external push-body`, import reads, and `external check` are unaffected. |
 | `ref add` existence check | `ref add` stats the resolved repo-root-absolute target before any mutation; a missing target exits 1 naming the absolute path with no write unless `--allow-missing` is given. `NormalizeRefs`, `Save`, `update`, import, archive and `ref rm` never check existence; read-time `[missing]` reporting is unchanged. |
-| Manual block | Optional stored `blocked_reason` string (non-empty = held) excludes healthy non-closed nodes from Ready in `Graph.classify`; labels alone never hold; malformed declarations are `PARSE ERROR` (fail closed). No new status, no quarantine category, no edges |
+| Manual block | Optional stored `blocked_reason` string (non-empty = held) excludes healthy non-closed nodes from Ready in `Graph.classify`; labels alone never hold; malformed declarations are `PARSE ERROR` (fail closed). No new status, no quarantine category, no edges. CLI: `block` stores/replaces the reason (open + claim cleared, one save), `unblock` removes only it; `release` and non-closing `update --status` preserve it, `close`/closing `update --status` clear it; ranked `next` skips held items and `--claim` refuses them |
 | `import --brief` default | Omitted (or empty) `--brief` on `import` derives after fetch validation and before the mutation lock: the normalized remote title when it holds any non-whitespace rune, else the body's first sentence (`.`/`!`/`?` followed by whitespace or end-of-source, the `sentenceCount` boundary; newlines alone never split). Normalization trims outer Unicode whitespace and collapses each inner run to one ASCII space. Derived values cap at 240 Unicode code points (first 239 runes minus trailing space plus U+2026). Explicit text is verbatim and uncapped; a blank remote title is stored unchanged. Blank title plus empty body with no override exits 1 before mint/save. `create --brief` stays required. |
 
 ## 3. Repository layout
@@ -82,7 +82,7 @@ Additional decisions made while writing work items:
 cmd/awit/main.go                 → internal/cli.Main()
 internal/cli/
   app.go                         root *cli.Command, global flags, Main(), helpers (openStore, exitf, SplitLabels)
-  init.go create.go import.go list.go label.go show.go comment.go update.go close.go release.go dep.go ref.go external.go validate.go prime.go next.go archive.go
+  init.go create.go import.go list.go label.go show.go comment.go update.go close.go release.go block.go dep.go ref.go external.go validate.go prime.go next.go archive.go
   *_test.go                      command tests drive Main() with args and capture stdout/stderr
 internal/teax/teax.go            concrete `tea` subprocess wrapper (no provider interface, no HTTP client)
 internal/glabx/glabx.go           concrete `glab` subprocess wrapper (no provider interface, no HTTP client)
@@ -482,6 +482,7 @@ type Entry struct {
     Brief    string         `json:"brief,omitempty"`
     Status   string         `json:"status"`
     State    string         `json:"state"`       // ready | blocked | closed | quarantined
+    BlockedReason string     `json:"blocked_reason,omitempty"` // manual hold, "" = absent
     Labels   []string       `json:"labels"`
     Deps     []string       `json:"deps"`
     Assignee string         `json:"assignee,omitempty"`
@@ -490,17 +491,19 @@ type Entry struct {
     Alias    string         `json:"alias,omitempty"`
     External *item.External `json:"external,omitempty"`
 }
-
 // Line renders the one-line compact form used by list, next and prime:
 // "[ID] Title | label1,label2 | Unblocks: N"; labels part is "-" when empty; quarantined appends " | QUARANTINED".
 // A non-empty Alias appends " | Alias: DTRM-F21"; a valid External appends " | External: gitea owner/repo#127".
+// A non-empty BlockedReason appends " | Blocked reason: <reason>".
 func Line(e Entry) string
 
 // Write renders entries in the given format. JSON is an array, indented two spaces, trailing newline.
 // Table columns: ID, STATUS, STATE, TITLE, LABELS, UNBLOCKS — left aligned, two-space gutter, header row uppercase.
 // An EXTERNAL column is added only when any displayed row has a valid External link.
+// A BLOCKED_REASON column is added only when any displayed row has a manual block reason.
 func Write(w io.Writer, f Format, entries []Entry) error
-// WriteOne renders a single entry: compact → Line; table → key/value block; json → object.
+// WriteOne renders a single entry: compact → Line; table → key/value block with
+// "Blocked reason: <reason>" directly after State when set; json → object.
 func WriteOne(w io.Writer, f Format, e Entry) error
 
 // LabelCount is one row of the label vocabulary.
@@ -523,6 +526,8 @@ type Options struct {
     Labels    [][]string // FilterLabels groups
 }
 // Render writes the deterministic snapshot (sections: GRAPH WARNINGS, READY, BLOCKED, CRITICAL PATH).
+// BLOCKED rows render `[<id>] <title>` plus ` <- <deps>` when deps are open,
+// plus ` | Blocked reason: <reason> (awit unblock <id>)` when manually blocked.
 func Render(w io.Writer, g *graph.Graph, opts Options) error
 // EstimateTokens = len(b)/4.
 func EstimateTokens(b []byte) int
@@ -594,8 +599,13 @@ func loadGraph(s *item.Store) (*graph.Graph, error)
 // printCompact's post-write reload), archive and archive --dry-run.
 // label and the commands that read no graph never warn.
 func warnQuarantined(cmd *cli.Command, g *graph.Graph)
-// toEntry converts a node to a format.Entry.
+// toEntry converts a node to a format.Entry, including BlockedReason.
 func toEntry(n *graph.Node) format.Entry
+// block stores/replaces the manual reason, sets open, clears the claim (one save);
+// refuses closed items. unblock removes only the reason, never claims/reopens.
+// release and update --status open|in_progress preserve the hold; close and
+// update --status closed clear it. refuseClaim rejects manually blocked picks
+// after quarantine/closed and before the dep-blocked message.
 
 // resolveItemID maps a user-supplied key to a canonical item ID: exact
 // canonical ID first, then alias (case-insensitive), then external key
