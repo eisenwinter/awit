@@ -2,14 +2,14 @@
 id: AWIT-0NMVNPDQ
 title: 'cli: add block and unblock commands with truthful read surfaces'
 brief: >-
-  Add awit block and unblock commands with the specified transition table,
-  refuse or skip held items in every claim path, and render reasons in next,
-  prime, list and show.
-status: open
+  Add awit block and unblock commands with the specified transition table, refuse or skip held items in every claim path, and render reasons in next, prime, list and show.
+status: in_progress
 deps: [AWIT-0NMVMSDQ]
 labels: [phase6, p0]
 refs_base: repo
 refs: []
+assignee: agent/orchestrator
+claimed_at: "2026-09-20T18:51:31Z"
 ---
 ## Summary
 
