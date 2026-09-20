@@ -2,14 +2,14 @@
 id: AWIT-0NMVPMDJ
 title: 'skill/docs: teach the manual block mechanic at the failure point'
 brief: >-
-  Warn when the blocked label is introduced without a manual block, correct
-  help text, and update the driving-awit skill plus agent docs to the block
-  workflow.
-status: open
+  Warn when the blocked label is introduced without a manual block, correct help text, and update the driving-awit skill plus agent docs to the block workflow.
+status: in_progress
 deps: [AWIT-0NMVNPDQ]
 labels: [phase6, p1]
 refs_base: repo
 refs: []
+assignee: agent/orchestrator
+claimed_at: "2026-09-20T19:05:21Z"
 ---
 ## Summary
 
