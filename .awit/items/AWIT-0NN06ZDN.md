@@ -3,13 +3,12 @@ id: AWIT-0NN06ZDN
 title: 'skill: drop the generated-by footer from driving-awit'
 brief: >-
   Remove the trailing generated-by-awit-init note from the driving-awit body asset and regenerate the committed skill copy.
-status: in_progress
+status: closed
 deps: []
 labels: [phase6, p2]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NN06ZDN/20260920T195659Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-20T19:54:25Z"
 ---
 ## Summary
 
