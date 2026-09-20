@@ -3,13 +3,12 @@ id: AWIT-0NN262DV
 title: 'skill: apply the reviewed driving-awit trim and correctness fixes'
 brief: >-
   Apply both prose reviews to the driving-awit body asset: must-fix corrections plus the measured token trim, then regenerate the skill copy.
-status: in_progress
+status: closed
 deps: []
 labels: [phase6, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NN262DV/20260920T203732Z-jan.md, .awit/comments/AWIT-0NN262DV/20260920T204306Z-orchestrator.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-20T20:28:31Z"
 ---
 ## Summary
 
