@@ -20,8 +20,8 @@ type Node struct {
 	Deps         []*Node
 	Unblocks     []*Node
 	Faults       []Fault
-	Ready        bool
-	Blocked      bool
+	Ready        bool // not closed, not quarantined, no manual block, all Deps closed
+	Blocked      bool // not closed, not quarantined, manually blocked and/or some dep open/dangling/quarantined
 	UnblockCount int
 }
 

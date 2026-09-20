@@ -34,6 +34,7 @@ Seven decisions from the review are locked. The `priority` field is gone, IDs ar
 | Frontmatter writes | `yaml.v3` Node editing; only changed scalars rewritten | `awit update` produces a one-line git diff; unknown keys, order and body stay intact |
 | Comment filenames | `<UTC seconds>-<author>.md`, e.g. `20260917T143205Z-claude.md`; `-2` suffix on collision | Per-day sequence numbers collide across branches |
 | Claims | Soft claim: writes `status`, `assignee`, `claimed_at`, then commits (`awit: claim <id>`) unless the commit policy says no — `--commit=false`, a true `--no-commit`, or `commit: false` in `config.yaml` | A claim is invisible to other worktrees until pushed; committing makes the double-claim a merge conflict, which quarantine surfaces. Repositories whose orchestrator owns commits opt out once in config instead of per command |
+| Manual block | Optional stored `blocked_reason` (non-empty = held); readiness needs no hold plus all deps closed; malformed holds are `PARSE ERROR` | A `blocked` label with zero open deps is unrepresentable otherwise; failing closed keeps unreadable holds unselectable without a new status or quarantine category |
 
 ### ID layout
 
@@ -47,7 +48,7 @@ Worker hashes the branch name as proposed, plus hostname and worktree path so tw
 
 ### Quarantine
 
-One mechanism covers cycles, dangling deps, unparseable frontmatter, Git conflict markers, and duplicate IDs. Quarantined items are excluded from `next`, listed under `=== GRAPH WARNINGS ===` in `prime`, reported as `FAIL` by `validate`, and still visible in `list` and `show` with a flag. The CLI never panics on a bad file. Any command that reads the graph (`list`, `next`, `prime`, `show`, `validate`, `dep`, `archive`) prints one stderr line first — `warning: N items quarantined, run awit validate` — when its initial load holds quarantined items or broken files (N = quarantined nodes plus broken files, same wording for N=1); stdout, exit codes and goldens are untouched, and `label`, which builds no graph, stays silent.
+One mechanism covers cycles, dangling deps, unparseable frontmatter, Git conflict markers, and duplicate IDs. A malformed `blocked_reason` (wrong type, empty content, control characters, duplicate key) is unparseable frontmatter — `PARSE ERROR`, never selectable — not a new category. Quarantined items are excluded from `next`, listed under `=== GRAPH WARNINGS ===` in `prime`, reported as `FAIL` by `validate`, and still visible in `list` and `show` with a flag. The CLI never panics on a bad file. Any command that reads the graph (`list`, `next`, `prime`, `show`, `validate`, `dep`, `archive`) prints one stderr line first — `warning: N items quarantined, run awit validate` — when its initial load holds quarantined items or broken files (N = quarantined nodes plus broken files, same wording for N=1); stdout, exit codes and goldens are untouched, and `label`, which builds no graph, stays silent.
 
 ### Paths and platforms
 
@@ -105,7 +106,7 @@ refs:
 | --- | --- | --- |
 | `id` | string | Must equal the filename stem; mismatch → quarantine |
 | `brief` | string | One to three sentences of prose summarizing the item. `create` requires `--brief`; `import` derives it from the remote title (else the body's first sentence, capped at 240 code points) unless given explicitly. `validate` warns when it is missing or runs past three sentences — an item that cannot be briefed that tightly should be split |
-| `status` | enum | `open`, `in_progress`, `closed`; blocked is derived, never stored |
+| `status` | enum | `open`, `in_progress`, `closed`; stored lifecycle, while ready/blocked eligibility is derived (plus an optional stored manual hold, `blocked_reason`) |
 | `deps` | list | Unknown ID → item is blocked and quarantined (dangling dep) |
 | `labels` | list | Free-form; `p0`–`p4` recommended for priority. Optional `config.yaml` `labels` is advisory |
 | `assignee` | string | `human/<name>` or `agent/<id>`; set by `--claim` or `--assign` |
@@ -113,6 +114,7 @@ refs:
 | `refs` | list | Paths relative to the repo root when `refs_base: repo` (default for new writes), forward slashes only. Omitted `refs_base` means historical `.awit/items/`-relative refs, rewritten on first mutation. `ref add` refuses a missing target (exit 1, no write) unless `--allow-missing` plans it ahead; nothing else checks existence and `show --full` keeps its `[missing]` report |
 | `external` | mapping | Optional Gitea or GitLab link `{tracker, repo, id, url}`. `tracker` is `gitea` or `gitlab`. `id` is the Gitea issue number or GitLab iid. GitLab `repo` allows subgroups. Invalid or legacy scalar values warn on `validate` and do not quarantine |
 | `alias` | string | Optional human alias, `[A-Za-z][A-Za-z0-9._-]{0,127}`, never ID-shaped; case-insensitively unique across active items (warned, not enforced); lookup-only, never a filename or dep edge |
+| `blocked_reason` | string | Optional manual hold: non-empty single line without control characters (trimmed). A held healthy non-closed item is blocked regardless of deps; a `blocked` label alone never holds. Malformed values fail closed as `PARSE ERROR` |
 
 Unknown keys are preserved on write so teams can add their own fields without a schema change. `config.yaml` holds `prefix`, optional `default_labels`, optional `labels` (advisory vocabulary; missing/empty disables; `create`/`update` warn on unknown names they introduce but still store them), `stale_claim` (duration, default `2h`), `agent_id` (overridden by `AWIT_AGENT`), and optional `template` (repo-root-relative forward-slash path to a body-only file `create` copies verbatim; absent keeps the default skeleton; `import` ignores it).
 
@@ -149,7 +151,7 @@ flowchart TD
 | --- | --- | --- |
 | Cycle pre-check on `dep add A B` (A depends on B) | DFS from **B** over `Deps`, looking for **A** | The draft sketch searched from A for B, which detects a redundant edge, not a cycle. Record the path for the error message |
 | Cycle detection on load | Tarjan SCC | One report per SCC; the DFS back-edge path is used only to print one example chain |
-| Ready / Blocked | Inspect `Deps` | Ready: not closed and every dep closed. Blocked: not closed and any dep open, dangling, or quarantined |
+| Ready / Blocked | Inspect `Deps` plus the manual hold | Ready: not closed, no `blocked_reason`, and every dep closed. Blocked: not closed and manually blocked, or any dep open, dangling, or quarantined |
 | Unblock score | BFS over `Unblocks`, count unique non-closed nodes | Computed once per build and cached on the node; never inside a sort comparator |
 | Critical path | Longest-path DP in topological order | Over non-closed, non-quarantined nodes only; ties broken by ID |
 

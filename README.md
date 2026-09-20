@@ -145,12 +145,14 @@ commit.
 
 An item is YAML frontmatter (`id`, `title`, `brief`, `status`, `deps`,
 `labels`, `assignee`, `claimed_at`, `refs_base`, `refs`, optional `alias`,
-optional `external`) followed by a Markdown body.
+optional `external`, optional `blocked_reason`) followed by a Markdown body.
 Priority is a label by convention (`p0`…`p4`). Optional `config.yaml`
 `labels` is an advisory vocabulary: `create`/`update` warn on unknown
-names they introduce but still store them. Blocked is derived, never
-stored. The on-disk schema, including the optional `alias` and the Gitea or
-GitLab `external:` mapping, is documented in [docs/schema.md](docs/schema.md).
+names they introduce but still store them. Lifecycle is stored
+(`open`/`in_progress`/`closed`) with an optional stored manual hold
+(`blocked_reason`); ready/blocked eligibility is derived. The on-disk
+schema, including the optional `alias`, the Gitea or GitLab `external:`
+mapping, and manual blocks, is documented in [docs/schema.md](docs/schema.md).
 
 Wherever a command takes an item — `show`, `list`, `next`, `update`,
 `close`, `release`, `comment`, `dep`, `ref`, `external check`,

@@ -32,6 +32,7 @@ type Item struct {
 	External        *External
 	ExternalProblem string // derived diagnostic; never serialized
 	Alias           string // optional human alias; "" = absent
+	BlockedReason   string // manual hold; "" = absent (unblocked)
 
 	doc   *yaml.Node
 	body  []byte
@@ -81,6 +82,7 @@ func Parse(path string, data []byte) (*Item, error) {
 		statusRaw                     string
 		claimedRaw                    string
 		haveClaimed                   bool
+		blockedCount                  int
 	)
 	for i := 0; i+1 < len(doc.Content); i += 2 {
 		k := doc.Content[i]
@@ -123,6 +125,19 @@ func Parse(path string, data []byte) (*Item, error) {
 				return nil, fmt.Errorf("item: alias must be a string")
 			}
 			it.Alias = v.Value
+		case "blocked_reason":
+			blockedCount++
+			if blockedCount > 1 {
+				return nil, fmt.Errorf("item: duplicate key blocked_reason")
+			}
+			if v.Kind != yaml.ScalarNode || v.ShortTag() != "!!str" {
+				return nil, fmt.Errorf("item: blocked_reason must be a non-empty, single-line string without control characters")
+			}
+			reason, err := validateBlockedReason(v.Value)
+			if err != nil {
+				return nil, err
+			}
+			it.BlockedReason = reason
 		}
 	}
 	for _, req := range []struct {
@@ -495,6 +510,50 @@ func (it *Item) SetAlias(alias string) error {
 	}
 	it.Alias = alias
 	it.setScalar("alias", alias)
+	it.markDirty()
+	return nil
+}
+
+// validateBlockedReason trims outer whitespace and rejects empty or
+// multi-line input. Any control character (including \n, \r, \t) fails.
+// Shared by Parse and SetBlockedReason so stored reasons are always valid.
+func validateBlockedReason(reason string) (string, error) {
+	trimmed := strings.TrimSpace(reason)
+	if trimmed == "" {
+		return "", fmt.Errorf("item: blocked_reason must be a non-empty, single-line string without control characters")
+	}
+	for _, r := range trimmed {
+		if unicode.IsControl(r) {
+			return "", fmt.Errorf("item: blocked_reason must be a non-empty, single-line string without control characters")
+		}
+	}
+	return trimmed, nil
+}
+
+// SetBlockedReason records a manual hold on the item; "" removes the
+// blocked_reason key. Non-empty input is trimmed of outer whitespace and
+// must be a single line without control characters. Invalid input is an
+// error and leaves the item untouched.
+func (it *Item) SetBlockedReason(reason string) error {
+	if reason == "" {
+		_, _, idx := it.findKey("blocked_reason")
+		if it.BlockedReason == "" && idx < 0 {
+			return nil
+		}
+		it.BlockedReason = ""
+		it.deleteKey("blocked_reason")
+		it.markDirty()
+		return nil
+	}
+	trimmed, err := validateBlockedReason(reason)
+	if err != nil {
+		return err
+	}
+	if it.BlockedReason == trimmed {
+		return nil
+	}
+	it.BlockedReason = trimmed
+	it.setScalar("blocked_reason", trimmed)
 	it.markDirty()
 	return nil
 }

@@ -940,3 +940,125 @@ func TestValidateAlias(t *testing.T) {
 		}
 	}
 }
+
+func TestBlockedReasonParseMalformed(t *testing.T) {
+	t.Parallel()
+	const badValue = "item: blocked_reason must be a non-empty, single-line string without control characters"
+	malformed := map[string]string{
+		"sequence type":    "---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nblocked_reason: [waiting, vendor]\n---\n",
+		"integer type":     "---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nblocked_reason: 42\n---\n",
+		"whitespace-only":  "---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nblocked_reason: \"   \"\n---\n",
+		"embedded tab":     "---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nblocked_reason: \"a\\tb\"\n---\n",
+		"embedded newline": "---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nblocked_reason: \"a\\nb\"\n---\n",
+	}
+	for name, doc := range malformed {
+		if _, err := Parse("/abs/AWIT-TEST0001.md", []byte(doc)); err == nil || err.Error() != badValue {
+			t.Errorf("%s: err = %v, want exactly %q", name, err, badValue)
+		}
+	}
+	dup := "---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nblocked_reason: first\nblocked_reason: second\n---\n"
+	if _, err := Parse("/abs/AWIT-TEST0001.md", []byte(dup)); err == nil || err.Error() != "item: duplicate key blocked_reason" {
+		t.Errorf("duplicate key: err = %v, want exactly %q", err, "item: duplicate key blocked_reason")
+	}
+}
+
+func TestBlockedReasonParseValid(t *testing.T) {
+	t.Parallel()
+	it, err := Parse("/abs/AWIT-TEST0001.md", []byte("---\nid: AWIT-TEST0001\ntitle: T\nstatus: open\nblocked_reason: waiting on vendor\n---\n\nbody\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.BlockedReason != "waiting on vendor" {
+		t.Fatalf("BlockedReason = %q, want %q", it.BlockedReason, "waiting on vendor")
+	}
+	padded, err := Parse("/abs/AWIT-TEST0002.md", []byte("---\nid: AWIT-TEST0002\ntitle: T\nstatus: open\nblocked_reason: \"  padded  \"\n---\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if padded.BlockedReason != "padded" {
+		t.Fatalf("BlockedReason = %q, want trimmed %q", padded.BlockedReason, "padded")
+	}
+	absent, err := Parse("/abs/AWIT-TEST0003.md", []byte("---\nid: AWIT-TEST0003\ntitle: T\nstatus: open\n---\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if absent.BlockedReason != "" {
+		t.Fatalf("missing blocked_reason must parse as empty, got %q", absent.BlockedReason)
+	}
+}
+
+func TestBlockedReasonSetAndClear(t *testing.T) {
+	t.Parallel()
+	it := New("AWIT-TEST0001", "T", "B.", []string{"AWIT-TEST0002"}, []string{"auth"})
+	beforeBody := append([]byte(nil), it.Body()...)
+	if err := it.SetBlockedReason("  waiting on vendor  "); err != nil {
+		t.Fatal(err)
+	}
+	if it.BlockedReason != "waiting on vendor" {
+		t.Fatalf("BlockedReason = %q, want trimmed %q", it.BlockedReason, "waiting on vendor")
+	}
+	b, err := it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(b, []byte("blocked_reason: waiting on vendor\n")) {
+		t.Fatalf("blocked_reason not serialized:\n%s", b)
+	}
+	for _, want := range []string{"title: T", "AWIT-TEST0002", "auth"} {
+		if !bytes.Contains(b, []byte(want)) {
+			t.Fatalf("unrelated field %q lost after set:\n%s", want, b)
+		}
+	}
+	back, err := Parse("/abs/AWIT-TEST0001.md", b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if back.BlockedReason != "waiting on vendor" {
+		t.Fatalf("round-trip BlockedReason = %q", back.BlockedReason)
+	}
+	if string(back.Body()) != string(beforeBody) {
+		t.Fatalf("body changed across set/round-trip: %q", back.Body())
+	}
+	if err := it.SetBlockedReason(""); err != nil {
+		t.Fatal(err)
+	}
+	if it.BlockedReason != "" {
+		t.Fatalf("BlockedReason = %q after clear", it.BlockedReason)
+	}
+	cleared, err := it.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(cleared, []byte("blocked_reason")) {
+		t.Fatalf("cleared blocked_reason still serialized:\n%s", cleared)
+	}
+	if string(it.Body()) != string(beforeBody) {
+		t.Fatalf("body changed across clear: %q", it.Body())
+	}
+}
+
+func TestBlockedReasonSetInvalid(t *testing.T) {
+	t.Parallel()
+	for _, v := range []string{"   ", "a\nb", "a\rb", "a\tb", "a\x7fb"} {
+		it := New("AWIT-TEST0001", "T", "B.", nil, nil)
+		raw, err := it.Bytes()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := it.SetBlockedReason(v); err == nil {
+			t.Fatalf("SetBlockedReason(%q) must fail", v)
+		} else if err.Error() != "item: blocked_reason must be a non-empty, single-line string without control characters" {
+			t.Fatalf("SetBlockedReason(%q) err = %q, want reviewed wording", v, err)
+		}
+		if it.BlockedReason != "" {
+			t.Fatalf("SetBlockedReason(%q) failed but BlockedReason = %q", v, it.BlockedReason)
+		}
+		after, err := it.Bytes()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(raw, after) {
+			t.Fatalf("SetBlockedReason(%q) failed but mutated bytes:\n%s", v, after)
+		}
+	}
+}

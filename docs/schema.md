@@ -94,7 +94,7 @@ refs: []
 | --- | --- | --- |
 | `id` | string | `PREFIX-` plus 8 Crockford chars. Must equal the filename stem |
 | `title` | string | Non-empty |
-| `status` | enum | `open`, `in_progress`, `closed`. Blocked is derived, never stored |
+| `status` | enum | `open`, `in_progress`, `closed`. Stored lifecycle; ready/blocked eligibility is derived, with an optional stored manual hold (see Manual blocks) |
 
 Missing required keys or an unknown status → parse error → quarantine
 `PARSE ERROR`.
@@ -112,6 +112,7 @@ Missing required keys or an unknown status → parse error → quarantine
 | `refs` | list of paths | Forward slashes. Block style. Always present, `[]` when empty. Relative to the repo root when `refs_base: repo`, else `.awit/items/` |
 | `external` | mapping | Optional Gitea or GitLab issue link (see below). Missing is valid |
 | `alias` | string | Optional human alias (see below). Missing is valid |
+| `blocked_reason` | string | Optional manual hold (see Manual blocks). Missing or removed means unblocked |
 
 New items written by `awit create` use key order
 `id, title, brief, status, deps, labels, refs_base, refs` and omit empty
@@ -128,6 +129,28 @@ hand-edited aliases make alias lookup fail with the matching canonical IDs
 listed, and `validate` warns about invalid or duplicate aliases (exit stays
 0 unless graph faults exist). Aliases are lookup-only: filenames, `deps`
 edges and commit messages always use the canonical ID.
+
+### Manual blocks
+
+A `blocked_reason` is a durable local hold: a healthy non-closed item that
+carries one is `Blocked` regardless of its dependencies, so a `blocked`
+tracker label with zero open deps is representable without a new status,
+a new quarantine category, or graph edges. Labels alone never hold an
+item — a zero-dependency item with only a `blocked` label stays ready.
+
+Presence and validation: the key is optional; missing or removed means
+unblocked. When present it must be a YAML string scalar holding a
+non-empty single line without control characters (outer whitespace is
+trimmed). A wrong type, empty or whitespace-only content, embedded
+control characters, or a duplicate `blocked_reason` key is a parse error
+→ quarantine `PARSE ERROR`: the hold fails closed and the item is never
+selectable while its declaration is unreadable.
+
+Eligibility vs structure: readiness requires both no manual block and all
+deps satisfied; clearing the reason restores readiness only when the deps
+permit. Edges, cycle detection, unblock counts, the critical path, and
+archive eligibility are unchanged — held nodes stay structural, exactly
+like dep-blocked nodes today.
 
 ### Item lookup keys
 
@@ -424,4 +447,7 @@ They are project config and are meant to be committed; unlike `.awit/.lock`,
 These are not extra keys; they are reasons a file fails to become a
 healthy item: `PARSE ERROR`, `CONFLICT MARKERS`, `ID MISMATCH`,
 `DUPLICATE ID`, `DANGLING DEP`, `CYCLE`. Invalid `external:` metadata is
-none of these — it is a `validate` WARN only.
+none of these — it is a `validate` WARN only. A malformed
+`blocked_reason` (wrong type, empty content, control characters,
+duplicate key) is a `PARSE ERROR`, not a new category: the hold fails
+closed and the item is never selectable until the declaration is readable.

@@ -169,3 +169,81 @@ func TestDanglingIsQuarantinedNotBlocked(t *testing.T) {
 		t.Fatalf("Ready() = %v, want empty", nodeIDs(g.Ready()))
 	}
 }
+
+func TestManualBlockZeroDepHeld(t *testing.T) {
+	held := &item.Item{ID: "AWIT-TEST0001", Title: "A", Status: item.StatusOpen, BlockedReason: "waiting on vendor"}
+	labelOnly := &item.Item{ID: "AWIT-TEST0002", Title: "B", Status: item.StatusOpen, Labels: []string{"blocked"}}
+	g := Build([]*item.Item{held, labelOnly}, nil)
+	n1 := g.Nodes["AWIT-TEST0001"]
+	if n1.Quarantined() {
+		t.Fatal("held item Quarantined() = true, want false")
+	}
+	if n1.Ready || !n1.Blocked {
+		t.Fatalf("held Ready/Blocked = %v/%v, want false/true", n1.Ready, n1.Blocked)
+	}
+	n2 := g.Nodes["AWIT-TEST0002"]
+	if !n2.Ready || n2.Blocked {
+		t.Fatalf("label-only Ready/Blocked = %v/%v, want true/false", n2.Ready, n2.Blocked)
+	}
+	if got := nodeIDs(g.Ready()); !slices.Equal(got, []string{"AWIT-TEST0002"}) {
+		t.Fatalf("Ready() = %v, want [AWIT-TEST0002]", got)
+	}
+	if got := nodeIDs(g.Blocked()); !slices.Equal(got, []string{"AWIT-TEST0001"}) {
+		t.Fatalf("Blocked() = %v, want [AWIT-TEST0001]", got)
+	}
+}
+
+func TestManualBlockClearRestoresReadiness(t *testing.T) {
+	closed, err := item.Parse("/abs/AWIT-TEST0000.md", []byte("---\nid: AWIT-TEST0000\ntitle: Base\nstatus: closed\n---\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	free, err := item.Parse("/abs/AWIT-TEST0001.md", []byte("---\nid: AWIT-TEST0001\ntitle: Free\nstatus: open\ndeps: [AWIT-TEST0000]\nblocked_reason: waiting\n---\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pinned, err := item.Parse("/abs/AWIT-TEST0002.md", []byte("---\nid: AWIT-TEST0002\ntitle: Pinned\nstatus: open\ndeps: [AWIT-TEST0001]\nblocked_reason: waiting\n---\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := Build([]*item.Item{closed, free, pinned}, nil)
+	if g.Nodes["AWIT-TEST0001"].Ready {
+		t.Fatal("held item with satisfied deps must not be ready before the reason is cleared")
+	}
+	if err := free.SetBlockedReason(""); err != nil {
+		t.Fatal(err)
+	}
+	if err := pinned.SetBlockedReason(""); err != nil {
+		t.Fatal(err)
+	}
+	g = Build([]*item.Item{closed, free, pinned}, nil)
+	if !g.Nodes["AWIT-TEST0001"].Ready {
+		t.Fatal("clearing the reason with satisfied deps must restore readiness")
+	}
+	if g.Nodes["AWIT-TEST0002"].Ready || !g.Nodes["AWIT-TEST0002"].Blocked {
+		t.Fatal("clearing the reason with an open dep must leave the item blocked")
+	}
+}
+
+func TestManualBlockHeldMiddleNodePaths(t *testing.T) {
+	a := &item.Item{ID: "AWIT-TEST0001", Title: "A", Status: item.StatusOpen}
+	b := &item.Item{ID: "AWIT-TEST0002", Title: "B", Status: item.StatusOpen, Deps: []string{"AWIT-TEST0001"}, BlockedReason: "held"}
+	c := &item.Item{ID: "AWIT-TEST0003", Title: "C", Status: item.StatusOpen, Deps: []string{"AWIT-TEST0002"}}
+	d := &item.Item{ID: "AWIT-TEST0004", Title: "D", Status: item.StatusClosed, BlockedReason: "held while closed"}
+	g := Build([]*item.Item{a, b, c, d}, nil)
+	if g.Nodes["AWIT-TEST0002"].Ready || !g.Nodes["AWIT-TEST0002"].Blocked {
+		t.Fatal("held middle node must be blocked, not ready")
+	}
+	if g.Nodes["AWIT-TEST0002"].Quarantined() {
+		t.Fatal("held middle node must not be quarantined")
+	}
+	if got := g.Nodes["AWIT-TEST0001"].UnblockCount; got != 2 {
+		t.Fatalf("A UnblockCount = %d, want 2 (held B and open C still count)", got)
+	}
+	if got := nodeIDs(g.CriticalPath()); !slices.Equal(got, []string{"AWIT-TEST0001", "AWIT-TEST0002", "AWIT-TEST0003"}) {
+		t.Fatalf("CriticalPath() = %v, want [0001 0002 0003] (held nodes stay structural)", got)
+	}
+	if got := nodeIDs(g.Archivable()); !slices.Equal(got, []string{"AWIT-TEST0004"}) {
+		t.Fatalf("Archivable() = %v, want [AWIT-TEST0004] (closed held node still archives)", got)
+	}
+}

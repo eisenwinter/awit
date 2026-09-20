@@ -7,8 +7,9 @@ import (
 )
 
 // classify sets Ready / Blocked on every node. Closed and quarantined nodes
-// get both flags false. A node is Ready iff every Item.Deps ID resolves to a
-// closed, non-quarantined node; otherwise it is Blocked.
+// get both flags false. A healthy non-closed node is Ready iff it carries no
+// manual block (Item.BlockedReason empty) and every Item.Deps ID resolves to
+// a closed, non-quarantined node; otherwise it is Blocked.
 func (g *Graph) classify() {
 	for _, n := range g.Order {
 		n.Ready = false
@@ -16,7 +17,7 @@ func (g *Graph) classify() {
 		if n.Item.Status == item.StatusClosed || n.Quarantined() {
 			continue
 		}
-		ready := true
+		ready := n.Item.BlockedReason == ""
 		for _, depID := range n.Item.Deps {
 			if !depSatisfied(g, depID) {
 				ready = false

@@ -73,6 +73,7 @@ Additional decisions made while writing work items:
 | `external` mapping | Optional Gitea or GitLab link: `{tracker: gitea\|gitlab, repo, id, url}`. `id` is the Gitea issue number or GitLab iid. Gitea `repo` is two segments; GitLab `repo` is two or more (subgroups allowed). GitLab URLs end in `/<repo>/-/issues/<iid>` or `/<repo>/-/work_items/<iid>` with an optional installation prefix. Local statuses stay `open\|in_progress\|closed`; GitLab wire `opened` maps to local `open` (remote conversion, not YAML). `create`/`update` require `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` together (partial → exit 2, no write). `update --clear-external` is mutually exclusive with those flags. Invalid or legacy scalar `external:` values set `ExternalProblem` and are **not** quarantined; `validate` prints `WARN  <id>: invalid external: <reason>` (JSON: that line on stderr; fault-array schema unchanged). Exit 0 unless graph faults exist. |
 | `external` state push | One-way local→remote propagation, dispatched by tracker (Gitea via `tea`, GitLab via `glab` as `state_event` reopen/close). `close`→`closed`, `release`→`open`, explicit `update --status closed`→`closed`, `update --status open\|in_progress`→`open`; a non-status update, `next --claim`, create, import, comment, ref, and archive never push. Optional `config.yaml external_push:` (omitted → true; independent of `commit`) is the repository default. All three carry `--push=true\|false` (value-based; empty unset; ParseBool spellings) and `--no-push` (kept, not deprecated; `--no-push=false` is neutral) plus `--tea-login` (Gitea-only, ignored for GitLab). Precedence: explicit `--push` or true `--no-push` > config > default true. `--push` plus true `--no-push`, or a non-bool `--push`, is usage error 2 before any mutation. Policy is resolved after openStore and before any setter/Save. Local save first (keeping close's reason/comment and claim-clearing), then `Client.SetState` under the held store lock with the bounded subprocess deadline when the resolved policy is true. A config-only skip of a linked or malformed-linked item prints `warning: <id> saved locally; external state push skipped by config external_push: false; push with awit update <id> --status <status> --push=true` after the local save and before duplicate-link validation, tool discovery, auth, or network; explicit `--push=false` or true `--no-push` is silent; unlinked items are silent. Remote failure, a missing tool, invalid metadata, or ambiguous links keep the local mutation and confirmation, print one stderr `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>`, and exit 0; local failure exits 1 with no push. Same-status `update --status` repeats the push (the retry path). Response identity/state and HTTP status are validated; remote state is never GET-read to decide. No retries, queues, or commits. Explicit `external push-body`, import reads, and `external check` are unaffected. |
 | `ref add` existence check | `ref add` stats the resolved repo-root-absolute target before any mutation; a missing target exits 1 naming the absolute path with no write unless `--allow-missing` is given. `NormalizeRefs`, `Save`, `update`, import, archive and `ref rm` never check existence; read-time `[missing]` reporting is unchanged. |
+| Manual block | Optional stored `blocked_reason` string (non-empty = held) excludes healthy non-closed nodes from Ready in `Graph.classify`; labels alone never hold; malformed declarations are `PARSE ERROR` (fail closed). No new status, no quarantine category, no edges |
 | `import --brief` default | Omitted (or empty) `--brief` on `import` derives after fetch validation and before the mutation lock: the normalized remote title when it holds any non-whitespace rune, else the body's first sentence (`.`/`!`/`?` followed by whitespace or end-of-source, the `sentenceCount` boundary; newlines alone never split). Normalization trims outer Unicode whitespace and collapses each inner run to one ASCII space. Derived values cap at 240 Unicode code points (first 239 runes minus trailing space plus U+2026). Explicit text is verbatim and uncapped; a blank remote title is stored unchanged. Blank title plus empty body with no override exits 1 before mint/save. `create --brief` stays required. |
 
 ## 3. Repository layout
@@ -247,6 +248,7 @@ type Item struct {
     External        *External  // nil when missing or invalid
     ExternalProblem string     // derived diagnostic; never serialized
     Alias           string     // optional human alias; "" = absent
+    BlockedReason   string     // manual hold; "" = absent (unblocked)
     // unexported: doc *yaml.Node (the mapping node), body []byte (everything after the closing ---\n), raw []byte (original source), dirty bool, extra keys preserved inside doc
 }
 
@@ -291,6 +293,7 @@ func (it *Item) SetAlias(alias string) error // validated; "" clears; AWIT-shape
 // ValidateAlias enforces [A-Za-z][A-Za-z0-9._-]{0,127} and rejects anything
 // shaped like a canonical ID. validate warns on invalid/duplicate aliases.
 func ValidateAlias(alias string) error
+func (it *Item) SetBlockedReason(reason string) error // "" removes the key; non-empty trimmed, single-line, no control chars
 
 // Bytes returns the original source when no setter has run; otherwise "---\n<yaml>---\n<body>".
 func (it *Item) Bytes() ([]byte, error)
@@ -420,8 +423,8 @@ type Node struct {
     Deps         []*Node   // resolved deps (dangling excluded)
     Unblocks     []*Node   // reverse edges
     Faults       []Fault   // non-empty → quarantined
-    Ready        bool      // not closed, not quarantined, all Deps closed
-    Blocked      bool      // not closed, not quarantined, some dep open/dangling/quarantined
+    Ready        bool      // not closed, not quarantined, no manual block, all Deps closed
+    Blocked      bool      // not closed, not quarantined, manually blocked and/or some dep open/dangling/quarantined
     UnblockCount int       // transitive unique non-closed non-quarantined downstream; -1 when quarantined
 }
 func (n *Node) Quarantined() bool
