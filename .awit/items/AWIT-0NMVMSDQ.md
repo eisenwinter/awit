@@ -3,13 +3,12 @@ id: AWIT-0NMVMSDQ
 title: 'item/graph: represent a manual block with blocked_reason'
 brief: >-
   Persist an optional blocked_reason on items and exclude manually blocked nodes from Ready in graph classification, keeping edges and quarantine unchanged.
-status: in_progress
+status: closed
 deps: []
 labels: [phase6, p0]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NMVMSDQ/20260920T185129Z-orchestrator.md, .awit/comments/AWIT-0NMVMSDQ/20260920T185129Z-orchestrator-2.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-20T18:38:15Z"
 ---
 ## Summary
 
