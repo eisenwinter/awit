@@ -3,13 +3,12 @@ id: AWIT-0NMVQ7DV
 title: 'rollout: verify the manual block end to end in a scratch checkout'
 brief: >-
   Run the full block lifecycle smoke in a disposable checkout and confirm docs and skill parity, without touching real queue state or tracker labels.
-status: in_progress
+status: closed
 deps: [AWIT-0NMVPMDJ]
 labels: [phase6, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NMVQ7DV/20260920T192341Z-orchestrator.md, .awit/comments/AWIT-0NMVQ7DV/20260920T192341Z-orchestrator-2.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-20T19:19:49Z"
 ---
 ## Summary
 
