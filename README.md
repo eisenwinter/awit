@@ -41,7 +41,7 @@ a quick action instead of storing it).
 | --- | --- | --- |
 | `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
 | `awit create <title>` | `--brief`, `-d` deps, `-l` labels, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Mint a snowflake ID, write a lean item; optional Gitea or GitLab mapping; optional `config.template` body |
-| `awit import <issue-url>` | `[--brief]`, `--alias`, `--tea-login` | One-time snapshot of an existing Gitea (`tea`) or GitLab (`glab`) issue: keeps number/iid, exact body, labels and open/closed state; refuses tracker-aware duplicates. Omitted `--brief` derives from the remote title (else the body's first sentence, capped at 240 code points). `--tea-login` is Gitea-only and ignored for GitLab |
+| `awit import <issue-url>` | `[--brief]`, `--alias`, `--tea-login` | One-time snapshot of an existing Gitea (`tea`) or GitLab (`glab`) issue: keeps number/iid, exact body, labels and open/closed state; refuses tracker-aware duplicates. Omitted `--brief` derives from the remote title (else the body's first sentence, capped at 240 code points). `--tea-login` is Gitea-only and ignored for GitLab. Labels are copied once as metadata and never synced afterwards |
 | `awit external check [key]` | `--tea-login` | Read-only byte-exact body comparison for linked Gitea (`tea`) or GitLab (`glab`) items; `MATCH`/`DRIFT`/`ERROR` rows plus totals; exit 1 on any drift or error. `--tea-login` is Gitea-only and ignored for GitLab |
 | `awit external push-body <key>` | `--tea-login` | Explicit repair: push local body bytes to the linked issue (Gitea via `tea`, GitLab via `glab`); refuses ambiguous links and column-zero `/command` bodies GitLab would execute as quick actions; verifies the remote took the exact bytes |
 | `awit list [key]` | `-s` status, `-l` label, `--ready`, `--blocked`, `--quarantined`, `--format` | Index view; `[key]` selects exactly one item |
@@ -72,6 +72,14 @@ When a graph-reading command (`list`, `next`, `prime`, `show`, `validate`,
 stderr line first: `warning: N items quarantined, run awit validate`.
 Stdout (including `--format json`) and exit codes are unchanged — run
 `awit validate` for the fault details and their `fix:` commands.
+
+Labels never pause work: `create`, `update`, and `import` print one stderr
+line — `warning: <id> has label "blocked", which does not pause work;
+use awit block <id> --reason "..."` — when a non-closed item without a
+manual block newly receives the exact label `blocked`. Stdout and exit
+codes are unchanged. To actually hold an item, run
+`awit block <id> --reason "<obstacle and release condition>"`;
+`awit release` never clears the hold, `awit close` does.
 
 ## Agent loop
 

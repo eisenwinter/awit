@@ -137,6 +137,13 @@ carries one is `Blocked` regardless of its dependencies, so a `blocked`
 tracker label with zero open deps is representable without a new status,
 a new quarantine category, or graph edges. Labels alone never hold an
 item — a zero-dependency item with only a `blocked` label stays ready.
+Because that label is a classic failure point, `create`, `update`, and
+`import` print one stderr line when a non-closed item without a manual
+block newly receives the exact label `blocked`:
+`warning: <id> has label "blocked", which does not pause work;
+use awit block <id> --reason "..."`. Stdout and the exit code are
+unchanged. `import` copies remote labels once as metadata and never
+creates a hold from them.
 
 Presence and validation: the key is optional; missing or removed means
 unblocked. When present it must be a YAML string scalar holding a

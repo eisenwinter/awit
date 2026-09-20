@@ -34,13 +34,14 @@ Parse output with `--format json`; humans get a table, pipes get compact lines.
 | Term          | Meaning                                                                                                                                                          |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `status`      | Stored: `open`, `in_progress`, `closed`. Only you change it.                                                                                                     |
-| `state`       | Derived: `ready` (all deps closed), `blocked`, `closed`, `quarantined`. `in_progress (ready)` is normal — it means the graph would let this run; someone has it. |
+| `state`       | Derived: `ready` (no manual hold, all deps closed), `blocked` (open deps or a stored `blocked_reason`), `closed`, `quarantined`. `in_progress (ready)` is normal — it means the graph would let this run; someone has it. |
 | `Unblocks: N` | How many open items transitively wait on this one. Higher = more valuable to finish.                                                                             |
-| `deps`        | IDs this item waits for. Blocked is derived from deps, never stored.                                                                                             |
-| QUARANTINED   | The file or its deps are faulty (cycle, dangling dep, parse error, conflict markers, id mismatch, duplicate id). Excluded from `next`.                           |
+| `deps`        | IDs this item waits for. Open deps make it blocked; a stored `blocked_reason` holds it even with no open deps. |
+| `blocked_reason` | Optional stored manual hold: non-empty means held regardless of deps. Set only by `awit block`, cleared only by `awit unblock` or `close`. A label named `blocked` is metadata and never holds. |
+| QUARANTINED   | The file or its deps are faulty (cycle, dangling dep, parse error, conflict markers, id mismatch, duplicate id). Excluded from `next`. |
 | `refs`        | Paths relative to the repo root when `refs_base: repo` (new writes). Omitted marker means historical `.awit/items/` base until first mutation. Comments and attachments become refs automatically. `ref add` refuses a missing target unless `--allow-missing`. |
-| `assignee`    | Set by `--claim`. **Stays after `close`** on purpose (audit trail); only `release` clears it.                                                                    |
-| `labels`      | Free-form on items. Optional `.awit/config.yaml` `labels` is advisory: `create`/`update` warn on unknown names they introduce but still store them. `awit label` counts actual use. |
+| `assignee`    | Set by `--claim`. **Stays after `close`** on purpose (audit trail); only `release` clears it. |
+| `labels`      | Free-form on items. Optional `.awit/config.yaml` `labels` is advisory: `create`/`update` warn on unknown names they introduce but still store them. `awit label` counts actual use. A label named `blocked` does not pause work — `create`/`update`/`import` say so on stderr when they introduce one; to actually hold an item use `awit block <id> --reason "..."`. |
 
 When a command loads a graph holding quarantined items or broken files (`list`, `next`, `prime`, `show`, `validate`, `dep`, `archive`), it prints one stderr line first: `warning: N items quarantined, run awit validate`. That is a pointer, not a failure: exit codes and stdout (including `--format json`) are unchanged.
 
@@ -65,8 +66,8 @@ Decisions the baseline agent had to guess, resolved:
 - **Finished = `close`.** `release` means "I give up the claim, someone else take it": it returns an in-progress **or closed** item to `open`, clears `assignee` and `claimed_at`, and confirms with a plain `reopened <id>` line (never JSON, even under `--format json`). For linked items `close` pushes `closed` (and `release` pushes `open`) to the linked issue (Gitea via `tea`, GitLab via `glab`) after the local save, under the store lock; an explicit `update --status` pushes the mapped state the same way (`closed`→closed, `open`/`in_progress`→open) and a non-status update never pushes. Automatic pushes follow `external_push` in `.awit/config.yaml` (omitted means true); `--push=true|false` overrides one invocation (true `--no-push` equals `--push=false`; `--no-push=false` is neutral). Local state stays canonical: a remote failure keeps the local work, prints `warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>` on stderr, and still exits 0 — retry with `awit update <id> --status <status>`, never by duplicating a close reason. A config-disabled skip prints `warning: <id> saved locally; external state push skipped by config external_push: false; push with awit update <id> --status <status> --push=true`. Pass `--no-push` or `--push=false` for an explicit silent offline path (no tool, auth, or network even with malformed metadata), `--tea-login` to choose the Gitea login (ignored for GitLab).
 - **Notes go in `comment`.** `close --reason` is a one-line why, not the report; both create a comment file, so writing the same text in both duplicates it.
 - **Only `next --claim` commits** (so a double claim becomes a merge conflict, which quarantine surfaces). Whether it does follows the commit policy: `--commit=true|false` for one run, `commit: false` in `config.yaml` as the repository default (default `true`); `--no-commit` is the deprecated spelling of `--commit=false`. `comment`, `close`, `release`, `create`, `update`, `dep`, `ref` leave the tree dirty — commit `.awit/` together with your code when you are done: `awit: close <id>` after a close, `awit: release <id>` after a release (otherwise Git still shows your claim to everyone else). If an orchestrator owns commits in this project (see `.omp/agents/orchestrator.md`), do not commit; report instead.
-- **`.awit/.lock` is never committed.** `awit init` gitignores it; if `git status` shows it untracked, add `.awit/.lock` to `.gitignore` first, then `git add .awit`. `init` can also seed this skill into `.claude`, `.omp`, `.opencode`, `.agents` and `.pi` (`--skills` to skip the prompts); unlike the lock, those files are project config and belong in the commit.
 - **One claim at a time.** Finish or `release` before the next `next --claim`.
+- **Holds go in `block`.** `awit block <id> --reason "<obstacle and release condition>"` records a manual hold: the status becomes `open` and any claim is cleared in the same save, while deps, labels, and refs are untouched. `release` never removes a hold (a released item stays blocked); `close` clears it. `block` and `unblock` never push, commit, or touch the tracker.
 
 ### Building your todo list from a work item
 
@@ -90,9 +91,13 @@ Work items without `## Steps` (short items): todo list = `Read refs and deps; ch
 [ID] Title | label1,label2 | Unblocks: 4
 === BLOCKED (2) ===
 [ID] Title <- DEP1, DEP2        # what it waits for
+[ID] Title | Blocked reason: waiting on vendor (awit unblock <ID>)        # held manually, no open deps
+[ID] Title <- DEP1 | Blocked reason: waiting on vendor (awit unblock <ID>)  # both causes at once
 === CRITICAL PATH (3) ===
 A -> B -> C                     # longest open chain; finishing A moves the whole project
 ```
+
+Manually blocked items appear under BLOCKED with their reason, never under READY. A tight `--max-tokens` budget can shed blocked rows; run `awit list --blocked` for the full queue.
 
 `prime` is deterministic (same state → same bytes) and safe to paste into a prompt. `--max-tokens N` is a soft budget: it sheds BLOCKED rows from the end, then READY rows from the end (never the top line), then the critical path, then headings — warning details and the top READY line always survive, even over budget. `-l p0` restricts READY/BLOCKED to items with that label; `-l p0 -l auth` = both labels, `-l p0,p1` = either. `awit next -l p0` (without `--claim`) answers "is anything critical ready?" without side effects. Append `next --why` for a one-line stderr explanation of the pick (unblocks, critical-path membership, selection, tie-break) with stdout unchanged.
 
@@ -121,8 +126,8 @@ Stop and act per row. Do not improvise around the graph.
 | `next` exits 1: `No ready items`                                                           | Queue is drained or fully blocked.                           | Stop the loop. Report `awit prime` output.                                                                                                                     |
 | `validate` prints `FAIL` / `prime` shows GRAPH WARNINGS                                    | Graph fault. Each line carries a `fix:` command.             | Run the fix only if the affected item is yours (your work item, or one you just created). Otherwise report the line verbatim; never `dep rm` to unblock yourself. |
 | `[CONFLICT MARKERS]`                                                                       | Two branches touched the same item — usually a double claim. | Do not edit around it. Resolve the Git conflict (or hand to the human), then `validate`.                                                                       |
-| Work item contradicts its refs / spec, or two designs are equally valid and it did not choose | Not your call.                                               | `awit comment <id> "BLOCKED: <exact contradiction and the two options>"`, then `awit release <id>`. Report `BLOCKED`. Do not close, do not pick.               |
-| Missing prerequisite (dep marked closed but not really done, tool absent)                  | Upstream truth is wrong.                                     | `awit comment <id> "NEEDS_CONTEXT: …"`, `awit release <id>`, report. Never close the dep yourself.                                                             |
+| Work item contradicts its refs / spec, or two designs are equally valid and it did not choose | Not your call. | `awit comment <id> "BLOCKED: <exact contradiction and the two options>"` (skip when already recorded), then `awit block <id> --reason "<what must resolve>"`. Report `BLOCKED`. Do not close, do not pick; `awit unblock <id>` only after the recorded condition resolves. |
+| Missing prerequisite (dep marked closed but not really done, tool absent) | Upstream truth is wrong. | `awit comment <id> "NEEDS_CONTEXT: …"`, then `awit block <id> --reason "<missing prerequisite and what provides it>"`, report. `release` does not clear a hold; never close the dep yourself. |
 | `Error: no agent identity; pass --agent or set AWIT_AGENT`                                 | `next --claim` has no identity to claim with.                | `export AWIT_AGENT=<name>` and rerun.                                                                                                                          |
 | `Error: no author; pass --author or set AWIT_AGENT`                                        | `comment`/`close` found no identity **and** no git `user.name` — usually a bare CI checkout. | `export AWIT_AGENT=<name>`, or pass `--author` for a one-off.                                                                    |
 | A comment or close is signed with a human name you did not expect                          | Not an error. `AWIT_AGENT` was unset, so git `user.name` was used verbatim and your work is attributed to them. | Set `AWIT_AGENT` now, and say in a comment which notes were misattributed. Do not rewrite the comment files.                       |
@@ -154,7 +159,8 @@ When you dispatch workers instead of working yourself:
 | Read a work item                     | `awit show <id>` (~200 tokens) / `--full` (refs inlined) / `--refs-only` |
 | Record progress                   | `awit comment <id> "…"` / `--file report.log`                            |
 | Change fields                     | `awit update <id> --status                                               | --brief        | --title | --assign | -l  | --unlabel | --external-* | --clear-external [--push --no-push --tea-login]` (explicit `--status` also pushes the mapped state to the linked issue unless `external_push: false`; same-status repeats the push as the retry path; `--push=true` overrides config) |
-| Finish / give back / reopen     | `awit close <id> --reason "…"` (pushes `closed`) / `awit release <id>` (prints `reopened <id>`, pushes `open`) `[--push --no-push --tea-login]` |
+| Finish / give back / reopen     | `awit close <id> --reason "…"` (pushes `closed`, clears any manual block) / `awit release <id>` (prints `reopened <id>`, pushes `open`, never clears a manual block) `[--push --no-push --tea-login]` |
+| Pause / resume work             | `awit block <id> --reason "<obstacle and release condition>"` (records the hold, status becomes `open`, claim cleared in one save) / `awit unblock <id>` (only after the recorded condition resolves; never claims or pushes) |
 | Dependencies                      | `awit dep add                                                            | rm <id> <dep>` |
 | File references                   | `awit ref add                                                            | rm <id> <path>` (`add` refuses a missing target unless `--allow-missing`) |
 | Integrity                         | `awit validate [--stale-claims]` (exit 1 on FAIL; invalid external is WARN)                        |
@@ -171,6 +177,7 @@ When you dispatch workers instead of working yourself:
 - Claiming a second item while holding one → stale claims for everyone else.
 - Body drift on a linked external issue → never hand-edit either side to match; run `awit external check` to see it, `awit external push-body <id>` to repair from the local canonical bytes. State drift after a failed close/release push → retry with `awit update <id> --status <status>` (same status re-pushes); a config-disabled skip (`external_push: false`) retries with `--push=true`. Work offline with `--no-push` or `--push=false`, which never touches tea or glab even with malformed metadata.
 - Committing `.awit/` in a project whose orchestrator owns commits → duplicate/misordered history. Check `.omp/agents/` first.
+- Labelling an item `blocked`, or writing BLOCKED into a comment, to pause it → labels and comments are metadata, not queue controls; `next` still picks the item. Record the hold with `awit block <id> --reason "..."` instead.
 
 ---
 

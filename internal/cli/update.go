@@ -19,8 +19,8 @@ var updateCmd = &cli.Command{
 		&cli.StringFlag{Name: "title"},
 		&cli.StringFlag{Name: "alias", Usage: "short human alias (e.g. `DTRM-F21`)"},
 		&cli.BoolFlag{Name: "clear-alias", Usage: "remove the alias"},
-		&cli.StringSliceFlag{Name: "label", Aliases: []string{"l"}},
-		&cli.StringSliceFlag{Name: "unlabel"},
+		&cli.StringSliceFlag{Name: "label", Aliases: []string{"l"}, Usage: "metadata label, repeatable; use awit block <id> to pause work"},
+		&cli.StringSliceFlag{Name: "unlabel", Usage: "remove metadata labels; use awit unblock <id> to clear a manual block"},
 		&cli.StringFlag{Name: "external-tracker", Usage: "external tracker (`gitea` or `gitlab`)"},
 		&cli.StringFlag{Name: "external-repo", Usage: "external repository (`owner/repo`; GitLab may include subgroups)"},
 		&cli.StringFlag{Name: "external-id", Usage: "Gitea issue number or GitLab iid"},
@@ -183,6 +183,7 @@ func updateAction(ctx context.Context, cmd *cli.Command) error {
 		}
 	}
 	warnUnknownLabels(cmd, s.Config.Labels, introduced)
+	warnBlockedLabel(cmd, it, introduced)
 	w := cmd.Root().Writer
 	for _, c := range changed {
 		fmt.Fprintf(w, "updated %s: %s\n", it.ID, c)

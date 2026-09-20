@@ -82,6 +82,8 @@ TYPICAL SESSION (set AWIT_AGENT first):
    awit next --claim <id>              claim that exact item when ready
    awit show <id> --full               read the item and its refs
    awit comment <id> "note"            add a progress note while you work
+   awit block <id> --reason "..."      pause until a condition clears
+   awit unblock <id>                   remove the manual block
    awit close <id>                     close it when the work is done
 `
 

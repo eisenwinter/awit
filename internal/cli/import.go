@@ -23,6 +23,9 @@ var importCmd = &cli.Command{
 	Name:      "import",
 	Usage:     "Mint a local item from an existing Gitea or GitLab issue (one-time snapshot)",
 	ArgsUsage: "<issue-url>",
+	Description: `Import copies labels once as metadata. Labels are not synchronised
+afterwards, and a label named "blocked" does not pause work. Use
+awit block <id> --reason "..." for a local manual block.`,
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "brief", Usage: "one to three sentences (default: derived from the remote title or body)"},
 		&cli.StringFlag{Name: "alias", Usage: "short human alias for the new item"},
@@ -168,6 +171,7 @@ func importAction(ctx context.Context, cmd *cli.Command) error {
 	if err := s.Save(it); err != nil {
 		return err
 	}
+	warnBlockedLabel(cmd, it, labels)
 	f, err := detectFormat(cmd)
 	if err != nil {
 		return err

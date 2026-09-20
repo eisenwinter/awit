@@ -26,7 +26,7 @@ var createCmd = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "brief", Usage: "one to three sentences", Required: true},
 		&cli.StringSliceFlag{Name: "dep", Aliases: []string{"d"}},
-		&cli.StringSliceFlag{Name: "label", Aliases: []string{"l"}},
+		&cli.StringSliceFlag{Name: "label", Aliases: []string{"l"}, Usage: "metadata label, repeatable; use awit block <id> to pause work"},
 		&cli.StringFlag{Name: "assign"},
 		&cli.StringFlag{Name: "alias", Usage: "short human alias (e.g. `DTRM-F21`)"},
 		&cli.StringFlag{Name: "id", Usage: "override minted id (imports)"},
@@ -96,6 +96,20 @@ func mergeLabels(defaults, flags []string) []string {
 		out = []string{}
 	}
 	return out
+}
+
+func warnBlockedLabel(cmd *cli.Command, it *item.Item, introduced []string) {
+	found := false
+	for _, l := range introduced {
+		if l == "blocked" {
+			found = true
+			break
+		}
+	}
+	if !found || it.Status == item.StatusClosed || it.BlockedReason != "" {
+		return
+	}
+	fmt.Fprintf(cmd.Root().ErrWriter, "warning: %s has label \"blocked\", which does not pause work; use awit block %s --reason \"...\"\n", it.ID, it.ID)
 }
 
 func warnUnknownLabels(cmd *cli.Command, vocab, labels []string) {
@@ -215,6 +229,7 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	warnUnknownLabels(cmd, s.Config.Labels, it.Labels)
+	warnBlockedLabel(cmd, it, it.Labels)
 	f, err := detectFormat(cmd)
 	if err != nil {
 		return err
