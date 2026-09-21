@@ -11,13 +11,11 @@ answer the only question an agent actually needs answered — *what can I start
 right now, and what does finishing it unblock?*
 
 - **Ready, not assigned.** Eligibility is derived from the graph, not stored.
-- **Priority is a label.** `p0`…`p4` by convention; one ranking axis, not two.
 - **Every fault is one mechanism.** Cycles, dangling deps, unparseable
   frontmatter, Git conflict markers and duplicate IDs all become quarantine,
   and `awit validate` prints the command that fixes each one.
 - **Git is the sync protocol.** Two agents racing a claim produce a merge
   conflict, which quarantine surfaces — instead of a silent double-claim.
-
 - **Labels adapt to any workflow.** Free-form grouping sets with no enforced meaning — `p0`…`p4` for priority, areas, phases, whatever you need; filter them with `-l`.
 [Install and first steps](usage.md){ .md-button .md-button--primary }
 [How it works](how-it-works.md){ .md-button }
