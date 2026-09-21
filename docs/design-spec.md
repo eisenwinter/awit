@@ -1,22 +1,22 @@
 # awit — design spec
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement a work item at a time. Work items use checkbox (`- [ ]`) steps.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to work one item at a time. Work items use checkbox (`- [ ]`) steps.
 
-**Goal:** Build `awit`, a zero-daemon Go CLI that turns Markdown files under `.awit/` into a dependency graph for humans and agents.
+**System:** `awit`, a zero-daemon Go CLI that turns Markdown files under `.awit/` into a dependency graph for humans and agents.
 
-**Architecture:** Every command rebuilds an in-memory graph from `.awit/items/*.md`, operates on it, and writes back at most one file with a minimal diff. No database, no daemon, no state outside the files and Git. Faults (parse errors, cycles, dangling deps, conflict markers, id mismatches, duplicate ids) all flow through one quarantine path.
+**Architecture:** Graph-reading commands rebuild an in-memory graph from `.awit/items/*.md` and operate on it. Mutations write only their documented files. No database, no daemon, no state outside the files and Git. Faults (parse errors, cycles, dangling deps, conflict markers, id mismatches, duplicate ids) all flow through one quarantine path.
 
 **Tech Stack:** Go 1.27, `github.com/urfave/cli/v3` (CLI), `gopkg.in/yaml.v3` (frontmatter, Node-level editing), stdlib only otherwise. `git` is invoked via `os/exec`, never linked.
 
 **On-disk contract:** The normative on-disk format is [the schema](schema.md). Where this document and the schema disagree about bytes on disk, the schema wins.
 
-**Status:** v1 is delivered. The work items that built it are closed and live in `.awit/archive/`; §9 indexes the phase 0–5 build in dependency order.
+**Status:** v1 is delivered. The work items that built it are closed and live in `.awit/archive/`; §9 indexes the phase 0–5 build plus later items in dependency order.
 
 **How to read:** The unnumbered sections below are the design: what awit is and why it is shaped this way. The numbered sections §1–§9 are the implementation contract: exact signatures, conventions and fixtures. This document is the merge of the original implementation plan and the implementation guide; where they disagreed, the guide's resolution stands.
 
 ## Overview
 
-awit is a zero-daemon Go CLI that turns Markdown files under `.awit/` into a dependency graph that humans and agents work from — offline, versioned in Git, no database. Every command rebuilds the graph from `.awit/items/*.md`, so a clone is the whole state and there is nothing to migrate or repair besides text files.
+awit is a zero-daemon Go CLI that turns Markdown files under `.awit/` into a dependency graph that humans and agents work from — offline, versioned in Git, no database. Graph-reading commands rebuild the graph from `.awit/items/*.md`, so a clone is the whole state and there is nothing to migrate or repair besides text files.
 
 The loop it serves:
 
@@ -31,11 +31,11 @@ flowchart LR
 
 Each step is one process invocation; state between steps lives only in the files and in Git.
 
-Non-goals for v1: no sync to GitLab or GitHub issues, no web UI, no cross-repo graphs, no coordination beyond a single checkout except through Git itself.
+Out of scope for v1: no web UI, no cross-repo graphs, no coordination beyond a single checkout except through Git itself. Local files are canonical. awit has no background or bidirectional tracker sync and no GitHub integration. Gitea and GitLab access occurs only through import, check, body-push, and configured state-push operations.
 
 ## Decisions
 
-Eight decisions are locked. The `priority` field is gone, IDs are time-sortable, and every graph fault goes through one quarantine path.
+Eight decisions are locked. There is no `priority` field, IDs are time-sortable, and every graph fault goes through one quarantine path.
 
 | Decision | Choice | Why |
 | --- | --- | --- |
@@ -56,11 +56,11 @@ Eight decisions are locked. The `priority` field is gone, IDs are time-sortable,
 | Worker | 6 | FNV-1a of hostname + worktree path + branch name, mod 64; `AWIT_WORKER` env overrides |
 | Random | 4 | `crypto/rand`; re-roll if the file already exists |
 
-Worker hashes the branch name as proposed, plus hostname and worktree path so two clones both on `main` do not share a worker. A per-process sequence counter is meaningless for a one-shot CLI, so the low bits are random and a local collision re-rolls; duplicate IDs across branches are a `validate` check. `create --id` overrides for imports.
+Worker hashes the branch name, hostname and worktree path so two clones both on `main` do not share a worker. A per-process sequence counter is meaningless for a one-shot CLI, so the low bits are random and a local collision re-rolls; duplicate IDs across branches are a `validate` check. `create --id` overrides for imports.
 
 ### Quarantine
 
-One mechanism covers cycles, dangling deps, unparseable frontmatter, Git conflict markers, and duplicate IDs. A malformed `blocked_reason` (wrong type, empty content, control characters, duplicate key) is unparseable frontmatter — `PARSE ERROR`, never selectable — not a new category. Quarantined items are excluded from `next`, listed under `=== GRAPH WARNINGS ===` in `prime`, reported as `FAIL` by `validate`, and still visible in `list` and `show` with a flag. The CLI never panics on a bad file. Any command that reads the graph (`list`, `next`, `prime`, `show`, `validate`, `dep`, `archive`) prints one stderr line first — `warning: N items quarantined, run awit validate` — when its initial load holds quarantined items or broken files (N = quarantined nodes plus broken files, same wording for N=1); stdout, exit codes and goldens are untouched, and `label`, which builds no graph, stays silent.
+One mechanism covers cycles, dangling deps, unparseable frontmatter, Git conflict markers, duplicate IDs, and ID mismatches. A malformed `blocked_reason` (wrong type, empty content, control characters, duplicate key) is unparseable frontmatter — `PARSE ERROR`, never selectable — not a new category. Quarantined items are excluded from `next`, listed under `=== GRAPH WARNINGS ===` in `prime`, reported as `FAIL` by `validate`, and still visible in `list` and `show` with a flag. The CLI never panics on a bad file. Any command that reads the graph (`list`, `next`, `prime`, `show`, `validate`, `dep`, `archive`) prints one stderr line first — `warning: N items quarantined, run awit validate` — when its initial load holds quarantined items or broken files (N = quarantined nodes plus broken files, same wording for N=1); stdout, exit codes and goldens are untouched, and `label`, which builds no graph, stays silent.
 
 ### Paths and platforms
 
@@ -68,7 +68,7 @@ One mechanism covers cycles, dangling deps, unparseable frontmatter, Git conflic
 
 ## Data model
 
-Everything is a Markdown file under `.awit/`; the only non-committed file is the lock.
+Repository data lives under `.awit/`: YAML config, Markdown items and comments, verbatim attachments, archives, and the lock. Only the lock is uncommitted. Seeded skill files live outside `.awit/` and are committed.
 
 ```text
 .awit/
@@ -120,13 +120,13 @@ refs:
 
 ### Archive
 
-`items/` grows forever otherwise, and every command re-parses all of it. `awit archive` moves finished work out of the hot path without touching the graph engine: an archived item simply no longer exists as far as `Build` is concerned.
+`items/` grows forever otherwise, and graph-reading commands re-parse all of it. `awit archive` moves finished work out of the hot path without touching the graph engine: an archived item simply no longer exists as far as `Build` is concerned.
 
 That is also the constraint. A closed item `Y` that any remaining item still lists in `deps` would become a `DANGLING DEP` fault on that dependant the moment `Y` leaves `items/`. So the archive set is the **fixed point**: start with every closed, non-quarantined item; repeatedly drop any item that has a dependant outside the set; stop when nothing changes. Items that stay behind are still closed and still satisfy their dependants; they get archived on a later run once their dependants are archivable too. No index file, no "external closed" state in the graph, no rewriting of other items' `deps`.
 
 ## Graph engine
 
-The graph is rebuilt on every command, and every operation runs on the condensed DAG left after quarantine. Build is O(V+E); hundreds of items resolve in well under 10 ms.
+Graph-reading commands rebuild the graph, and every graph operation runs on the condensed DAG left after quarantine. Build is O(V+E); hundreds of items resolve in well under 10 ms.
 
 ```mermaid
 flowchart TD
@@ -147,7 +147,7 @@ flowchart TD
 
 | Operation | Algorithm | Notes |
 | --- | --- | --- |
-| Cycle pre-check on `dep add A B` (A depends on B) | DFS from **B** over `Deps`, looking for **A** | An earlier draft searched from A for B, which detects a redundant edge, not a cycle. Record the path for the error message |
+| Cycle pre-check on `dep add A B` (A depends on B) | DFS from **B** over `Deps`, looking for **A** | An earlier version searched from A for B, which detects a redundant edge, not a cycle. Record the path for the error message |
 | Cycle detection on load | Tarjan SCC | One report per SCC; the DFS back-edge path is used only to print one example chain |
 | Ready / Blocked | Inspect `Deps` plus the manual hold | Ready: not closed, no `blocked_reason`, and every dep closed. Blocked: not closed and manually blocked, or any dep open, dangling, or quarantined |
 | Unblock score | BFS over `Unblocks`, count unique non-closed nodes | Computed once per build and cached on the node; never inside a sort comparator |
@@ -166,13 +166,13 @@ Cycle: AWIT-0K7M2QX9 -> AWIT-0K7LZ9RT -> AWIT-0K7M1B4C -> AWIT-0K7M2QX9
 
 ## CLI command matrix
 
-Twenty commands; `-p` is gone everywhere, and every list-shaped output honours `--format compact|table|json` (compact when stdout is not a TTY).
+Twenty commands; there is no `-p` flag anywhere, and every list-shaped output honours `--format compact|table|json` (compact when stdout is not a TTY).
 
 | Command | Flags | User | Purpose |
 | --- | --- | --- | --- |
 | `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Human | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
 | `awit create <title>` | `--brief`, `--body`, `--body-file`, `-d deps`, `-l labels`, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Both | Mint a snowflake ID, write a lean item; optional Gitea or GitLab mapping; body from `--body`/`--body-file`, else `config.template`, else the built-in skeleton |
-| `awit template` | — | Both | Print the body template `create` would use: the `config.yaml` `template:` file's exact bytes, else the built-in skeleton; ignores `--format`; builds no graph, so no quarantine warning |
+| `awit template` | — | Both | Print the body template `create` uses: the `config.yaml` `template:` file's exact bytes, else the built-in skeleton; ignores `--format`; builds no graph, so no quarantine warning |
 | `awit import <issue-url>` | `[--brief]`, `--alias`, `--tea-login` | Both | One-time snapshot of a Gitea (`tea`) or GitLab (`glab`) issue; keeps number/iid, exact body, labels, open/closed state; refuses tracker-aware duplicates (active or archived). Omitted `--brief` derives from the remote title (else the body's first sentence, capped at 240 code points); blank title plus empty body exits 1. `--tea-login` is Gitea-only. Labels are copied once as metadata and never synced; a `blocked` label warns on stderr but creates no hold |
 | `awit external check [key]` | `--tea-login` | Both | Read-only byte-exact body comparison for linked Gitea (`tea`) or GitLab (`glab`) items; `MATCH`/`DRIFT`/`ERROR` rows plus totals; exit 1 on drift/error. `--tea-login` is Gitea-only |
 | `awit external push-body <key>` | `--tea-login` | Both | Explicit local-canonical repair: pushes body bytes (Gitea via `tea`, GitLab via `glab`), refuses ambiguous links and GitLab quick-action bodies, verifies the remote bytes |
@@ -186,11 +186,11 @@ Twenty commands; `-p` is gone everywhere, and every list-shaped output honours `
 | `awit block <id>` | `--reason` | Both | Pause an item with a recorded reason: store/replace `blocked_reason`, set `open`, clear the claim in one save; refuse closed items; plain `blocked <id>: <reason>` line; never touches git or the tracker |
 | `awit unblock <id>` | — | Both | Remove only the manual block; never claims, reopens, or pushes; idempotent; plain `unblocked <id>` line |
 | `awit dep add\|rm <id> <dep>` | — | Both | Edit `deps` with cycle pre-check |
-| `awit ref add\|rm <id> <path>` | `add --allow-missing` | Both | Add or remove a repo-root-relative file reference; `add` refuses a missing target (exit 1, no write) unless `--allow-missing` plans it ahead; does not copy, delete, or commit |
+| `awit ref add\|rm <id> <path>` | `add --allow-missing` | Both | Add or remove a repo-root-relative file reference; `add` refuses a missing target (exit 1, no write) unless `--allow-missing` is given; does not copy, delete, or commit |
 | `awit validate` | `--stale-claims` | Both | Integrity report; non-zero exit on `FAIL`; invalid `external` is a WARN |
 | `awit archive` | `--dry-run` | Human | Move the fixed-point set of closed items to `.awit/archive/`, one collapsed file each |
 | `awit prime` | `--max-tokens`, `-l label` | Agent | Deterministic state graph for prompt injection |
-| `awit next` | `-l label`, `--claim`, `--commit=true\|false`, `--no-commit` (deprecated), `--seed`, `--why` | Agent | Top unblocked item; optional claim; `--why` explains the pick on stderr |
+| `awit next [key]` | `-l label`, `--claim`, `--agent`, `--commit=true\|false`, `--no-commit` (deprecated), `--seed`, `--why` | Agent | Top unblocked item or exact lookup; optional claim; `--why` explains the pick on stderr |
 
 Global flags: `--format`, `--repo <path>` (locate `.awit/` explicitly instead of walking up), `--no-color`.
 
@@ -245,7 +245,7 @@ The intended priority check is `awit next -l p0` without `--claim`: it answers w
 
 ## Delivery phases
 
-Six phases; phases 1–2 set the codebase's shape, and the agent surface waits until `validate` is trustworthy.
+Six phases; phases 1–2 set the codebase's shape, and the agent surface waited until `validate` was trustworthy.
 
 | Phase | Scope | Exit criterion |
 | --- | --- | --- |
@@ -279,7 +279,7 @@ Six phases; phases 1–2 set the codebase's shape, and the agent surface waits u
 - `Build` with dangling-dep detection and parse-error carry-through
 - Tarjan SCC → quarantine set; example chain via DFS back edge
 - Ready/blocked classification; memoized transitive unblock counts
-- `dep add` with corrected pre-check (DFS from the new dependency toward the dependant); `dep rm`
+- `dep add` with cycle pre-check (DFS from the new dependency toward the dependant); `dep rm`
 - `validate` with all quarantine reasons, fix-it hints, non-zero exit
 - `testdata/` fixtures: clean, cyclic, dangling, conflicted, duplicate-id, id-mismatch
 
@@ -298,7 +298,7 @@ Six phases; phases 1–2 set the codebase's shape, and the agent surface waits u
 - `pkg/resolver`: relative-path resolution from a caller-chosen base directory (repo root or `.awit/items/`), slash normalisation, missing-file reporting
 - `show --full` with delimiter headers per ref; `--refs-only`; cycle-safe if a ref points at another item; `ref add`/`rm`
 - End-to-end test running the five-step loop against a fixture repo
-- `ref add` existence check: stat the resolved target before any mutation, `--allow-missing` escape hatch for planned documents
+- `ref add` existence check: stat the resolved target before any mutation, `--allow-missing` opt-out when the target does not exist yet.
 
 ### Phase 5 — hardening
 
@@ -325,7 +325,7 @@ Every work item inherits these. Copy them into your head before you start.
 - No colour anywhere in v1 output; `--no-color` is accepted and is a no-op that exists so scripts written today keep working.
 - Commit after every green step. Commit message format: `<scope>: <imperative summary>` where scope is the package or command (`id: add base32 codec`, `cli/next: seeded tie-break`).
 - Tests: `testing` stdlib only, table-driven, `t.TempDir()` for filesystem. Golden files under `testdata/golden/` with an `-update` flag (`var update = flag.Bool("update", false, "rewrite golden files")`). Fixtures under `testdata/fixtures/<name>/.awit/…`.
-- Do not run formatters/linters project-wide inside a work item beyond `gofmt` on files you touched; CI runs `go vet` and `staticcheck` once.
+- Do not run formatters/linters project-wide inside a work item beyond `gofmt` on files you touched; CI runs `go vet` and `staticcheck` once. `go build ./... && go vet ./... && go test ./...` still runs project-wide before closing (see §7).
 
 ## 2. Resolved decisions
 
@@ -362,7 +362,7 @@ Additional decisions made while writing work items:
 | Git commit on `--claim` | `git -C <root> add <itemfile>` then `git -C <root> commit -m "awit: claim <id>" -- <itemfile>`. Commit failure is an error **after** the file was written; message tells the user the file is claimed but uncommitted. Whether the commit happens follows the **claim commit policy** (AWIT-0NHDC5DZ): an explicit `next --commit=true\|false` or a true `--no-commit` (deprecated spelling of `--commit=false`, still accepted, no runtime warning) beats `config.yaml commit:` which beats the default `true`; `--no-commit=false` is neutral; `--commit` plus a true `--no-commit`, or a non-bool `--commit` value, is usage error 2 before any mutation. The policy governs only this claim commit — never pushing, `close`, `release`, or any other command. |
 | Archive eligibility | Fixed point over the graph: start with every closed, non-quarantined node; repeatedly remove any node with an `Unblocks` neighbour outside the set (open, quarantined, or closed-but-not-in-set); stop when stable. Result sorted by ID. Never rewrites another item's `deps`, never introduces an index file; the graph engine is unchanged. |
 | Archive layout | Flat `.awit/archive/<id>.md`, same depth as `items/`. After `refs_base: repo`, non-comment refs (`docs/plan/x.md`) stay valid independent of archive directory depth. `--file` attachments move to `.awit/archive/<id>/<file>`; their ref becomes `.awit/archive/<id>/<file>`. |
-| Comment collapse format | Original item bytes, then `\n## Comments\n` and one `\n### <created RFC3339 UTC> <author>\n\n<text>\n` block per comment, ordered by comment filename asc (chronological). Comment refs (`.awit/comments/<id>/…` with frontmatter `author`+`created`, or historical `../comments/<id>/…`) are removed from `refs`; all other frontmatter untouched (node edit, unknown keys kept). No `archived_at` key — Git records when. Items with zero comments get no `## Comments` section. |
+| Comment collapse format | The archived item is a node-edit after NormalizeRefs — drop comment refs and missing comment-prefix refs, rewrite attachment refs, keep other keys and the body — then `\n## Comments\n` and one `\n### <created RFC3339 UTC> <author>\n\n<text>\n` block per comment, ordered by comment filename asc (chronological). Comment refs (`.awit/comments/<id>/…` with frontmatter `author`+`created`, or historical `../comments/<id>/…`) are removed from `refs`; all other frontmatter untouched (node edit, unknown keys kept). No `archived_at` key — Git records when. Items with zero comments get no `## Comments` section. |
 | Comment vs attachment | A file under `comments/<id>/` is a **comment** when `Split` succeeds and the frontmatter has `author` and `created`; every other file is an **attachment** (verbatim `--file` copy) and is moved, never inlined. No MIME sniffing. |
 | Archive write order | Per item: write `archive/<id>.md` atomically → move attachments (`os.Rename`, atomic write fallback on cross-device) → `os.Remove(items/<id>.md)` → `os.RemoveAll(comments/<id>)`. Idempotent: if both `archive/<id>.md` and `items/<id>.md` exist (crash between steps) the archive file is rebuilt from `items/` and overwritten. |
 | Does `archive` commit? | **No**, same as `close`. Holds `Store.Lock`. Output ignores `--format` (like `close`): one `archived <id>` line per item, sorted by ID, then `Archived N items`. `--dry-run` writes nothing, prints `would archive <id>` lines and `skip <id>: dependant <dep-id> not archivable` for every closed item left behind, then `Would archive N items`. Exit 0 even when N = 0. |
@@ -1229,7 +1229,7 @@ When quoting Git conflict-marker bytes (`<<<<<<< `, a line of seven or more `=`,
 2. Check the work item's `deps` are all `status: closed` (read their files). If not, stop and pick another.
 3. Follow the steps in order. Do not skip the "run, see it fail" step.
 4. Commit per step with the scope convention.
-5. Before closing: run `go build ./... && go vet ./... && go test ./...` for the packages you touched. Paste the acceptance-criteria output via `awit comment <id>` and add its ref to the work item.
+5. Before closing: run `go build ./... && go vet ./... && go test ./...`. Paste the acceptance-criteria output via `awit comment <id>` and add its ref to the work item.
 6. Set `status: closed` in the work item frontmatter. Commit `items: close <id>`.
 
 ## 8. Fixture catalogue
@@ -1288,6 +1288,10 @@ Phase order is dependency order; within a phase, work items without mutual deps 
 | `AWIT-0NEZV7T2` | Rename ticket to work item across living docs and open items | — | phase5, p1 |
 | `AWIT-0NEX14T9` | skill: correct author resolution in driving-awit | — | phase5, p1 |
 | `AWIT-0NEWKJTD` | init: seed the driving-awit skill into detected agent dirs | X14T9, ZV7T2 | phase5, p1 |
+| `AWIT-0NFAW5DT` | next accepts an item ID to claim | — | — |
+| `AWIT-0NF68SDS` | close prints closed ID confirmation | — | — |
+| `AWIT-0NF68SDG` | update echoes changed fields on success | — | — |
+| `AWIT-0NF3RZDP` | CLI teaches its own workflow in --help | — | — |
 | `AWIT-0NHDBCDN` | Structured Gitea external metadata | 5753G, 56H3G, 56M3G, 56F3G, 56S3G | phase5, p0 |
 | `AWIT-0NHDBJDR` | Import Gitea issues through tea, alias lookup | 56E3G, FAW5DT, 56K3G, 56J3G, HBCDN | phase5, p0 |
 | `AWIT-0NHDBNDS` | External body drift check + byte-exact push | 56S3G, 5753G, HBCDN, HBJDR | phase5, p1 |
@@ -1298,10 +1302,12 @@ Phase order is dependency order; within a phase, work items without mutual deps 
 | `AWIT-0NHDC2DN` | Ref add/rm, repo-root base migration | 56Z3G, 5703G, 56Y3G, E610DS | phase4, p1 |
 | `AWIT-0NHDC5DZ` | Claim commit policy (commit:false) | 56A3G, 56X3G, FAW5DT | phase5, p1 |
 | `AWIT-0NHDC7DK` | Configured item-body template | 56A3G, 56H3G, HBCDN | phase1, p1 |
-| `AWIT-0ND5763G` | Advisory label vocabulary warning | 56A3G, 56H3G, F68SDG, 5763G | phase5, p2 |
+| `AWIT-0NHDC9DT` | Advisory label vocabulary warning | 56A3G, 56H3G, F68SDG, 5763G | phase5, p2 |
 | `AWIT-0NHDCDDZ` | Next --why selection explanation | 56X3G, 56V3G, FAW5DT | phase3, p2 |
 
 Short forms in the Deps column are unique ID fragments; the work item files use full IDs.
+
+The graph below covers the initial phase 0–5 build only.
 
 ```mermaid
 flowchart LR
