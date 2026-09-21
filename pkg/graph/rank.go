@@ -47,13 +47,18 @@ func (g *Graph) countUnblocks() {
 			n.UnblockCount = -1
 			continue
 		}
-		n.UnblockCount = reachableUnblocks(n)
+		n.UnblockCount = len(ReachableUnblocks(n))
 	}
 }
 
-func reachableUnblocks(start *Node) int {
+// ReachableUnblocks returns the unique non-closed, non-quarantined nodes
+// reachable from start via Unblocks edges, sorted by ID. The walk passes
+// through closed and quarantined nodes so a closed middle node does not hide
+// an open descendant; those nodes are walked but never returned.
+// UnblockCount is len(ReachableUnblocks(n)) for every non-quarantined node.
+func ReachableUnblocks(start *Node) []*Node {
 	seen := map[string]bool{start.Item.ID: true}
-	count := 0
+	var out []*Node
 	queue := append([]*Node(nil), start.Unblocks...)
 	for len(queue) > 0 {
 		n := queue[0]
@@ -63,11 +68,12 @@ func reachableUnblocks(start *Node) int {
 		}
 		seen[n.Item.ID] = true
 		if !n.Quarantined() && n.Item.Status != item.StatusClosed {
-			count++
+			out = append(out, n)
 		}
 		queue = append(queue, n.Unblocks...)
 	}
-	return count
+	sort.Slice(out, func(i, j int) bool { return out[i].Item.ID < out[j].Item.ID })
+	return out
 }
 
 func (g *Graph) Ready() []*Node {

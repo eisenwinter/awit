@@ -129,3 +129,59 @@ func TestShowExternalLine(t *testing.T) {
 		t.Fatalf("json show missing external:\n%s", stdout)
 	}
 }
+
+// mkChain creates Root ← Mid ← Leaf with deterministic IDs.
+func mkChain(t *testing.T) string {
+	t.Helper()
+	dir := initRepo(t)
+	steps := [][]string{
+		{"create", "--brief", "B.", "--id", "AWIT-TEST0001", "Root"},
+		{"create", "--brief", "B.", "--id", "AWIT-TEST0002", "-d", "AWIT-TEST0001", "Mid"},
+		{"create", "--brief", "B.", "--id", "AWIT-TEST0003", "-d", "AWIT-TEST0002", "Leaf"},
+	}
+	for _, s := range steps {
+		if code, _, stderr := run(t, append([]string{"--repo", dir}, s...)...); code != 0 {
+			t.Fatalf("%v: exit %d stderr %q", s, code, stderr)
+		}
+	}
+	return dir
+}
+
+func TestShowUnblocksListsTheTransitiveSet(t *testing.T) {
+	dir := mkChain(t)
+
+	code, stdout, stderr := run(t, "--repo", dir, "show", "AWIT-TEST0001", "--unblocks", "--format", "compact")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	for _, want := range []string{"AWIT-TEST0002", "AWIT-TEST0003"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("stdout %q missing %s", stdout, want)
+		}
+	}
+	if strings.Contains(stdout, "AWIT-TEST0001") {
+		t.Errorf("stdout %q must not list the item itself", stdout)
+	}
+}
+
+func TestShowUnblocksEmptySetPrintsNothing(t *testing.T) {
+	dir := mkChain(t)
+
+	// The leaf unblocks nothing.
+	code, stdout, stderr := run(t, "--repo", dir, "show", "AWIT-TEST0003", "--unblocks", "--format", "compact")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if stdout != "" {
+		t.Errorf("stdout = %q, want empty", stdout)
+	}
+}
+
+func TestShowUnblocksRejectsCombinedViews(t *testing.T) {
+	dir := mkChain(t)
+
+	code, _, stderr := run(t, "--repo", dir, "show", "AWIT-TEST0001", "--unblocks", "--full")
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2 (stderr %q)", code, stderr)
+	}
+}

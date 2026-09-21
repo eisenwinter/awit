@@ -20,6 +20,7 @@ var showCmd = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.BoolFlag{Name: "full", Usage: "include resolved ref bodies"},
 		&cli.BoolFlag{Name: "refs-only", Usage: "list resolved refs without the item"},
+		&cli.BoolFlag{Name: "unblocks", Usage: "list the open items this one transitively unblocks, instead of the item"},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		if cmd.Args().Len() != 1 {
@@ -69,6 +70,16 @@ func showOne(cmd *cli.Command, key string) error {
 		return err
 	}
 	n := g.Nodes[id]
+	if cmd.Bool("unblocks") {
+		if cmd.Bool("full") || cmd.Bool("refs-only") {
+			return cli.Exit("Error: --unblocks cannot be combined with --full or --refs-only", 2)
+		}
+		var entries []format.Entry
+		for _, u := range graph.ReachableUnblocks(n) {
+			entries = append(entries, toEntry(u))
+		}
+		return format.Write(cmd.Root().Writer, f, entries)
+	}
 	itemsDir := s.ItemsDir()
 	baseDir := itemsDir
 	if n.Item.RefsBase == "repo" {

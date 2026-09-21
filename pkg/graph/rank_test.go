@@ -247,3 +247,27 @@ func TestManualBlockHeldMiddleNodePaths(t *testing.T) {
 		t.Fatalf("Archivable() = %v, want [AWIT-TEST0004] (closed held node still archives)", got)
 	}
 }
+
+func TestReachableUnblocksReturnsTheCountedSet(t *testing.T) {
+	// Unblocks edges: A → B → C, and A → D(closed) → E.
+	// From A the set is {B, C, E}: closed D is walked through but never
+	// returned, so it cannot hide open E.
+	a := &item.Item{ID: "AWIT-TEST0001", Title: "A", Status: item.StatusOpen}
+	b := &item.Item{ID: "AWIT-TEST0002", Title: "B", Status: item.StatusOpen, Deps: []string{"AWIT-TEST0001"}}
+	c := &item.Item{ID: "AWIT-TEST0003", Title: "C", Status: item.StatusOpen, Deps: []string{"AWIT-TEST0002"}}
+	d := &item.Item{ID: "AWIT-TEST0004", Title: "D", Status: item.StatusClosed, Deps: []string{"AWIT-TEST0001"}}
+	e := &item.Item{ID: "AWIT-TEST0005", Title: "E", Status: item.StatusOpen, Deps: []string{"AWIT-TEST0004"}}
+	g := Build([]*item.Item{a, b, c, d, e}, nil)
+
+	var ids []string
+	for _, n := range ReachableUnblocks(g.Nodes["AWIT-TEST0001"]) {
+		ids = append(ids, n.Item.ID)
+	}
+	want := []string{"AWIT-TEST0002", "AWIT-TEST0003", "AWIT-TEST0005"}
+	if !slices.Equal(ids, want) {
+		t.Errorf("ReachableUnblocks = %v, want %v (sorted by ID, closed D excluded)", ids, want)
+	}
+	if n := g.Nodes["AWIT-TEST0001"].UnblockCount; n != len(want) {
+		t.Errorf("UnblockCount = %d, want %d: it must equal len(ReachableUnblocks)", n, len(want))
+	}
+}
