@@ -3,13 +3,12 @@ id: AWIT-0NPYAWTA
 title: 'cli/update: add --body and --body-file'
 brief: >-
   A work item body can only be corrected by editing the file directly, contradicting the skill's core rule that every state change goes through the CLI. Adds update --body and --body-file, replacing the body while leaving frontmatter untouched.
-status: in_progress
+status: closed
 deps: [AWIT-0NPYAWT8]
 labels: [phase7, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NPYAWTA/20260921T141804Z-orchestrator.md, .awit/comments/AWIT-0NPYAWTA/20260921T141804Z-orchestrator-2.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-21T14:08:42Z"
 ---
 
 ## Summary
