@@ -1,0 +1,1532 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agent work item tool: a zero-daemon Go CLI that turns Markdown files under .awit/ into a dependency graph for humans and agents.">
+      
+      
+        <meta name="author" content="Jan Eisenwinter">
+      
+      
+        <link rel="canonical" href="https://eisenwinter.github.io/awit/design-spec/">
+      
+      
+        <link rel="prev" href="../usage/">
+      
+      
+        <link rel="next" href="../schema/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Design Spec - awit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#awit-system-specification-architecture" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="awit" class="md-header__button md-logo" aria-label="awit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            awit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Design Spec
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Follow system theme"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Follow system theme" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/eisenwinter/awit" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    eisenwinter/awit
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="awit" class="md-nav__button md-logo" aria-label="awit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    awit
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/eisenwinter/awit" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    eisenwinter/awit
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How it works
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup & Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Spec
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Spec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#vocabulary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vocabulary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-system-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. System Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. System Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scope-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope Boundaries
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-core-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Core Decisions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Core Decisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#id-layout-40-bits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ID Layout (40 bits)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fault-handling-and-quarantine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fault Handling and Quarantine
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-data-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Data Model
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Data Model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#work-item-frontmatter-specification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Work Item Frontmatter Specification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#invariants-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Invariants &amp; Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-graph-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Graph Engine
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Graph Engine">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#graph-algorithms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graph Algorithms
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#archival-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Archival Engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-cli-command-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. CLI Command Matrix
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. CLI Command Matrix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#item-identifiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Item Identifiers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-agent-surfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Agent Surfaces
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Agent Surfaces">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#awit-prime-output-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        awit prime Output Contract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#awit-next-output-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        awit next Output Contract
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-package-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Package Layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    On-disk Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#vocabulary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vocabulary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-system-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. System Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. System Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scope-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope Boundaries
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-core-decisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Core Decisions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Core Decisions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#id-layout-40-bits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ID Layout (40 bits)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fault-handling-and-quarantine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fault Handling and Quarantine
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-data-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Data Model
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Data Model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#work-item-frontmatter-specification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Work Item Frontmatter Specification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#invariants-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Invariants &amp; Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-graph-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Graph Engine
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Graph Engine">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#graph-algorithms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graph Algorithms
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#archival-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Archival Engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-cli-command-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. CLI Command Matrix
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. CLI Command Matrix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#item-identifiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Item Identifiers
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-agent-surfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Agent Surfaces
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Agent Surfaces">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#awit-prime-output-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        awit prime Output Contract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#awit-next-output-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        awit next Output Contract
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-package-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Package Layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/eisenwinter/awit/edit/main/docs/design-spec.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="awit-system-specification-architecture">awit — System Specification &amp; Architecture<a class="headerlink" href="#awit-system-specification-architecture" title="Permanent link">&para;</a></h1>
+<p><strong>System:</strong> <code>awit</code>, a zero-daemon Go CLI that builds a dependency graph from Markdown files in <code>.awit/</code> for humans and agents. Versioned in Git; no database, no daemon, no external state.</p>
+<p><strong>Architecture:</strong> Graph-reading commands rebuild the in-memory graph from <code>.awit/items/*.md</code> and operate on the condensed DAG. Mutations write only targeted files. Faults (parse errors, cycles, dangling dependencies, conflict markers, ID mismatches, duplicate IDs) route to quarantine.</p>
+<p><strong>Tech Stack:</strong> Go 1.27.1, <code>github.com/urfave/cli/v3</code> (CLI), <code>gopkg.in/yaml.v3</code> (frontmatter Node editing), <code>golang.org/x/sys</code> (<code>pkg/lock</code> Windows only), stdlib. External git operations execute via <code>os/exec</code>. External trackers interface via pre-authenticated <code>tea</code> (Gitea) and <code>glab</code> (GitLab) subprocesses.</p>
+<p><strong>On-disk contract:</strong> File format bytes are governed by <a href="../schema/">schema.md</a>, which overrides this document on discrepancy.</p>
+<hr />
+<h2 id="vocabulary">Vocabulary<a class="headerlink" href="#vocabulary" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Work item</strong> — one Markdown file under <code>.awit/items/</code> (ID = filename stem): frontmatter plus body. The unit of work; <code>item</code> is the short form and the Go noun.</li>
+<li><strong>Graph</strong> — the in-memory DAG rebuilt from items on every graph-reading command. Nodes are items; edges are <code>deps</code>/<code>Unblocks</code>.</li>
+<li><strong>Ready / Blocked</strong> — derived eligibility, never stored. Ready means not closed, unheld, every dep closed. Blocked means a non-closed item that is held or waiting on deps.</li>
+<li><strong>Quarantine</strong> — the exclusion set for unreadable or faulted items. Visible everywhere, selectable nowhere.</li>
+<li><strong>Labels</strong> — free-form grouping sets with no enforced meaning. Any spelling is allowed; <code>p0</code>…<code>p4</code> may be convention for priority, usable with <code>-l</code> filters. Labels carry no scores and enforce no workflow — they group, and flows are built on top.</li>
+<li><strong>Claim</strong> — a soft reservation (<code>status</code>, <code>assignee</code>, <code>claimed_at</code>, plus a git commit by default), visible across worktrees only after push.</li>
+<li><strong>Refs</strong> — repo-relative file pointers, resolved by <code>show --full</code>.</li>
+</ul>
+<hr />
+<h2 id="1-system-overview">1. System Overview<a class="headerlink" href="#1-system-overview" title="Permanent link">&para;</a></h2>
+<p>Graph-reading commands parse <code>.awit/items/*.md</code>, operate on the memory graph, and persist changes atomically.</p>
+<pre class="mermaid"><code>flowchart LR
+  A[awit prime&lt;br/&gt;token-light graph] --&gt; B[awit next --claim&lt;br/&gt;lock top unblocked item]
+  B --&gt; C[awit show id --full&lt;br/&gt;item + resolved refs]
+  C --&gt; D[awit comment id&lt;br/&gt;research notes]
+  D --&gt; E[awit close id&lt;br/&gt;unblocks downstream]
+  E --&gt; A</code></pre>
+<h3 id="scope-boundaries">Scope Boundaries<a class="headerlink" href="#scope-boundaries" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Local checkout coordination occurs via Git or optional file lock (<code>.awit/.lock</code>).</li>
+<li>Local files are canonical. awit has no background or bidirectional tracker sync and no GitHub integration. Gitea and GitLab access occurs only through import, check, body-push, and configured state-push operations.</li>
+<li>No web UI, no multi-repository graphs.</li>
+</ul>
+<hr />
+<h2 id="2-core-decisions">2. Core Decisions<a class="headerlink" href="#2-core-decisions" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Domain</th>
+<th>Policy</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ID Scheme</strong></td>
+<td>40-bit Snowflake: <code>PREFIX-</code> + 8 Crockford base32 chars.</td>
+<td>Monotonic sort in directory listings; prevents collisions across worktrees.</td>
+</tr>
+<tr>
+<td><strong>Priority</strong></td>
+<td>Conventional labels (<code>p0</code>, <code>p1</code>, …). No dedicated frontmatter field.</td>
+<td>Labels stay free-form grouping sets; anyone can filter <code>p0</code>…<code>p4</code> or invent their own flow without enforced scoring.</td>
+</tr>
+<tr>
+<td><strong><code>next</code> Rank</strong></td>
+<td>Transitive unblock count descending; random ties (<code>math/rand/v2</code> PCG). <code>-l</code> filters candidate set.</td>
+<td>Prevents duplicate claims when multiple agents poll concurrently.</td>
+</tr>
+<tr>
+<td><strong><code>prime</code> Rank</strong></td>
+<td>Transitive unblock count descending; ties broken by ID ascending.</td>
+<td>Deterministic output for prompt caching and snapshot tests.</td>
+</tr>
+<tr>
+<td><strong>Frontmatter</strong></td>
+<td><code>yaml.v3</code> Node editing; modifies only changed scalars.</td>
+<td>Generates minimal diffs; preserves key order, comments, and unmodeled fields.</td>
+</tr>
+<tr>
+<td><strong>Comments</strong></td>
+<td><code>&lt;UTC-Timestamp&gt;-&lt;author&gt;.md</code> (<code>YYYYMMDDTHHMMSSZ-&lt;author&gt;.md</code>). Suffix <code>-2</code>, <code>-3</code> on collision.</td>
+<td>Prevents filename collisions across branches without day counters.</td>
+</tr>
+<tr>
+<td><strong>Claims</strong></td>
+<td>Soft claim: records <code>status</code>, <code>assignee</code>, <code>claimed_at</code>. Creates Git commit <code>awit: claim &lt;id&gt;</code> unless disabled (<code>--commit=false</code>, <code>--no-commit</code>, or <code>commit: false</code> in <code>config.yaml</code>).</td>
+<td>Invisible across worktrees until pushed. Commits surface competing claims as Git conflicts. Default-on so ticket flow stays traceable in git history; opt out per invocation or per repo when something else owns commits.</td>
+</tr>
+<tr>
+<td><strong>Manual Block</strong></td>
+<td><code>blocked_reason</code> string scalar (non-empty = held). A held healthy non-closed item is blocked regardless of deps.</td>
+<td>Distinguishes explicit holds from dependency stalls without extra state fields.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="id-layout-40-bits">ID Layout (40 bits)<a class="headerlink" href="#id-layout-40-bits" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Bits</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Timestamp</strong></td>
+<td>30</td>
+<td>Seconds since <code>2026-01-01T00:00:00Z</code> (~34-year range, rollover 2060).</td>
+</tr>
+<tr>
+<td><strong>Worker</strong></td>
+<td>6</td>
+<td>FNV-1a 32-bit hash of <code>hostname + worktree_path + branch</code> mod 64. Overridden by <code>AWIT_WORKER</code> (0–63).</td>
+</tr>
+<tr>
+<td><strong>Random</strong></td>
+<td>4</td>
+<td><code>crypto/rand</code>. Re-rolls up to 16 times on local collision (<code>ErrExhausted</code>).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fault-handling-and-quarantine">Fault Handling and Quarantine<a class="headerlink" href="#fault-handling-and-quarantine" title="Permanent link">&para;</a></h3>
+<p>One quarantine pipeline processes cycles, dangling dependencies, syntax/parse errors, Git merge conflicts, duplicate IDs (case-insensitive stem match), ID mismatches, and malformed <code>blocked_reason</code> values (<code>PARSE ERROR</code>).</p>
+<ul>
+<li>Quarantined items are excluded from <code>next</code> and critical paths.</li>
+<li>Displayed under <code>=== GRAPH WARNINGS ===</code> in <code>prime</code>.</li>
+<li>Cause <code>awit validate</code> to exit non-zero (<code>FAIL</code>).</li>
+<li>Graph-reading commands (<code>list</code>, <code>next</code>, <code>prime</code>, <code>show</code>, <code>validate</code>, <code>dep</code>, <code>archive</code>) write a stderr warning if quarantine holds items:
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>warning: N items quarantined, run awit validate
+</code></pre></div>
+  Where <code>N = len(Quarantined()) + len(Broken)</code>.</li>
+</ul>
+<hr />
+<h2 id="3-data-model">3. Data Model<a class="headerlink" href="#3-data-model" title="Permanent link">&para;</a></h2>
+<p>Filesystem organization under <code>.awit/</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>.awit/
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── config.yaml                        # Configuration defaults, labels, templates
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>├── items/
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>│   ├── AWIT-0K7M2QX9.md               # One file per work item; filename stem = ID
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>│   └── AWIT-0K7M3A1F.md
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>├── comments/
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>│   └── AWIT-0K7M2QX9/
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>│       ├── 20260917T143205Z-claude.md # Timestamped comments
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>│       └── 20260917T151047Z-jan.md
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>└── archive/                           # Terminal items moved by `awit archive`
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    ├── AWIT-0K7LZ9RT.md               # Collapsed item + comments
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    └── AWIT-0K7LZ9RT/                 # Relocated --file attachments
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>        └── 20260916T090000Z-jan.log
+</code></pre></div>
+<h3 id="work-item-frontmatter-specification">Work Item Frontmatter Specification<a class="headerlink" href="#work-item-frontmatter-specification" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>---
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>id: AWIT-0K7M2QX9
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>title: Implement OAuth2 bearer token extraction
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>brief: &gt;-
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  The API gateway rejects valid bearer tokens that contain URL-safe base64
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  characters. Fix header parsing in the auth middleware and return a
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>  structured 401 on invalid signatures.
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>status: in_progress            # open | in_progress | closed
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>deps: [AWIT-0K7LZ9RT]          # Prerequisite IDs
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>labels: [auth, api, p1]        # Free-form grouping sets; p0..p4 by convention
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>assignee: agent/claude
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>claimed_at: 2026-09-17T14:32:05Z
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>refs_base: repo                # "repo" (root relative) or absent (legacy items-relative)
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>refs:
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span><span class="k">-</span><span class="w"> </span>.awit/comments/AWIT-0K7M2QX9/20260917T143205Z-claude.md
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="gu">  - docs/architecture/auth-middleware-spec.md</span>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="gu">---</span>
+</code></pre></div>
+<h3 id="invariants-rules">Invariants &amp; Rules<a class="headerlink" href="#invariants-rules" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>IDs:</strong> 40-bit Crockford base32 with prefix (<code>PREFIX-XXXXXXXX</code>). Composed of 30-bit timestamp (seconds since 2026-01-01T00:00:00Z), 6-bit worker hash (FNV-1a of hostname + worktree + branch, or <code>AWIT_WORKER</code>), and 4-bit random salt.</li>
+<li><strong>Keys:</strong> Unknown YAML keys are preserved. Empty string or nil fields (<code>assignee</code>, <code>claimed_at</code>, <code>alias</code>, <code>blocked_reason</code>, <code>external</code>) are omitted on serialization. <code>deps</code>, <code>labels</code>, and <code>refs</code> serialize as empty lists <code>[]</code> when unset.</li>
+<li><strong>Frontmatter Editing:</strong> Performed via <code>yaml.v3</code> <code>*yaml.Node</code> mutations. Only modified scalars change.</li>
+<li><strong>Comments &amp; Attachments:</strong> Comments require frontmatter with <code>author</code> and <code>created</code> (RFC3339 UTC). Files without valid frontmatter are treated as attachments. File naming pattern: <code>&lt;YYYYMMDDTHHMMSSZ&gt;-&lt;sanitized-author&gt;&lt;ext&gt;</code>, collision suffix <code>-2</code>.</li>
+<li><strong>References:</strong> <code>refs</code> store repo-relative forward-slash paths when <code>refs_base: repo</code>. Legacy items without <code>refs_base</code> default to <code>.awit/items/</code> base and migrate to repo-root paths on mutation.</li>
+</ul>
+<hr />
+<h2 id="4-graph-engine">4. Graph Engine<a class="headerlink" href="#4-graph-engine" title="Permanent link">&para;</a></h2>
+<p>Rebuilt in-memory by graph-reading commands via condensed DAG construction:</p>
+<pre class="mermaid"><code>flowchart TD
+  A[Scan .awit/items] --&gt; B[Parse frontmatter]
+  B --&gt;|parse error, conflict markers, id mismatch| Q[Quarantine]
+  B --&gt; C[Create nodes]
+  C --&gt; D[Wire Deps / Unblocks edges]
+  D --&gt;|dangling dep| Q
+  D --&gt; E[Tarjan SCC]
+  E --&gt;|SCC size &gt; 1 or self-loop| Q
+  E --&gt; F[Condensed DAG]
+  F --&gt; G[Ready / Blocked classification]
+  G --&gt; H[Memoized unblock counts]
+  H --&gt; I[next · prime · critical path]</code></pre>
+<h3 id="graph-algorithms">Graph Algorithms<a class="headerlink" href="#graph-algorithms" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Algorithm</th>
+<th>Mechanics</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Cycle Pre-check</strong></td>
+<td>Directed DFS</td>
+<td>Triggered on <code>dep add A B</code>. Searches from <strong>B</strong> over <code>Deps</code> for <strong>A</strong>. Rejects before write on reachability.</td>
+</tr>
+<tr>
+<td><strong>Load Validation</strong></td>
+<td>Tarjan SCC</td>
+<td>Identifies strongly connected components of size &gt; 1 or self-loops. Emits cycle path via DFS back-edge traversal.</td>
+</tr>
+<tr>
+<td><strong>State Resolution</strong></td>
+<td>Node classification</td>
+<td><strong>Ready:</strong> <code>status != closed</code>, no <code>blocked_reason</code>, all dependencies <code>closed</code>.<br><strong>Blocked:</strong> <code>status != closed</code>, and manually held or has open/dangling/quarantined deps.</td>
+</tr>
+<tr>
+<td><strong>Unblock Score</strong></td>
+<td>Directed BFS</td>
+<td>Traverses outgoing <code>Unblocks</code> edges. Computes count of unique, reachable, non-closed, non-quarantined nodes. Cached on node.</td>
+</tr>
+<tr>
+<td><strong>Critical Path</strong></td>
+<td>Dynamic Programming</td>
+<td>Longest path over non-closed, non-quarantined nodes in topological order. Ties broken by ID ascending.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="archival-engine">Archival Engine<a class="headerlink" href="#archival-engine" title="Permanent link">&para;</a></h3>
+<p><code>awit archive</code> computes the maximal fixed-point set: closed, non-quarantined items whose unblock graph contains no non-archived dependants. It inlines comments under <code>## Comments</code>, moves attachments to <code>.awit/archive/&lt;id&gt;/</code>, rewrites frontmatter references, and deletes source files atomically under lock.</p>
+<hr />
+<h2 id="5-cli-command-matrix">5. CLI Command Matrix<a class="headerlink" href="#5-cli-command-matrix" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Standard flag <code>--format compact|table|json</code> applies to tabular outputs (defaults to <code>compact</code> if stdout is not a TTY).</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Flags</th>
+<th>Target</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>init</code></td>
+<td><code>--prefix</code>, <code>--skills</code>, <code>--no-skills</code>, <code>--force</code></td>
+<td>Admin</td>
+<td>Initializes <code>.awit/</code>, <code>config.yaml</code>, ignores <code>.awit/.lock</code>. Can seed agent skills.</td>
+</tr>
+<tr>
+<td><code>create &lt;title&gt;</code></td>
+<td><code>--brief</code>, <code>--body</code>, <code>--body-file</code>, <code>-d deps</code>, <code>-l labels</code>, <code>--assign</code>, <code>--alias</code>, <code>--id</code>, <code>--external-*</code></td>
+<td>Both</td>
+<td>Mints ID, validates dependencies, writes work item.</td>
+</tr>
+<tr>
+<td><code>template</code></td>
+<td>—</td>
+<td>Both</td>
+<td>Emits configured item body template or fallback skeleton. Builds no graph.</td>
+</tr>
+<tr>
+<td><code>import &lt;url&gt;</code></td>
+<td><code>[--brief]</code>, <code>--alias</code>, <code>--tea-login</code></td>
+<td>Both</td>
+<td>Imports Gitea (<code>tea</code>) or GitLab (<code>glab</code>) issue as read-only snapshot.</td>
+</tr>
+<tr>
+<td><code>external check [key]</code></td>
+<td><code>--tea-login</code></td>
+<td>Both</td>
+<td>Detects raw body drift between local item and remote issue. Non-zero exit on drift/error.</td>
+</tr>
+<tr>
+<td><code>external push-body &lt;k&gt;</code></td>
+<td><code>--tea-login</code></td>
+<td>Both</td>
+<td>Writes local body to remote issue via tracker CLI; verifies remote bytes match.</td>
+</tr>
+<tr>
+<td><code>list [key]</code></td>
+<td><code>-s status</code>, <code>-l label</code>, <code>--ready</code>, <code>--blocked</code>, <code>--quarantined</code>, <code>--format</code></td>
+<td>Both</td>
+<td>Filters and lists graph entries.</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td><code>--state open\|closed\|all</code>, <code>--format</code></td>
+<td>Both</td>
+<td>Aggregates label frequencies. Ignores graph quarantine warnings.</td>
+</tr>
+<tr>
+<td><code>show &lt;id&gt;</code></td>
+<td><code>--full</code>, <code>--refs-only</code>, <code>--unblocks</code></td>
+<td>Both</td>
+<td>Displays item metadata, resolved references, or transitive unblocks.</td>
+</tr>
+<tr>
+<td><code>comment &lt;id&gt; [msg]</code></td>
+<td><code>--file &lt;path&gt;</code>, <code>--author</code></td>
+<td>Both</td>
+<td>Writes RFC3339-timestamped comment or moves file attachment; updates <code>refs</code>.</td>
+</tr>
+<tr>
+<td><code>update &lt;id&gt;</code></td>
+<td><code>--status</code>, <code>--brief</code>, <code>--body</code>, <code>--body-file</code>, <code>--assign</code>, <code>--label</code>, <code>--unlabel</code>, <code>--title</code>, <code>--alias</code>, <code>--clear-alias</code>, <code>--external-*</code>, <code>--push</code>, <code>--no-push</code>, <code>--tea-login</code></td>
+<td>Both</td>
+<td>Performs surgical frontmatter mutation. Syncs status to external trackers if enabled.</td>
+</tr>
+<tr>
+<td><code>close &lt;id&gt;</code></td>
+<td><code>--reason</code>, <code>--author</code>, <code>--push</code>, <code>--no-push</code>, <code>--tea-login</code></td>
+<td>Both</td>
+<td>Sets <code>status: closed</code>, clears <code>claimed_at</code> and the hold, keeps <code>assignee</code>, appends reason comment. Syncs external status.</td>
+</tr>
+<tr>
+<td><code>release &lt;id&gt;</code></td>
+<td><code>--push</code>, <code>--no-push</code>, <code>--tea-login</code></td>
+<td>Both</td>
+<td>Resets status to <code>open</code>, clears <code>assignee</code> and <code>claimed_at</code>. Leaves manual hold intact.</td>
+</tr>
+<tr>
+<td><code>block &lt;id&gt;</code></td>
+<td><code>--reason</code></td>
+<td>Both</td>
+<td>Writes <code>blocked_reason</code>, sets status to <code>open</code>, drops claim. Refuses closed items.</td>
+</tr>
+<tr>
+<td><code>unblock &lt;id&gt;</code></td>
+<td>—</td>
+<td>Both</td>
+<td>Deletes <code>blocked_reason</code>. Retains status, assignee, and external links.</td>
+</tr>
+<tr>
+<td><code>dep add\|rm &lt;a&gt; &lt;b&gt;</code></td>
+<td>—</td>
+<td>Both</td>
+<td>Mutates dependency edge. <code>add</code> executes cycle pre-check before writing.</td>
+</tr>
+<tr>
+<td><code>ref add\|rm &lt;id&gt; &lt;p&gt;</code></td>
+<td><code>add --allow-missing</code></td>
+<td>Both</td>
+<td>Mutates reference link. <code>add</code> checks target existence unless bypassed.</td>
+</tr>
+<tr>
+<td><code>validate</code></td>
+<td><code>--stale-claims</code></td>
+<td>Both</td>
+<td>Evaluates graph integrity. Exits 1 on quarantine faults. Warns on bad external data.</td>
+</tr>
+<tr>
+<td><code>archive</code></td>
+<td><code>--dry-run</code></td>
+<td>Human</td>
+<td>Consolidates terminal closed items to <code>.awit/archive/</code>.</td>
+</tr>
+<tr>
+<td><code>prime</code></td>
+<td><code>--max-tokens</code>, <code>-l label</code></td>
+<td>Agent</td>
+<td>Outputs deterministic state graph for agent context injection.</td>
+</tr>
+<tr>
+<td><code>next [key]</code></td>
+<td><code>-l label</code>, <code>--claim</code>, <code>--agent</code>, <code>--commit</code>, <code>--no-commit</code>, <code>--seed</code>, <code>--why</code></td>
+<td>Agent</td>
+<td>Selects highest-impact unblocked item. Optional claim and Git commit.</td>
+</tr>
+</tbody>
+</table>
+<p>Global flags: <code>--format compact|table|json</code>, <code>--repo &lt;dir&gt;</code>, <code>--no-color</code>.</p>
+<p>Mutating operations from subdirectories log a single path notice to stderr. Graph commands loading quarantined items print <code>warning: N items quarantined, run awit validate</code> to stderr.</p>
+<h3 id="item-identifiers">Item Identifiers<a class="headerlink" href="#item-identifiers" title="Permanent link">&para;</a></h3>
+<p>Commands accepting <code>&lt;id&gt;</code> accept canonical IDs, case-insensitive aliases, or external keys (<code>owner/repo#N</code>, <code>group/sub/project#N</code>, <code>#N</code>). Ambiguity halts execution with matching canonical IDs.</p>
+<hr />
+<h2 id="6-agent-surfaces">6. Agent Surfaces<a class="headerlink" href="#6-agent-surfaces" title="Permanent link">&para;</a></h2>
+<h3 id="awit-prime-output-contract"><code>awit prime</code> Output Contract<a class="headerlink" href="#awit-prime-output-contract" title="Permanent link">&para;</a></h3>
+<p>Deterministic graph snapshot ordered strictly by <code>UnblockCount</code> descending, then ID ascending.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>=== GRAPH WARNINGS ===
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>[CYCLE] AWIT-0K7M0A1B -&gt; AWIT-0K7M0C2D -&gt; AWIT-0K7M0A1B (excluded from next)
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>[DANGLING DEP] AWIT-0K7M0E3F depends on unknown AWIT-0K7M9ZZZ
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>=== READY (3) ===
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>[AWIT-0K7M2QX9] Implement OAuth2 token extraction | auth,api,p1 | Unblocks: 4
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>[AWIT-0K7M3A1F] Update database migration scripts | db | Unblocks: 1
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>[AWIT-0K7M3B2G] Fix flaky CI job | ci,p2 | Unblocks: 0
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>=== BLOCKED (2) ===
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>[AWIT-0K7M4C3H] Add E2E auth tests &lt;- AWIT-0K7M2QX9
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>[AWIT-0K7M4D4J] Rotate tokens &lt;- AWIT-0K7M2QX9, AWIT-0K7M4C3H | Blocked reason: waiting on keys (awit unblock AWIT-0K7M4D4J)
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>=== CRITICAL PATH (3) ===
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>AWIT-0K7M2QX9 -&gt; AWIT-0K7M4C3H -&gt; AWIT-0K7M5E5K
+</code></pre></div>
+<h4 id="token-budgeting-rules-max-tokens-n">Token Budgeting Rules (<code>--max-tokens N</code>)<a class="headerlink" href="#token-budgeting-rules-max-tokens-n" title="Permanent link">&para;</a></h4>
+<p>Budget estimation uses <code>len(bytes) / 4</code>. Budget enforcement is soft with an immutable floor:
+1. Warning lines and the first <code>READY</code> item are <strong>never shed</strong>, even if they breach the limit.
+2. Shedding sequence:
+   - Evict <code>BLOCKED</code> rows from bottom to top.
+   - Evict <code>READY</code> rows from bottom to top (stopping at item 1).
+   - Evict the <code>CRITICAL PATH</code> section entirely.
+   - Evict section scaffolding (<code>(+N more)</code> counters, section headers).
+3. Row counts reflect pre-truncation totals. Negative token limits exit with code 2.</p>
+<h3 id="awit-next-output-contract"><code>awit next</code> Output Contract<a class="headerlink" href="#awit-next-output-contract" title="Permanent link">&para;</a></h3>
+<p>Selects one item from the ready set (ready nodes minus quarantined, filtered by <code>-l</code>). An explicit <code>[key]</code> is a lookup, not a rerank; with <code>--claim</code> the item must be ready, unheld and unclaimed.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>[AWIT-0K7M2QX9] Implement OAuth2 token extraction | auth,api,p1 | Unblocks: 4
+</code></pre></div>
+<ul>
+<li><strong>Claim Mechanics (<code>--claim</code>):</strong> Sets <code>status: in_progress</code>, <code>assignee: agent/&lt;id&gt;</code>, <code>claimed_at: now</code>. If commit policy resolves true, creates Git commit <code>awit: claim &lt;id&gt;</code> containing only the item file.</li>
+<li><strong>Commit Policy Precedence:</strong> Explicit CLI <code>--commit=true|false</code> or <code>--no-commit</code> &gt; <code>config.yaml commit:</code> &gt; default <code>true</code>.</li>
+<li><strong>Identity Resolution:</strong> <code>--agent</code> &gt; <code>AWIT_AGENT</code> &gt; <code>config.yaml agent_id</code>. If unresolved, <code>--claim</code> is rejected.</li>
+<li><strong>Label Filter Logic:</strong> Multiple <code>-l</code> flags evaluate as <strong>AND across distinct flags, OR within comma-separated values</strong>: <code>-l p0 -l auth</code> must have both; <code>-l p0,p1</code> must have either.</li>
+<li><strong>Diagnostic Mode (<code>--why</code>):</strong> Writes one line to stderr:
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>why: &lt;id&gt;; unblocks=&lt;N&gt;; critical-path=&lt;yes|no&gt;; selection=&lt;max-unblocks|explicit&gt;; tie-break=&lt;none|pcg(seed=&lt;S&gt;,candidates=&lt;K&gt;)&gt;
+</code></pre></div></li>
+</ul>
+<hr />
+<h2 id="7-package-layout">7. Package Layout<a class="headerlink" href="#7-package-layout" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cmd/awit            → main: three lines into internal/cli.Main
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>internal/cli/       → command tree: one file per command, Main(), store/graph helpers
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>internal/gitx/      → branch, user.name, root, commit via os/exec
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>internal/teax/      → Gitea `tea` subprocess wrapper
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>internal/glabx/     → GitLab `glab` subprocess wrapper
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>internal/skill/     → driving-awit skill assets, Detect, Render
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>pkg/id/             → snowflake IDs: encode, decode, mint
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>pkg/config/         → config.yaml load/write, agent resolution
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>pkg/item/           → frontmatter parse/setters, Store, comments, archive
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>pkg/graph/          → Build, Tarjan SCC, rank, critical path, archivable
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>pkg/format/         → compact/table/json entry rendering
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>pkg/prime/          → deterministic snapshot renderer
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>pkg/resolver/       → ref resolution from a base directory
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>pkg/lock/           → advisory .lock (flock / LockFileEx)
+</code></pre></div>
+<p>Exact signatures live in code (<code>go doc</code>); this map says where to look. Exit codes: <code>0</code> success, <code>1</code> expected non-success (<code>next</code> with no candidates, <code>validate</code> with FAIL, drift/error), <code>2</code> usage error.</p>
+<p>Writes are temp-then-rename in the target directory; unparseable files never panic — they become <code>Broken</code>/quarantined. Output is deterministic: no timestamps, map iteration order, or randomness except the <code>next</code> tie-break.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../usage/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Setup &amp; Usage">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Setup & Usage
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../schema/" class="md-footer__link md-footer__link--next" aria-label="Next: On-disk Schema">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                On-disk Schema
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      BSD 2-Clause
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.top", "navigation.tracking", "navigation.footer", "toc.follow", "content.code.copy", "content.action.edit", "search.suggest", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

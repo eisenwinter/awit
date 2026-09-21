@@ -1,0 +1,1540 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Agent work item tool: a zero-daemon Go CLI that turns Markdown files under .awit/ into a dependency graph for humans and agents.">
+      
+      
+        <meta name="author" content="Jan Eisenwinter">
+      
+      
+        <link rel="canonical" href="https://eisenwinter.github.io/awit/schema/">
+      
+      
+        <link rel="prev" href="../design-spec/">
+      
+      
+        <link rel="next" href="../faq/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>On-disk Schema - awit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#awit-on-disk-schema" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="awit" class="md-header__button md-logo" aria-label="awit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            awit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              On-disk Schema
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Follow system theme"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Follow system theme" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/eisenwinter/awit" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    eisenwinter/awit
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="awit" class="md-nav__button md-logo" aria-label="awit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    awit
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/eisenwinter/awit" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    eisenwinter/awit
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-it-works/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How it works
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Setup & Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design-spec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Spec
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    On-disk Schema
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    On-disk Schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        config.yaml
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#item-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Item files
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Item files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#required-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-known-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional known keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-key-alias" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional key: alias
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual blocks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#item-lookup-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Item lookup keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-key-external" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional key: external
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unknown-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unknown keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#body" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Body
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comment-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comment files
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#filenames" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filenames
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lock-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lock file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#seeded-agent-skills" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Seeded agent skills
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quarantine-not-schema-but-load-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quarantine (not schema, but load-time)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        config.yaml
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#item-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Item files
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Item files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#required-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-known-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional known keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-key-alias" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional key: alias
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual blocks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#item-lookup-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Item lookup keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optional-key-external" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional key: external
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unknown-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unknown keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#body" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Body
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comment-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comment files
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#filenames" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filenames
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lock-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lock file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#seeded-agent-skills" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Seeded agent skills
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quarantine-not-schema-but-load-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quarantine (not schema, but load-time)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/eisenwinter/awit/edit/main/docs/schema.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="awit-on-disk-schema">awit on-disk schema<a class="headerlink" href="#awit-on-disk-schema" title="Permanent link">&para;</a></h1>
+<p>Everything awit stores is a UTF-8 file under <code>.awit/</code> plus a single
+gitignored lock file. There is no database. Commands rebuild the graph
+from <code>items/*.md</code> on every invocation. This document is the v1 contract.</p>
+<h2 id="layout">Layout<a class="headerlink" href="#layout" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>&lt;repo&gt;/
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── .gitignore                 # contains the line .awit/.lock
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>└── .awit/
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    ├── .lock                  # advisory lock; not committed
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    ├── config.yaml
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    ├── items/
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    │   └── PREFIX-XXXXXXXX.md # stem == frontmatter id
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    └── comments/
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>        └── PREFIX-XXXXXXXX/
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>            ├── 20260917T143205Z-claude.md
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>            └── 20260917T151047Z-jan.md
+</code></pre></div>
+<p>Paths inside frontmatter <code>refs</code> always use forward slashes. New items
+set <code>refs_base: repo</code> and store paths relative to the repository root
+(the directory that contains <code>.awit/</code>), so <code>docs/notes/x.md</code> is
+<code>&lt;repo&gt;/docs/notes/x.md</code> and <code>.awit/comments/&lt;id&gt;/file.md</code> is a comment.
+Items that omit <code>refs_base</code> keep the historical <code>.awit/items/</code> base until
+their first successful mutation, which rewrites every ref with
+<code>filepath.Rel</code> (no existence check) and writes the marker in the same
+atomic save. <code>ref add</code> stats the resolved repo-root-absolute target before
+any mutation and refuses a missing target (exit 1, item bytes unchanged)
+unless <code>--allow-missing</code> plans it ahead; other commands never check, and
+read-time <code>[missing]</code> reporting is unchanged. Resolution never probes both
+bases. On-disk paths use <code>filepath</code> (OS separators).</p>
+<h2 id="configyaml"><code>config.yaml</code><a class="headerlink" href="#configyaml" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">prefix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AWIT</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">default_labels</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">p1</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nt">labels</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">phase0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">phase1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">phase2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">phase3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">phase4</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">phase5</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">p2</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nt">stale_claim</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2h</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nt">agent_id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">claude</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="nt">commit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="nt">external_push</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="nt">template</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.awit/templates/workitem.md</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Required</th>
+<th>Rules</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prefix</code></td>
+<td>yes</td>
+<td><code>[A-Z][A-Z0-9]{1,7}</code>; missing → load error <code>config: prefix is required</code></td>
+</tr>
+<tr>
+<td><code>default_labels</code></td>
+<td>no</td>
+<td>strings; merged first-wins into <code>awit create -l</code></td>
+</tr>
+<tr>
+<td><code>labels</code></td>
+<td>no</td>
+<td>advisory vocabulary. Missing or empty disables warnings. Entries must be nonempty, with no leading/trailing whitespace or control characters; duplicates are deduplicated in memory; matching is case-sensitive. <code>create</code>/<code>update</code> warn on unknown names they introduce but still store them (exit 0). Not an allowlist</td>
+</tr>
+<tr>
+<td><code>stale_claim</code></td>
+<td>no</td>
+<td>Go duration (<code>2h</code>, <code>90m</code>). Missing/zero → <code>2h</code></td>
+</tr>
+<tr>
+<td><code>agent_id</code></td>
+<td>no</td>
+<td>raw identity; <code>AWIT_AGENT</code> overrides; <code>--author</code> overrides both</td>
+</tr>
+<tr>
+<td><code>commit</code></td>
+<td>no</td>
+<td>bool; repository default for <code>next --claim</code> git commits. Absent → <code>true</code>. <code>next --commit=true\|false</code> overrides per invocation; <code>--no-commit</code> (deprecated) equals <code>--commit=false</code>. Only <code>next --claim</code> reads it — never pushing, never another command. Independent of <code>external_push</code></td>
+</tr>
+<tr>
+<td><code>external_push</code></td>
+<td>no</td>
+<td>bool; repository default for automatic linked-issue state pushes from <code>close</code>, <code>release</code>, and explicit <code>update --status</code>. Absent → <code>true</code>. <code>--push=true\|false</code> overrides per invocation; true <code>--no-push</code> equals <code>--push=false</code>; <code>--no-push=false</code> is neutral. Does not govern <code>external push-body</code>, import, or <code>external check</code>. Independent of <code>commit</code></td>
+</tr>
+<tr>
+<td><code>template</code></td>
+<td>no</td>
+<td>repo-root-relative forward-slash path to a body-only Markdown file. <code>create</code> and <code>awit template</code> read the file. Absolute paths, backslashes, and lexical escape above the repo root fail <code>Load</code>. Missing/unreadable/directory/non-UTF-8/conflict-marker files fail <code>create</code> (exit 1, no item) and <code>awit template</code> (exit 1). Empty file → empty body. Absent/empty keeps the default skeleton. <code>import</code> ignores it</td>
+</tr>
+</tbody>
+</table>
+<p>Unknown keys in <code>config.yaml</code> are not part of v1; <code>Load</code> decodes into a
+struct and extra keys are dropped on the next <code>Write</code>. Do not put
+<code>external:</code> here.</p>
+<h2 id="item-files">Item files<a class="headerlink" href="#item-files" title="Permanent link">&para;</a></h2>
+<p>Filename: <code>.awit/items/&lt;id&gt;.md</code>. The stem <strong>must</strong> equal the <code>id</code> key
+(case-sensitive match after parse; a case-insensitive stem collision with
+another file is <code>DUPLICATE ID</code>). The file is YAML frontmatter fenced by
+<code>---</code> lines, then a Markdown body. <code>Parse</code> then <code>Bytes()</code> with no setter is
+byte-identical, including CRLF. After a setter, <code>Bytes()</code> writes <code>\n</code> fences
+and the exact body. <code>Split</code> also accepts <code>\r\n</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>---
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>id: AWIT-0K7M2QX9
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>title: Implement OAuth2 bearer token extraction
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>brief: &gt;-
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  One to three sentences of prose summarizing the item.
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>status: open
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>deps: []
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>labels: [auth, p1]
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>refs_base: repo
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="gu">refs: []</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="gu">---</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="gu">## Summary</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="gu">## Acceptance Criteria</span>
+</code></pre></div>
+<h3 id="required-keys">Required keys<a class="headerlink" href="#required-keys" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Rules</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>string</td>
+<td><code>PREFIX-</code> plus 8 Crockford chars. Must equal the filename stem</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>string</td>
+<td>Non-empty</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>enum</td>
+<td><code>open</code>, <code>in_progress</code>, <code>closed</code>. Stored lifecycle; ready/blocked eligibility is derived, with an optional stored manual hold (see Manual blocks)</td>
+</tr>
+</tbody>
+</table>
+<p>Missing required keys or an unknown status → parse error → quarantine
+<code>PARSE ERROR</code>.</p>
+<h3 id="optional-known-keys">Optional known keys<a class="headerlink" href="#optional-known-keys" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Rules</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>brief</code></td>
+<td>string</td>
+<td>One to three sentences. <code>create</code> requires <code>--brief</code>; <code>import</code> derives it from the remote title (else the body's first sentence, capped at 240 code points) unless given explicitly. <code>validate</code> warns when missing or longer; an item that cannot be briefed that tightly should be split. Written as a folded scalar (<code>&gt;-</code>) when it contains a newline or exceeds 80 bytes</td>
+</tr>
+<tr>
+<td><code>deps</code></td>
+<td>list of ids</td>
+<td>Unknown id → <code>DANGLING DEP</code> on this item. Written flow style <code>[a, b]</code></td>
+</tr>
+<tr>
+<td><code>labels</code></td>
+<td>list of strings</td>
+<td>Free-form. <code>p0</code>–<code>p4</code> recommended for priority. Flow style. Optional <code>config.yaml</code> <code>labels</code> is advisory only — unknown names warn on <code>create</code>/<code>update</code> and still store</td>
+</tr>
+<tr>
+<td><code>assignee</code></td>
+<td>string</td>
+<td><code>human/&lt;name&gt;</code> or <code>agent/&lt;id&gt;</code>. Omitted when empty. Deleted by <code>release</code>; kept by <code>close</code> as the audit trail</td>
+</tr>
+<tr>
+<td><code>claimed_at</code></td>
+<td>RFC3339 UTC</td>
+<td>Seconds precision. Set by <code>--claim</code>; deleted by <code>release</code> and <code>close</code>; input to <code>validate --stale-claims</code></td>
+</tr>
+<tr>
+<td><code>refs_base</code></td>
+<td>string</td>
+<td><code>repo</code> or omitted. Omitted means historical <code>.awit/items/</code>-relative refs. Invalid types/values are parse errors</td>
+</tr>
+<tr>
+<td><code>refs</code></td>
+<td>list of paths</td>
+<td>Forward slashes. Block style. Always present, <code>[]</code> when empty. Relative to the repo root when <code>refs_base: repo</code>, else <code>.awit/items/</code></td>
+</tr>
+<tr>
+<td><code>external</code></td>
+<td>mapping</td>
+<td>Optional Gitea or GitLab issue link (see below). Missing is valid</td>
+</tr>
+<tr>
+<td><code>alias</code></td>
+<td>string</td>
+<td>Optional human alias (see below). Missing is valid</td>
+</tr>
+<tr>
+<td><code>blocked_reason</code></td>
+<td>string</td>
+<td>Optional manual hold (see Manual blocks). Missing or removed means unblocked</td>
+</tr>
+</tbody>
+</table>
+<p>New items written by <code>awit create</code> use key order
+<code>id, title, brief, status, deps, labels, refs_base, refs</code> and omit empty
+<code>assignee</code> / <code>claimed_at</code>. <code>external</code> is appended when <code>--external-*</code> flags are set.</p>
+<h3 id="optional-key-alias">Optional key: <code>alias</code><a class="headerlink" href="#optional-key-alias" title="Permanent link">&para;</a></h3>
+<p>A short human handle set by <code>create</code>/<code>update --alias</code> or <code>import --alias</code>
+(<code>update --clear-alias</code> removes it). Grammar:
+<code>[A-Za-z][A-Za-z0-9._-]{0,127}</code> — no whitespace, slash or <code>#</code>, and never
+anything shaped like a canonical ID. Uniqueness is case-insensitive across
+active parseable items but is not enforced at write time: duplicate
+hand-edited aliases make alias lookup fail with the matching canonical IDs
+listed, and <code>validate</code> warns about invalid or duplicate aliases (exit stays
+0 unless graph faults exist). Aliases are lookup-only: filenames, <code>deps</code>
+edges and commit messages always use the canonical ID.</p>
+<h3 id="manual-blocks">Manual blocks<a class="headerlink" href="#manual-blocks" title="Permanent link">&para;</a></h3>
+<p>A <code>blocked_reason</code> is a durable local hold: a healthy non-closed item that
+carries one is <code>Blocked</code> regardless of its dependencies, so a <code>blocked</code>
+tracker label with zero open deps is representable without a new status,
+a new quarantine category, or graph edges. Labels alone never hold an
+item — a zero-dependency item with only a <code>blocked</code> label stays ready.
+Because that label is a classic failure point, <code>create</code>, <code>update</code>, and
+<code>import</code> print one stderr line when a non-closed item without a manual
+block newly receives the exact label <code>blocked</code>:
+<code>warning: &lt;id&gt; has label "blocked", which does not pause work;
+use awit block &lt;id&gt; --reason "..."</code>. Stdout and the exit code are
+unchanged. <code>import</code> copies remote labels once as metadata and never
+creates a hold from them.</p>
+<p>Presence and validation: the key is optional; missing or removed means
+unblocked. When present it must be a YAML string scalar holding a
+non-empty single line without control characters (outer whitespace is
+trimmed). A wrong type, empty or whitespace-only content, embedded
+control characters, or a duplicate <code>blocked_reason</code> key is a parse error
+→ quarantine <code>PARSE ERROR</code>: the hold fails closed and the item is never
+selectable while its declaration is unreadable.</p>
+<p>Eligibility vs structure: readiness requires both no manual block and all
+deps satisfied; clearing the reason restores readiness only when the deps
+permit. Edges, cycle detection, unblock counts, the critical path, and
+archive eligibility are unchanged — held nodes stay structural, exactly
+like dep-blocked nodes today.</p>
+<p>Lifecycle: <code>awit block &lt;id&gt; --reason "&lt;obstacle and release condition&gt;"</code>
+stores or replaces the reason, sets <code>open</code>, and clears the claim in one
+save; a repeated <code>block</code> replaces the reason, and blocking a closed item
+is refused. <code>awit unblock &lt;id&gt;</code> removes only the reason and never claims
+or reopens. <code>release</code> and <code>update --status open|in_progress</code> preserve the
+hold; <code>close</code> and <code>update --status closed</code> clear it. Ranked <code>next</code>
+selection skips held items and every <code>--claim</code> of one is refused; an
+explicit <code>next &lt;id&gt;</code> lookup still prints it. Read surfaces render the
+cause: <code>prime</code> BLOCKED rows carry <code>| Blocked reason: &lt;reason&gt;
+(awit unblock &lt;id&gt;)</code>, <code>list</code>/<code>next</code>/<code>show</code> human views show the reason,
+and JSON rows carry <code>blocked_reason</code> with <code>state: "blocked"</code>.</p>
+<h3 id="item-lookup-keys">Item lookup keys<a class="headerlink" href="#item-lookup-keys" title="Permanent link">&para;</a></h3>
+<p>Every command that takes an item argument (<code>show</code>, <code>list</code>, <code>next</code>,
+<code>update</code>, <code>close</code>, <code>release</code>, <code>block</code>, <code>unblock</code>, <code>comment</code>, <code>dep</code>, <code>ref</code>,
+<code>external check</code>, <code>external push-body</code>) accepts, in precedence order: the canonical ID
+(exact, case-sensitive, always wins), an alias (case-insensitive), or an
+external key <code>owner/repo#&lt;n&gt;</code> (GitLab subgroups: <code>group/sub/project#127</code>)
+or bare <code>#&lt;n&gt;</code> matched against valid <code>external:</code> metadata (the bare form
+must be unique). Ambiguity — including the same repo and number on two
+trackers or hosts — is an error listing the matching canonical IDs;
+unknown keys error as <code>unknown item &lt;key&gt;</code> and never become filesystem
+paths. There is no new lookup syntax and no tracker prefix on the key;
+aliases and canonical IDs disambiguate.</p>
+<h3 id="optional-key-external">Optional key: <code>external</code><a class="headerlink" href="#optional-key-external" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">external</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">tracker</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gitea</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">repo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">owner/repo</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">127</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://forge.example/owner/repo/issues/127</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">external</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">tracker</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gitlab</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">repo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">group/sub/project</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">127</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://forge.example/apps/gitlab/group/sub/project/-/work_items/127</span>
+</code></pre></div>
+<p><code>id</code> is the repository issue <strong>number</strong> (Gitea <code>number</code> or GitLab <strong><code>iid</code></strong>),
+never either product's database-wide issue ID. All four subkeys are required
+for a valid mapping. Extra nested keys are kept. <code>tracker</code> must be exactly
+<code>gitea</code> or <code>gitlab</code>. This is additive: existing Gitea files stay valid, no
+item is rewritten, and Gitea grammar is unchanged.</p>
+<p>Gitea <code>repo</code> is <code>owner/name</code> (exactly two nonempty segments; no whitespace,
+control characters, <code>.</code>/<code>..</code>, or URL delimiters). Gitea <code>url</code> is absolute
+HTTP(S) with a host, no userinfo, query, or fragment; its decoded path must
+end in <code>/&lt;owner&gt;/&lt;repo&gt;/issues/&lt;id&gt;</code> (an installation prefix before that
+suffix is allowed).</p>
+<p>GitLab <code>repo</code> has at least two slash-separated segments (subgroups allowed).
+Reject leading/trailing slash, empty segments, <code>.</code> and <code>..</code>, Unicode
+whitespace/control characters, and any segment containing <code>\/:?#@[]%</code>.
+Ordinary dots inside a name are allowed; case and spelling are preserved.
+GitLab <code>url</code> is absolute HTTP(S) with a host, no userinfo, query (including
+empty <code>?</code>), or fragment (including empty <code>#</code>). Its decoded path must end
+exactly in <code>/&lt;complete repo&gt;/-/issues/&lt;iid&gt;</code> or
+<code>/&lt;complete repo&gt;/-/work_items/&lt;iid&gt;</code>. A prefix before that suffix is the
+installation path. <code>work_items</code> is an issue-link spelling, not a promise to
+import every GitLab work-item type.</p>
+<p>Local statuses remain <code>open|in_progress|closed</code>. GitLab wire <code>opened</code> maps to
+local <code>open</code> and wire <code>closed</code> to <code>closed</code>; that conversion is remote
+integration, not YAML parsing.</p>
+<p>GitLab transport and auth (wrapper contract, <code>internal/glabx</code>, qualified
+against glab 1.118.0): glab is pre-authenticated by the operator — awit
+never logs in, selects logins, reads tokens, or writes configuration, and
+only the named non-secret settings (<code>subfolder</code>, <code>api_host</code>,
+<code>api_protocol</code>) are ever read. The effective installation subfolder for
+the link host decides the repo segments (<code>GITLAB_SUBFOLDER</code> wins inside
+glab); contradictory <code>api_host</code>/<code>api_protocol</code>/subfolder overrides fail
+instead of targeting another instance. Every request is host-scoped
+(<code>--hostname</code> carries the bare link host — glab rejects host:port there —
+with one <code>%2F</code>-encoded project segment). Description writes travel
+byte-exact: the transport file holds exactly the body, no line-ending is
+added or stripped, and delivery needs 2xx, verified identity, and
+<code>bytes.Equal</code> on the returned/read-back description. A body with any
+column-zero <code>/lowercase</code> line is refused before any mutation — GitLab
+would execute it as a quick action instead of storing it, even inside
+fenced code blocks, which awit does not exempt and never rewrites around.</p>
+<p><code>awit create</code> and <code>awit update</code> take <code>--external-tracker</code>, <code>--external-repo</code>,
+<code>--external-id</code>, and <code>--external-url</code> together; a partial set is a usage
+error (exit 2) and writes nothing. <code>awit update --clear-external</code> removes
+the field and cannot be combined with those flags. An unchanged identical
+mapping is a no-op.</p>
+<p>A missing <code>external</code> key is valid. An invalid mapping, unsupported tracker,
+or the old reserved scalar form (<code>external: gitlab#42</code>) does <strong>not</strong>
+quarantine the item: Parse keeps the YAML, <code>External</code> is nil, and
+<code>validate</code> prints <code>WARN  &lt;id&gt;: invalid external: &lt;reason&gt;</code> (exit 0 unless
+there are graph faults). JSON <code>validate</code> writes that advisory on stderr
+without changing the fault-array schema. Show, list, and compact output
+display only a valid link (<code>gitea owner/repo#127</code> or
+<code>gitlab group/sub/project#127</code>).</p>
+<p><code>awit import &lt;issue-url&gt; [--brief &lt;summary&gt;] [--alias X] [--tea-login name]</code>
+creates an item from an existing Gitea issue through <code>tea</code> or GitLab issue
+through <code>glab</code>. GitLab is recognized only by the <code>/-/issues/</code> or
+<code>/-/work_items/</code> URL shape — never by host — and both spellings of the
+same issue are one identity. The item is a one-time snapshot: Gitea
+<code>number</code> or GitLab <code>iid</code> as <code>external.id</code>, the decoded body/description
+byte-exact, remote labels first-seen exact-name deduplicated (local
+default labels are not merged), and <code>open</code>/<code>closed</code> (GitLab wire
+<code>opened</code>→<code>open</code>) mapped to the same local status (other states are
+refused). The stored URL is the validated input URL. <code>--tea-login</code> is
+Gitea-only and ignored for GitLab. Import never writes remote state and
+never commits. Duplicate identity is <code>(tracker, normalized installation
+base, exact repo, iid)</code> across active items and archived item files;
+Gitea and GitLab with the same host/repo/number do not collide. Re-import
+is refused with the existing item or archive path named.</p>
+<p>An omitted (or empty) <code>--brief</code> is derived after fetch validation and before
+the mutation lock: the normalized remote title when it holds any
+non-whitespace rune, else the body's first sentence (<code>.</code>/<code>!</code>/<code>?</code> followed by
+whitespace or end-of-source, the <code>sentenceCount</code> boundary; newlines alone
+never split). Normalization trims outer Unicode whitespace and collapses
+each inner run to one ASCII space; derived values are capped at 240 Unicode
+code points (<code>…</code> ellipsis, no space before it). An explicit <code>--brief</code> is
+stored verbatim and uncapped; a blank remote title is stored unchanged and
+never replaced by the fallback. Blank title plus empty body with no explicit
+override exits 1 (<code>cannot derive import brief: remote title and body are
+empty; pass --brief</code>) before minting.</p>
+<p><code>awit external check [key] [--tea-login name]</code> compares the raw local
+body bytes (<code>Item.Body()</code>: every byte after the frontmatter closing
+fence) against the linked issue body — Gitea through <code>tea</code>, GitLab
+through <code>glab</code> — and nothing else: frontmatter, title, labels, comments,
+and remote state are ignored, so any whitespace, line-ending,
+final-newline, or leading-blank-line difference is drift. <code>--tea-login</code>
+is Gitea-only and ignored for GitLab. The command is read-only: no local
+bytes and no remote fields change. Plain output prints one <code>MATCH</code>,
+<code>DRIFT</code>, or <code>ERROR</code> line per linked item (each naming the item and its
+URL) plus deterministic totals; <code>--format json</code> prints an array of
+<code>{id, url, result, detail}</code> with no human lines on stdout. Exit 1 when
+any row is drift or error, otherwise 0. An authentication or read failure
+is an error row, never drift. The all-items form walks linked items in
+canonical-ID order and skips genuinely unlinked ones (reporting the
+number checked, including zero); naming an explicitly unlinked item is an
+error.</p>
+<p><code>awit external push-body &lt;key&gt; [--tea-login name]</code> is the explicit
+local-canonical repair: it pushes the local body bytes to the linked
+issue and nothing else (no title, label, state, local-content, or history
+change). The push holds the store lock until the bounded request
+completes, refuses ambiguous duplicate external links, and verifies the
+remote took the exact bytes — against the write response, or a GET of the
+same issue when the response omits the body. A mismatch is an error,
+never success. Gitea requires a 2xx status (tea exits zero on HTTP
+errors, so the <code>--include</code> status line is authoritative); GitLab requires
+a 2xx status the same way (glab exits nonzero on HTTP errors) and
+refuses column-zero <code>/command</code> bodies before any mutation, since GitLab
+would execute them as quick actions instead of storing them.</p>
+<p><code>awit close &lt;id&gt; [--tea-login name] [--push=true|false] [--no-push]</code>, <code>awit release &lt;id&gt;</code> with
+the same flags, and <code>awit update &lt;id&gt; --status &lt;s&gt;</code> with the same flags
+propagate local state one way to the linked issue: <code>close</code> pushes <code>closed</code>,
+<code>release</code> pushes <code>open</code>, and an explicit <code>--status</code> pushes <code>closed</code> for
+<code>closed</code> and <code>open</code> for <code>open</code>/<code>in_progress</code> (a non-status update never
+pushes, and neither do <code>next --claim</code>, create, import, comment, ref, or
+archive). <code>--tea-login</code> is Gitea-only and ignored for GitLab. Automatic
+pushes follow <code>.awit/config.yaml</code> <code>external_push:</code> (omitted → true);
+<code>--push=true|false</code> overrides per invocation (true <code>--no-push</code> equals
+<code>--push=false</code>; <code>--no-push=false</code> is neutral). The local
+item is saved first — keeping close's reason comment and claim-clearing —
+then the push runs under the held store lock with the bounded subprocess
+deadline (Gitea: <code>tea api --login &lt;login&gt; --repo &lt;owner/repo&gt; --include
+-X PATCH -f state=&lt;open|closed&gt; repos/&lt;owner&gt;/&lt;repo&gt;/issues/&lt;n&gt;</code>; GitLab:
+<code>glab api</code> PUT of <code>state_event=&lt;close|reopen&gt;</code> on the single-segment
+<code>%2F</code>-encoded project endpoint), requiring a 2xx status and verifying
+the response confirms the issue number, installation, and state (GET
+fallback when the response omits it; the remote is never read to decide).
+Local state stays canonical: remote failure, a missing tool, invalid
+metadata, or ambiguous duplicate links keep the local mutation and its
+ordinary confirmation, print one stderr
+<code>warning: &lt;id&gt; saved locally; external state push failed: &lt;reason&gt;; retry with awit update &lt;id&gt; --status &lt;status&gt;</code>
+(exit 0), while a local write failure exits 1 and never pushes.
+Repeating <code>update &lt;id&gt; --status &lt;current&gt;</code> re-pushes without a queue or
+daemon. A config-disabled skip of a linked item prints
+<code>warning: &lt;id&gt; saved locally; external state push skipped by config external_push: false; push with awit update &lt;id&gt; --status &lt;status&gt; --push=true</code>
+after the local save and before tool discovery; <code>--no-push</code> and <code>--push=false</code>
+are silent and perform no tool discovery, auth, or network
+operation, even with malformed metadata.</p>
+<p>Byte-exactness relies on a tested <code>tea</code> behavior: <code>tea</code>'s <code>-F body=@file</code>
+reader strips exactly one terminal LF, so awit writes the transport file
+as the body plus one extra LF (private temp-then-rename file, mode 0600,
+deleted on every exit). GitLab needs no such adaptation: <code>glab</code> sends
+<code>-F description=@file</code> byte-exact, so the transport file carries exactly
+the body bytes, verified by <code>TestGlabBodyRoundTrip</code> (empty, no-LF,
+multi-LF, CRLF, leading blanks, Unicode, backticks, and literal <code>null</code>
+round-trip byte-exact). Supported: <code>tea</code> 0.14.2 and 0.16.0, verified by
+<code>TestTeaBodyRoundTrip</code> over the same edges (0.14.2 verified live 2026-09-19). A <code>tea</code> or <code>glab</code> build that
+fails its compatibility test must not be advertised as supported.
+Ordinary <code>awit validate</code> stays offline: it works with both tools absent
+and networking disabled.</p>
+<h3 id="unknown-keys">Unknown keys<a class="headerlink" href="#unknown-keys" title="Permanent link">&para;</a></h3>
+<p>Any other frontmatter key is preserved on the YAML node. Teams may add
+their own fields without a schema change. <code>validate</code> does not FAIL on
+unknown keys. A setter that does not own the key must not delete it.</p>
+<h3 id="body">Body<a class="headerlink" href="#body" title="Permanent link">&para;</a></h3>
+<p>Everything after the closing <code>---</code> fence is raw Markdown, stored as
+bytes. <code>create</code> seeds:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>## Summary
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>## Acceptance Criteria
+</code></pre></div>
+<p>(leading newline after the fence) when <code>template</code> is unset. When
+<code>template:</code> names a file, <code>create</code> copies those bytes exactly as the
+body — no extra leading newline — and does not parse them as frontmatter.
+An empty template file is an empty body. Conflict marker lines
+(<code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code>, <code>=======</code>, <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>) anywhere in the file quarantine
+the item as <code>CONFLICT MARKERS</code>; a template containing them is refused
+before mint so the new item is never written.</p>
+<p>Example <code>.awit/templates/workitem.md</code> (body-only, no frontmatter):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="gu">## Summary</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="gu">## Context (read first)</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="gu">## Acceptance Criteria</span>
+</code></pre></div>
+<h2 id="comment-files">Comment files<a class="headerlink" href="#comment-files" title="Permanent link">&para;</a></h2>
+<p>Path: <code>.awit/comments/&lt;id&gt;/&lt;filename&gt;</code>. Inline comments (not <code>--file</code>)
+are Markdown with their own frontmatter:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>---
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>author: agent/claude
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="gu">created: 2026-09-17T14:32:05Z</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="gu">---</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>Research notes go here.
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Rules</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>author</code></td>
+<td>As resolved: <code>--author</code> verbatim, or <code>AWIT_AGENT</code> / <code>agent_id</code> with <code>agent/</code> prefix, or git <code>user.name</code></td>
+</tr>
+<tr>
+<td><code>created</code></td>
+<td>RFC3339 UTC, seconds</td>
+</tr>
+</tbody>
+</table>
+<p><code>--file</code> copies the source bytes verbatim — no frontmatter is added.</p>
+<p>After a comment or attachment is written, existing refs are normalized to
+the repo-root base and the item's <code>refs</code> gains a forward-slash entry
+<code>.awit/comments/&lt;id&gt;/&lt;filename&gt;</code>.</p>
+<h2 id="filenames">Filenames<a class="headerlink" href="#filenames" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Pattern</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Item</td>
+<td><code>&lt;id&gt;.md</code> in <code>items/</code></td>
+</tr>
+<tr>
+<td>Comment</td>
+<td><code>&lt;YYYYMMDDTHHMMSSZ&gt;-&lt;sanitised-author&gt;.md</code></td>
+</tr>
+<tr>
+<td>Attachment</td>
+<td><code>&lt;YYYYMMDDTHHMMSSZ&gt;-&lt;sanitised-author&gt;&lt;ext&gt;</code> keeping the original extension</td>
+</tr>
+<tr>
+<td>Collision</td>
+<td><code>-2</code>, <code>-3</code>, … immediately before the extension</td>
+</tr>
+</tbody>
+</table>
+<p>Author sanitising: strip one leading <code>agent/</code>, lowercase, map runes
+outside <code>[a-z0-9._-]</code> to <code>-</code>, collapse <code>--</code>, trim <code>-</code>, empty → <code>anon</code>.</p>
+<p>IDs: 8 Crockford characters (<code>0-9 A-H J-K M-N P-T V-Z</code>, no <code>I L O U</code>),
+prefixed by <code>config.prefix</code> and a hyphen. Epoch <code>2026-01-01T00:00:00Z</code>.</p>
+<h2 id="lock-file">Lock file<a class="headerlink" href="#lock-file" title="Permanent link">&para;</a></h2>
+<p><code>.awit/.lock</code> is an exclusive advisory lock (flock / LockFileEx) used by
+mutating commands. <code>awit init</code> appends <code>.awit/.lock</code> to the repo
+<code>.gitignore</code> and does not create the file. The file is created on first
+<code>Store.Lock</code>. It is never committed.</p>
+<h2 id="seeded-agent-skills">Seeded agent skills<a class="headerlink" href="#seeded-agent-skills" title="Permanent link">&para;</a></h2>
+<p><code>awit init</code> also looks for agent directories in the repo root — <code>.claude</code>,
+<code>.omp</code>, <code>.opencode</code>, <code>.agents</code>, <code>.pi</code>, in that order — and offers to write
+<code>&lt;dir&gt;/skills/driving-awit/SKILL.md</code> into each one it finds. It never
+creates an agent directory; their presence is the signal that the tool is
+in use. <code>--skills</code> seeds every detected directory without asking,
+<code>--no-skills</code> skips the whole step, <code>--force</code> overwrites an existing skill
+file instead of keeping it.</p>
+<p>These files live <strong>outside</strong> <code>.awit/</code> and are not part of the item schema.
+They are project config and are meant to be committed; unlike <code>.awit/.lock</code>,
+<code>init</code> does not gitignore them.</p>
+<h2 id="quarantine-not-schema-but-load-time">Quarantine (not schema, but load-time)<a class="headerlink" href="#quarantine-not-schema-but-load-time" title="Permanent link">&para;</a></h2>
+<p>These are not extra keys; they are reasons a file fails to become a
+healthy item: <code>PARSE ERROR</code>, <code>CONFLICT MARKERS</code>, <code>ID MISMATCH</code>,
+<code>DUPLICATE ID</code>, <code>DANGLING DEP</code>, <code>CYCLE</code>. Invalid <code>external:</code> metadata is
+none of these — it is a <code>validate</code> WARN only. A malformed
+<code>blocked_reason</code> (wrong type, empty content, control characters,
+duplicate key) is a <code>PARSE ERROR</code>, not a new category: the hold fails
+closed and the item is never selectable until the declaration is readable.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../design-spec/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Design Spec">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Design Spec
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../faq/" class="md-footer__link md-footer__link--next" aria-label="Next: FAQ">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                FAQ
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      BSD 2-Clause
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.top", "navigation.tracking", "navigation.footer", "toc.follow", "content.code.copy", "content.action.edit", "search.suggest", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
