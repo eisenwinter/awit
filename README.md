@@ -5,6 +5,8 @@ under `.awit/` into a dependency graph for humans and agents. Offline,
 versioned in Git, no database, no daemon. Every command rebuilds the
 graph from `.awit/items/*.md`; a clone is the whole state.
 
+Full documentation: **https://eisenwinter.github.io/awit/**
+
 ## Install
 
 Quick bootstrap (detects your OS/arch; Windows needs the `.zip` asset and `tar`/`Expand-Archive` instead):
@@ -132,8 +134,6 @@ Pass `--no-push` or `--push=false` for an explicit silent offline path
 Filter with `-l p0` (AND across repeated flags, OR inside one comma list).
 
 ## Status
-
-Full documentation: **https://eisenwinter.github.io/awit/**
 
 v1 targets tagged binaries for linux, darwin and windows (amd64 and
 arm64) via GoReleaser. CI runs `go vet`, `staticcheck` and `go test ./...`
