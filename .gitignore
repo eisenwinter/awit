@@ -5,6 +5,9 @@
 /bin/
 /.task/
 
+# MkDocs build output
+/site/
+
 # Go
 *.test
 *.out

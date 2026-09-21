@@ -1,0 +1,6 @@
+# Docs toolchain. Pinned so a new upstream release cannot turn a green commit
+# red without anybody changing this repository — same reasoning as the
+# staticcheck pin in .github/workflows/ci.yml.
+mkdocs==1.6.1
+mkdocs-material==9.7.7
+pymdown-extensions==12.0.1

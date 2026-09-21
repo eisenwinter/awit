@@ -1,6 +1,6 @@
 # awit
 
-Zero-daemon Go CLI. Spec: `plan/awit-implementation-plan.md`. Contract: `plan/implementation-guide.md`. Work items: `.awit/items/`.
+Zero-daemon Go CLI. Design spec and contract: `docs/design-spec.md`. On-disk schema: `docs/schema.md`. Closed v1 work items: `.awit/archive/`.
 
 - Module `github.com/eisenwinter/awit`. CLI `github.com/urfave/cli/v3` (not cobra). YAML `gopkg.in/yaml.v3`.
 - Implement one work item at a time. Guide §4 signatures are the API. TDD.

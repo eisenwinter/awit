@@ -43,7 +43,7 @@ stale_claim: 2h
 agent_id: claude
 commit: false
 external_push: false
-template: plan/workitem-template.md
+template: .awit/templates/workitem.md
 ```
 
 | Key | Required | Rules |
@@ -103,11 +103,11 @@ Missing required keys or an unknown status → parse error → quarantine
 
 | Key | Type | Rules |
 | --- | --- | --- |
-| `brief` | string | One to three sentences. `create` requires `--brief`; `import` derives it from the remote title (else the body's first sentence, capped at 240 code points) unless given explicitly. `validate` warns when missing or longer |
+| `brief` | string | One to three sentences. `create` requires `--brief`; `import` derives it from the remote title (else the body's first sentence, capped at 240 code points) unless given explicitly. `validate` warns when missing or longer; an item that cannot be briefed that tightly should be split |
 | `deps` | list of ids | Unknown id → `DANGLING DEP` on this item. Written flow style `[a, b]` |
 | `labels` | list of strings | Free-form. `p0`–`p4` recommended for priority. Flow style. Optional `config.yaml` `labels` is advisory only — unknown names warn on `create`/`update` and still store |
 | `assignee` | string | `human/<name>` or `agent/<id>`. Omitted when empty. Deleted by `release`; kept by `close` as the audit trail |
-| `claimed_at` | RFC3339 UTC | Seconds precision. Set by `--claim`; deleted by `release` and `close` |
+| `claimed_at` | RFC3339 UTC | Seconds precision. Set by `--claim`; deleted by `release` and `close`; input to `validate --stale-claims` |
 | `refs_base` | string | `repo` or omitted. Omitted means historical `.awit/items/`-relative refs. Invalid types/values are parse errors |
 | `refs` | list of paths | Forward slashes. Block style. Always present, `[]` when empty. Relative to the repo root when `refs_base: repo`, else `.awit/items/` |
 | `external` | mapping | Optional Gitea or GitLab issue link (see below). Missing is valid |
@@ -357,8 +357,8 @@ deleted on every exit). GitLab needs no such adaptation: `glab` sends
 `-F description=@file` byte-exact, so the transport file carries exactly
 the body bytes, verified by `TestGlabBodyRoundTrip` (empty, no-LF,
 multi-LF, CRLF, leading blanks, Unicode, backticks, and literal `null`
-round-trip byte-exact). Supported: `tea` 0.16.0, verified by
-`TestTeaBodyRoundTrip` over the same edges. A `tea` or `glab` build that
+round-trip byte-exact). Supported: `tea` 0.14.2 and 0.16.0, verified by
+`TestTeaBodyRoundTrip` over the same edges (0.14.2 verified live 2026-09-19). A `tea` or `glab` build that
 fails its compatibility test must not be advertised as supported.
 Ordinary `awit validate` stays offline: it works with both tools absent
 and networking disabled.
@@ -390,7 +390,7 @@ An empty template file is an empty body. Conflict marker lines
 the item as `CONFLICT MARKERS`; a template containing them is refused
 before mint so the new item is never written.
 
-Example `plan/workitem-template.md` (body-only, no frontmatter):
+Example `.awit/templates/workitem.md` (body-only, no frontmatter):
 
 ```markdown
 ## Summary
