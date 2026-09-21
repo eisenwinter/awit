@@ -26,7 +26,7 @@ Paste this to your agent:
 ```text
 Bootstrap awit in the current repository: download the release binary for
 this machine from github.com/eisenwinter/awit/releases (assets are named
-awit_<version>_<Os>_<Arch>.tar.gz, .zip on Windows), put it on PATH, then
+awit_<version>_<os>_<arch>.tar.gz, .zip on Windows), put it on PATH, then
 run awit init --skills in the repo root and report the .awit layout and
 the seeded skills it created.
 ```

@@ -2,22 +2,23 @@
 
 ## Install
 
-Quick bootstrap (Linux x86_64; pick the matching asset for other platforms):
+Quick bootstrap (detects your OS/arch; Windows needs the `.zip` asset and `tar`/`Expand-Archive` instead):
 
 ```bash
 V=$(curl -s https://api.github.com/eisenwinter/awit/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
-curl -sL "https://github.com/eisenwinter/awit/releases/download/$V/awit_${V}_Linux_x86_64.tar.gz" | tar xz awit
+OS=$(uname -s | tr '[:upper:]' '[:lower:]'); ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+curl -sL "https://github.com/eisenwinter/awit/releases/download/$V/awit_${V#v}_${OS}_${ARCH}.tar.gz" | tar xz awit
 ./awit --version && ./awit init --skills
 ```
 
-Assets are named `awit_<version>_<Os>_<Arch>.tar.gz` (`.zip` on Windows).
+Assets are named `awit_<version>_<os>_<arch>.tar.gz` (`.zip` on Windows, e.g. `awit_0.5.0_linux_amd64.tar.gz`).
 
 Or paste this to your agent and skip the shell entirely:
 
 ```text
 Bootstrap awit in the current repository: download the release binary for
 this machine from github.com/eisenwinter/awit/releases (assets are named
-awit_<version>_<Os>_<Arch>.tar.gz, .zip on Windows), put it on PATH, then
+awit_<version>_<os>_<arch>.tar.gz, .zip on Windows), put it on PATH, then
 run awit init --skills in the repo root and report the .awit layout and
 the seeded skills it created.
 ```
