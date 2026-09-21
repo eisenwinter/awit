@@ -466,3 +466,74 @@ func TestUpdateIdenticalExternalNoop(t *testing.T) {
 		t.Fatalf("noop stdout = %q, want empty", stdout)
 	}
 }
+
+func TestUpdateBodyReplacesBodyOnly(t *testing.T) {
+	dir := initRepo(t)
+	code, _, stderr := run(t, "--repo", dir, "create", "--brief", "keep me", "--id", "AWIT-TEST0001", "-l", "auth", "T")
+	if code != 0 {
+		t.Fatalf("create: exit %d stderr %q", code, stderr)
+	}
+
+	code, _, stderr = run(t, "--repo", dir, "update", "AWIT-TEST0001", "--body", "## Replaced\n")
+	if code != 0 {
+		t.Fatalf("update: exit %d stderr %q", code, stderr)
+	}
+
+	it := readItem(t, dir, "AWIT-TEST0001")
+	if got := string(it.Body()); got != "## Replaced\n" {
+		t.Errorf("body = %q, want %q", got, "## Replaced\n")
+	}
+	if it.Brief != "keep me" {
+		t.Errorf("brief = %q, want it untouched", it.Brief)
+	}
+	if len(it.Labels) != 1 || it.Labels[0] != "auth" {
+		t.Errorf("labels = %v, want [auth] untouched", it.Labels)
+	}
+}
+
+func TestUpdateBodyFileFromStdin(t *testing.T) {
+	dir := initRepo(t)
+	if code, _, stderr := run(t, "--repo", dir, "create", "--brief", "B.", "--id", "AWIT-TEST0001", "T"); code != 0 {
+		t.Fatalf("create: exit %d stderr %q", code, stderr)
+	}
+
+	code, _, stderr := runStdin(t, "## Piped\n", "--repo", dir, "update", "AWIT-TEST0001", "--body-file", "-")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if got := string(readItem(t, dir, "AWIT-TEST0001").Body()); got != "## Piped\n" {
+		t.Errorf("body = %q, want %q", got, "## Piped\n")
+	}
+}
+
+func TestUpdateBodyRefusesConflictMarkersWithoutWriting(t *testing.T) {
+	dir := initRepo(t)
+	if code, _, stderr := run(t, "--repo", dir, "create", "--brief", "B.", "--id", "AWIT-TEST0001", "T"); code != 0 {
+		t.Fatalf("create: exit %d stderr %q", code, stderr)
+	}
+	before := string(readItem(t, dir, "AWIT-TEST0001").Body())
+
+	marker := strings.Repeat("<", 7) + " HEAD\nx\n" + strings.Repeat("=", 7) + "\ny\n" + strings.Repeat(">", 7) + " other\n"
+	code, _, stderr := run(t, "--repo", dir, "update", "AWIT-TEST0001", "--body", marker)
+	if code == 0 {
+		t.Fatalf("exit = 0, want non-zero")
+	}
+	if !strings.Contains(stderr, "conflict markers") {
+		t.Errorf("stderr = %q, want it to mention conflict markers", stderr)
+	}
+	if got := string(readItem(t, dir, "AWIT-TEST0001").Body()); got != before {
+		t.Errorf("body changed to %q, want it unwritten", got)
+	}
+}
+
+func TestUpdateBodyFlagsAreMutuallyExclusive(t *testing.T) {
+	dir := initRepo(t)
+	if code, _, stderr := run(t, "--repo", dir, "create", "--brief", "B.", "--id", "AWIT-TEST0001", "T"); code != 0 {
+		t.Fatalf("create: exit %d stderr %q", code, stderr)
+	}
+
+	code, _, stderr := run(t, "--repo", dir, "update", "AWIT-TEST0001", "--body", "x", "--body-file", "y.md")
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2 (stderr %q)", code, stderr)
+	}
+}

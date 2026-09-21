@@ -15,6 +15,8 @@ var updateCmd = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "status", Usage: "set status: `open`, in_progress or closed; closed clears any manual block"},
 		&cli.StringFlag{Name: "brief"},
+		&cli.StringFlag{Name: "body", Usage: "replace the item body below the frontmatter, verbatim"},
+		&cli.StringFlag{Name: "body-file", Usage: "replace the body from `PATH`, or - for stdin"},
 		&cli.StringFlag{Name: "assign"},
 		&cli.StringFlag{Name: "title"},
 		&cli.StringFlag{Name: "alias", Usage: "short human alias (e.g. `DTRM-F21`)"},
@@ -67,7 +69,11 @@ func updateAction(ctx context.Context, cmd *cli.Command) error {
 	if alias != "" && clearAlias {
 		return cli.Exit(`Incorrect usage: --alias and --clear-alias cannot be combined`, 2)
 	}
-	if status == "" && brief == "" && assign == "" && title == "" && alias == "" && !clearAlias && len(add) == 0 && len(remove) == 0 && !clearExt && ext == nil {
+	body, err := resolveBodyFlags(cmd)
+	if err != nil {
+		return err
+	}
+	if status == "" && brief == "" && assign == "" && title == "" && alias == "" && !clearAlias && len(add) == 0 && len(remove) == 0 && !clearExt && ext == nil && body == nil {
 		return fmt.Errorf("nothing to update")
 	}
 	s, err := openStore(cmd)
@@ -92,7 +98,7 @@ func updateAction(ctx context.Context, cmd *cli.Command) error {
 	for _, l := range it.Labels {
 		prev[l] = true
 	}
-	// Echo order is fixed: status, title, brief, assignee, labels, alias, external.
+	// Echo order is fixed: status, title, brief, body, assignee, labels, alias, external.
 	var changed []string
 	if status != "" {
 		st, err := item.ParseStatus(status)
@@ -115,6 +121,10 @@ func updateAction(ctx context.Context, cmd *cli.Command) error {
 	if brief != "" {
 		it.SetBrief(brief)
 		changed = append(changed, "brief="+brief)
+	}
+	if body != nil {
+		it.SetBody(body)
+		changed = append(changed, fmt.Sprintf("body=%d bytes", len(body)))
 	}
 	if assign != "" {
 		it.SetAssignee(assign)
