@@ -75,6 +75,9 @@ Additional decisions made while writing work items:
 | `ref add` existence check | `ref add` stats the resolved repo-root-absolute target before any mutation; a missing target exits 1 naming the absolute path with no write unless `--allow-missing` is given. `NormalizeRefs`, `Save`, `update`, import, archive and `ref rm` never check existence; read-time `[missing]` reporting is unchanged. |
 | Manual block | Optional stored `blocked_reason` string (non-empty = held) excludes healthy non-closed nodes from Ready in `Graph.classify`; labels alone never hold; malformed declarations are `PARSE ERROR` (fail closed). No new status, no quarantine category, no edges. CLI: `block` stores/replaces the reason (open + claim cleared, one save), `unblock` removes only it; `release` and non-closing `update --status` preserve it, `close`/closing `update --status` clear it; ranked `next` skips held items and `--claim` refuses them. `create`/`update`/`import` print one stderr warning when a non-closed item without a hold newly receives the exact label `blocked` (stdout/exit unchanged; labels stay metadata, never synced) |
 | `import --brief` default | Omitted (or empty) `--brief` on `import` derives after fetch validation and before the mutation lock: the normalized remote title when it holds any non-whitespace rune, else the body's first sentence (`.`/`!`/`?` followed by whitespace or end-of-source, the `sentenceCount` boundary; newlines alone never split). Normalization trims outer Unicode whitespace and collapses each inner run to one ASCII space. Derived values cap at 240 Unicode code points (first 239 runes minus trailing space plus U+2026). Explicit text is verbatim and uncapped; a blank remote title is stored unchanged. Blank title plus empty body with no override exits 1 before mint/save. `create --brief` stays required. |
+| `awit template` | Prints the `config.yaml` `template:` bytes, else `item.DefaultBody`. Builds no graph, so no quarantine warning; ignores `--format`. Shares `readTemplateBody` with `create`. |
+| `create`/`update` body flags | `--body` (verbatim text) and `--body-file` (`PATH` or `-` for stdin) are mutually exclusive, validated for UTF-8 and conflict markers, and resolved before the lock and mint. Precedence: flags > `config.template` > `item.DefaultBody`. `--body ""` is indistinguishable from unset and falls through to `config.template`; an empty body is reachable only via `--body-file` naming an empty file. `update` adds `body == nil` to its `nothing to update` guard. |
+| `show --unblocks` | Own view like `--refs-only`; refuses combination with `--full`/`--refs-only` (exit 2). Renders `graph.ReachableUnblocks` through `format.Write`, so `--format` works. Empty set prints no rows, exit 0 (compact: nothing; table: header only; json: `[]`). Inserted before the JSON branch, so `--format json` emits a bare entry array. |
 
 ## 3. Repository layout
 
@@ -82,7 +85,7 @@ Additional decisions made while writing work items:
 cmd/awit/main.go                 → internal/cli.Main()
 internal/cli/
   app.go                         root *cli.Command, global flags, Main(), helpers (openStore, exitf, SplitLabels)
-  init.go create.go import.go list.go label.go show.go comment.go update.go close.go release.go block.go dep.go ref.go external.go validate.go prime.go next.go archive.go
+  init.go create.go template.go import.go list.go label.go show.go comment.go update.go close.go release.go block.go dep.go ref.go external.go validate.go prime.go next.go archive.go
   *_test.go                      command tests drive Main() with args and capture stdout/stderr
 internal/teax/teax.go            concrete `tea` subprocess wrapper (no provider interface, no HTTP client)
 internal/glabx/glabx.go           concrete `glab` subprocess wrapper (no provider interface, no HTTP client)
@@ -458,6 +461,10 @@ func (g *Graph) WouldCycle(from, to string) []string
 // FilterLabels keeps nodes matching every group (AND) where a group matches if any label in it is present (OR).
 // Empty groups → nodes unchanged.
 func FilterLabels(nodes []*Node, groups [][]string) []*Node
+
+// ReachableUnblocks returns the unique non-closed, non-quarantined nodes reachable
+// from start via Unblocks edges, sorted by ID. UnblockCount is its length.
+func ReachableUnblocks(start *Node) []*Node
 ```
 
 ### 4.7 `pkg/format`

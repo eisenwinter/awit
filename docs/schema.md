@@ -55,7 +55,7 @@ template: plan/workitem-template.md
 | `agent_id` | no | raw identity; `AWIT_AGENT` overrides; `--author` overrides both |
 | `commit` | no | bool; repository default for `next --claim` git commits. Absent → `true`. `next --commit=true\|false` overrides per invocation; `--no-commit` (deprecated) equals `--commit=false`. Only `next --claim` reads it — never pushing, never another command. Independent of `external_push` |
 | `external_push` | no | bool; repository default for automatic linked-issue state pushes from `close`, `release`, and explicit `update --status`. Absent → `true`. `--push=true\|false` overrides per invocation; true `--no-push` equals `--push=false`; `--no-push=false` is neutral. Does not govern `external push-body`, import, or `external check`. Independent of `commit` |
-| `template` | no | repo-root-relative forward-slash path to a body-only Markdown file. Only `create` reads the file. Absolute paths, backslashes, and lexical escape above the repo root fail `Load`. Missing/unreadable/directory/non-UTF-8/conflict-marker files fail `create` (exit 1, no item). Empty file → empty body. Absent/empty keeps the default skeleton. `import` ignores it |
+| `template` | no | repo-root-relative forward-slash path to a body-only Markdown file. `create` and `awit template` read the file. Absolute paths, backslashes, and lexical escape above the repo root fail `Load`. Missing/unreadable/directory/non-UTF-8/conflict-marker files fail `create` (exit 1, no item) and `awit template` (exit 1). Empty file → empty body. Absent/empty keeps the default skeleton. `import` ignores it |
 
 Unknown keys in `config.yaml` are not part of v1; `Load` decodes into a
 struct and extra keys are dropped on the next `Write`. Do not put

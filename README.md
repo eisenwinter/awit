@@ -40,15 +40,16 @@ a quick action instead of storing it).
 | Command | Flags | Purpose |
 | --- | --- | --- |
 | `awit init` | `--prefix`, `--skills`, `--no-skills`, `--force` | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock`; offer to seed the driving-awit skill |
-| `awit create <title>` | `--brief`, `-d` deps, `-l` labels, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Mint a snowflake ID, write a lean item; optional Gitea or GitLab mapping; optional `config.template` body |
+| `awit create <title>` | `--brief`, `--body`, `--body-file`, `-d` deps, `-l` labels, `--assign`, `--alias`, `--id`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url` | Mint a snowflake ID, write a lean item; optional Gitea or GitLab mapping; body from `--body`/`--body-file`, else `config.template`, else the built-in skeleton |
 | `awit import <issue-url>` | `[--brief]`, `--alias`, `--tea-login` | One-time snapshot of an existing Gitea (`tea`) or GitLab (`glab`) issue: keeps number/iid, exact body, labels and open/closed state; refuses tracker-aware duplicates. Omitted `--brief` derives from the remote title (else the body's first sentence, capped at 240 code points). `--tea-login` is Gitea-only and ignored for GitLab. Labels are copied once as metadata and never synced afterwards |
+| `awit template` | — | Print the body template `create` would use: the `config.yaml` `template:` file's exact bytes, else the built-in skeleton; no flags; ignores `--format`; builds no graph, so no quarantine warning |
 | `awit external check [key]` | `--tea-login` | Read-only byte-exact body comparison for linked Gitea (`tea`) or GitLab (`glab`) items; `MATCH`/`DRIFT`/`ERROR` rows plus totals; exit 1 on any drift or error. `--tea-login` is Gitea-only and ignored for GitLab |
 | `awit external push-body <key>` | `--tea-login` | Explicit repair: push local body bytes to the linked issue (Gitea via `tea`, GitLab via `glab`); refuses ambiguous links and column-zero `/command` bodies GitLab would execute as quick actions; verifies the remote took the exact bytes |
 | `awit list [key]` | `-s` status, `-l` label, `--ready`, `--blocked`, `--quarantined`, `--format` | Index view; `[key]` selects exactly one item |
 | `awit label` | `--state open\|closed\|all`, `--format` | Observed label usage counts (not the config vocabulary) |
-| `awit show <id>` | `--full`, `--refs-only` | Core item or full resolved ref tree |
+| `awit show <id>` | `--full`, `--refs-only`, `--unblocks` | Core item, full resolved ref tree, or the open items this one transitively unblocks |
 | `awit comment <id> [text]` | `--file <path>`, `--author` | Timestamped comment or attached file; append to `refs` |
-| `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`, `--alias`, `--clear-alias`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external`, `--push=true\|false`, `--no-push`, `--tea-login` | Mutate frontmatter with a minimal diff; an explicit `--status` also pushes the mapped state (`closed`→closed, `open`/`in_progress`→open) to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push`; local-first with a stderr retry warning on remote failure |
+| `awit update <id>` | `--status`, `--brief`, `--body`, `--body-file`, `--assign`, `--label`, `--unlabel`, `--title`, `--alias`, `--clear-alias`, `--external-tracker`, `--external-repo`, `--external-id`, `--external-url`, `--clear-external`, `--push=true\|false`, `--no-push`, `--tea-login` | Mutate frontmatter with a minimal diff; an explicit `--status` also pushes the mapped state (`closed`→closed, `open`/`in_progress`→open) to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push`; local-first with a stderr retry warning on remote failure |
 | `awit close <id>` | `--reason`, `--author`, `--push=true\|false`, `--no-push`, `--tea-login` | Set `closed`, clear `claimed_at` and any manual block; does not git-commit; pushes `closed` to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push` |
 | `awit release <id>` | `--push=true\|false`, `--no-push`, `--tea-login` | Reopen an in-progress or closed item as `open`, clear `assignee` and `claimed_at`; any manual block stays; prints `reopened <id>` (plain line, ignores `--format`); pushes `open` to the linked Gitea or GitLab issue unless `external_push: false` or `--push=false`/`--no-push` |
 | `awit block <id>` | `--reason` | Pause an item with a recorded reason: sets `open`, clears the claim, keeps deps/labels/refs; prints `blocked <id>: <reason>` (plain line, ignores `--format`); refuses closed items; never touches git or the tracker |
@@ -72,6 +73,7 @@ When a graph-reading command (`list`, `next`, `prime`, `show`, `validate`,
 stderr line first: `warning: N items quarantined, run awit validate`.
 Stdout (including `--format json`) and exit codes are unchanged — run
 `awit validate` for the fault details and their `fix:` commands.
+`awit template` builds no graph, so it never prints the warning.
 
 Labels never pause work: `create`, `update`, and `import` print one stderr
 line — `warning: <id> has label "blocked", which does not pause work;
@@ -149,6 +151,7 @@ commit.
 ```text
 .awit/
 ├── config.yaml            # prefix, default_labels, labels, stale_claim, agent_id, optional template
+├── templates/workitem.md  # optional body template; config.yaml template: names any repo-root-relative file
 ├── items/PREFIX-XXXXXXXX.md
 └── comments/PREFIX-XXXXXXXX/<UTC seconds>-<author>.md
 ```

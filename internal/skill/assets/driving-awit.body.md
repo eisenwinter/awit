@@ -3,7 +3,7 @@
 
 `awit` is a zero-daemon CLI: each command rebuilds the dependency graph from `.awit/items/*.md` and writes at most one file. Files and Git are the state; there is no server or hidden state. Other agents share these files: keep the graph truthful.
 
-**Core rule: every state change goes through the CLI, never through editing `.awit/` by hand.** The one exception is the work item _body_ (Markdown below the frontmatter): `create` writes a `## Summary` / `## Acceptance Criteria` skeleton, or your configured template, and you fill it in.
+**Core rule: every state change goes through the CLI, never through editing `.awit/` by hand.** That includes the work item _body_ (Markdown below the frontmatter): read the shape with `awit template`, fill it in outside `.awit/`, and write it with `awit create --body-file` or `awit update <id> --body-file`.
 
 ## Setup (once per session)
 
@@ -96,14 +96,12 @@ Manual holds never appear under READY. Use `awit list --blocked` for the full qu
 
 ## Adding work items
 
-```bash
-awit create "<imperative title>" \
-  --brief "<1-3 sentences: what is wrong / what exists after>" \
-  -l <phase-or-area> -l p1 \
-  -d <dep-id> -d <dep-id>
-```
+Fetch the template, fill it in, and pass it back — never hand-edit files under `.awit/`:
+`awit template > body.md`, fill in `body.md`, then
+`awit create "<imperative title>" --brief "<1-3 sentences>" --body-file body.md -l <phase-or-area> -l p1 -d <dep-id>`.
+Correct a body after the fact with `awit update <id> --body-file body.md`.
 
-Edit `.awit/items/<new-id>.md` **below** the closing `---`: fill `## Summary` and `## Acceptance Criteria` with commands and expected output. For bigger items, use the project template (`plan/implementation-guide.md` §6 here). `.awit/config.yaml` `template:` replaces the default skeleton with the file's exact bytes; use a repo-root-relative path with forward slashes, resolved from the root even in nested cwd. Without it, keep the skeleton. `import` never reads it. Rules:
+For bigger items, use the project template (`plan/implementation-guide.md` §6 here). `.awit/config.yaml` `template:` replaces the default skeleton with the file's exact bytes; use a repo-root-relative path with forward slashes, resolved from the root even in nested cwd. `--body`/`--body-file` overrides it; with neither, the template applies, else the built-in skeleton. `import` never reads it. Rules:
 
 - `create` requires `--brief`, at most three sentences; otherwise split the item. Only `import` derives an omitted brief from the remote title or body's first sentence.
 - Priority is a label (`p0` critical path, `p1`, `p2`), never a field. Prefer `.awit/config.yaml` `labels`; check `awit label` before inventing names.
@@ -150,8 +148,10 @@ When dispatching workers:
 | Import an issue | `awit import <issue-url> [--brief "…"] [--alias DTRM-F21 --tea-login name]`: one-time Gitea/GitLab snapshot via `tea`/`glab`; omitted `--brief` uses the remote title, else the body's first sentence capped at 240 code points. Accepts GitLab issue and work_items URLs; `--tea-login` is ignored for GitLab. Tracker-aware duplicates refused. |
 | Linked-body drift | `awit external check [--tea-login name]` (read-only; exit 1 names every drifted item) / `awit external push-body <id> [--tea-login name]` (explicit local-canonical repair; verifies exact bytes) |
 | Read an item | `awit show <id>` (~200 tokens) / `--full` (refs inlined) / `--refs-only` |
+| What this unblocks | `awit show <id> --unblocks` (transitive open items, honours `--format`) |
+| Body template | `awit template` (exact bytes `create` would use) |
 | Record progress | `awit comment <id> "…"` / `--file report.log` |
-| Change fields | `awit update <id>` with `--status`, `--brief`, `--title`, `--assign`, `-l`, `--unlabel`, `--external-*`, `--clear-external` `[--push --no-push --tea-login]` (same-status `--status` re-pushes; `--push=true` overrides config) |
+| Change fields | `awit update <id>` with `--status`, `--brief`, `--body`, `--body-file`, `--title`, `--assign`, `-l`, `--unlabel`, `--external-*`, `--clear-external` `[--push --no-push --tea-login]` (same-status `--status` re-pushes; `--push=true` overrides config) |
 | Finish / give back / reopen | `awit close <id> --reason "…"` / `awit release <id>` `[--push --no-push --tea-login]` |
 | Pause / resume | `awit block <id> --reason "<obstacle and release condition>"` / `awit unblock <id>` (only after the recorded condition resolves; never claims or pushes) |
 | Dependencies | `awit dep add/rm <id> <dep>` |
