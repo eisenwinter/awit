@@ -2,6 +2,26 @@
 
 ## Install
 
+Quick bootstrap (Linux x86_64; pick the matching asset for other platforms):
+
+```bash
+V=$(curl -s https://api.github.com/eisenwinter/awit/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+curl -sL "https://github.com/eisenwinter/awit/releases/download/$V/awit_${V}_Linux_x86_64.tar.gz" | tar xz awit
+./awit --version && ./awit init --skills
+```
+
+Assets are named `awit_<version>_<Os>_<Arch>.tar.gz` (`.zip` on Windows).
+
+Or paste this to your agent and skip the shell entirely:
+
+```text
+Bootstrap awit in the current repository: download the release binary for
+this machine from github.com/eisenwinter/awit/releases (assets are named
+awit_<version>_<Os>_<Arch>.tar.gz, .zip on Windows), put it on PATH, then
+run awit init --skills in the repo root and report the .awit layout and
+the seeded skills it created.
+```
+
 From source (Go 1.27+):
 
 ```bash

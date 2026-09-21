@@ -18,8 +18,20 @@ right now, and what does finishing it unblock?*
 - **Git is the sync protocol.** Two agents racing a claim produce a merge
   conflict, which quarantine surfaces — instead of a silent double-claim.
 
+- **Labels adapt to any workflow.** Free-form grouping sets with no enforced meaning — `p0`…`p4` for priority, areas, phases, whatever you need; filter them with `-l`.
 [Install and first steps](usage.md){ .md-button .md-button--primary }
 [How it works](how-it-works.md){ .md-button }
+## Quickstart
+
+Paste this to your agent:
+
+```text
+Bootstrap awit in the current repository: download the release binary for
+this machine from github.com/eisenwinter/awit/releases (assets are named
+awit_<version>_<Os>_<Arch>.tar.gz, .zip on Windows), put it on PATH, then
+run awit init --skills in the repo root and report the .awit layout and
+the seeded skills it created.
+```
 
 ## A single agent working the queue
 

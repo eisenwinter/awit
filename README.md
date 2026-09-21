@@ -7,6 +7,18 @@ graph from `.awit/items/*.md`; a clone is the whole state.
 
 ## Install
 
+Quick bootstrap (Linux x86_64; pick the matching asset for other platforms):
+
+```bash
+V=$(curl -s https://api.github.com/eisenwinter/awit/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+curl -sL "https://github.com/eisenwinter/awit/releases/download/$V/awit_${V}_Linux_x86_64.tar.gz" | tar xz awit
+./awit --version && ./awit init --skills
+```
+
+Assets are named `awit_<version>_<Os>_<Arch>.tar.gz` (`.zip` on Windows).
+`awit init --skills` creates `.awit/` and seeds the driving-awit skill into
+every detected agent directory without asking.
+
 From source (Go 1.27+):
 
 ```bash
