@@ -84,7 +84,7 @@ func pickNext(cands []*graph.Node, seed int64) *graph.Node {
 //
 // The command tree is reused across Main calls, so "was the flag passed?"
 // is decided by value alone — an empty --commit value means unset — never
-// by cmd.IsSet, whose hasBeenSet sticks to reused flags (guide §5).
+// by cmd.IsSet, whose hasBeenSet sticks to reused flags.
 func commitPolicy(cmd *cli.Command, cfg config.Config) (bool, error) {
 	raw := cmd.String("commit")
 	var want bool

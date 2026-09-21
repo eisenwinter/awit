@@ -7,6 +7,19 @@ graph from `.awit/items/*.md`; a clone is the whole state.
 
 ## Install
 
+Quick bootstrap (detects your OS/arch; Windows needs the `.zip` asset and `tar`/`Expand-Archive` instead):
+
+```bash
+V=$(curl -s https://api.github.com/eisenwinter/awit/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+OS=$(uname -s | tr '[:upper:]' '[:lower:]'); ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+curl -sL "https://github.com/eisenwinter/awit/releases/download/$V/awit_${V#v}_${OS}_${ARCH}.tar.gz" | tar xz awit
+./awit --version && ./awit init --skills
+```
+
+Assets are named `awit_<version>_<os>_<arch>.tar.gz` (`.zip` on Windows, e.g. `awit_0.5.0_linux_amd64.tar.gz`).
+`awit init --skills` creates `.awit/` and seeds the driving-awit skill into
+every detected agent directory without asking.
+
 From source (Go 1.27+):
 
 ```bash
@@ -120,10 +133,12 @@ Filter with `-l p0` (AND across repeated flags, OR inside one comma list).
 
 ## Status
 
+Full documentation: **https://eisenwinter.github.io/awit/**
+
 v1 targets tagged binaries for linux, darwin and windows (amd64 and
 arm64) via GoReleaser. CI runs `go vet`, `staticcheck` and `go test ./...`
 on ubuntu-latest and windows-latest. This repository dogfoods itself:
-implementation work items live in [`.awit/items/`](.awit/items/).
+the v1 implementation work items are closed and live in [`.awit/archive/`](.awit/archive/).
 
 ## Pre-commit
 
@@ -186,10 +201,7 @@ awit import https://forge.example/group/sub/project/-/work_items/127 \
 
 ## Contributing
 
-Read [plan/implementation-guide.md](plan/implementation-guide.md) first.
-It holds the resolved design decisions, the package layout, every shared
-Go interface, and the work item index with dependency order. Then pick a
-work item from `.awit/items/` whose `deps` are all closed.
+Read [docs/design-spec.md](docs/design-spec.md) first — published at **https://eisenwinter.github.io/awit/design-spec/**. It holds the resolved design decisions and the package layout; signatures live in code (`go doc`), the closed v1 items in `.awit/archive/`. The on-disk format is [docs/schema.md](docs/schema.md). Then open a work item under `.awit/` whose `deps` are all closed.
 
 ## License
 

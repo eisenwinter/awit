@@ -21,7 +21,7 @@ func git(t *testing.T, dir string, args ...string) string {
 
 // newRepo creates an initialised repository with one empty commit and a known
 // identity. It skips the test when git is not installed, so the suite stays
-// green on a machine without git (guide §1: git is executed, never linked).
+// green on a machine without git (spec Tech Stack: git is executed, never linked).
 func newRepo(t *testing.T) string {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
@@ -157,7 +157,7 @@ func TestCommitOnlyStagesGivenPaths(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "b.txt"), []byte("b\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	// The path is absolute, exactly as item.Path is (guide §4.3).
+	// The path is absolute, exactly as item.Path is.
 	if err := Commit(dir, []string{filepath.Join(dir, "a.txt")}, "awit: test"); err != nil {
 		t.Fatalf("Commit() error = %v", err)
 	}

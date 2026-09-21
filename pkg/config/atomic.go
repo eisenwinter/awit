@@ -31,7 +31,7 @@ func WriteAtomic(path string, data []byte) error {
 		return err
 	}
 	if err := os.Rename(name, path); err != nil {
-		// Windows cannot rename over an existing file (guide §1).
+		// Windows cannot rename over an existing file (temp-then-rename: spec §7).
 		if rmErr := os.Remove(path); rmErr == nil {
 			err = os.Rename(name, path)
 		}
