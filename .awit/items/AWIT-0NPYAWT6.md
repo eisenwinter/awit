@@ -3,11 +3,13 @@ id: AWIT-0NPYAWT6
 title: 'docs: document template, body flags and show --unblocks'
 brief: >-
   The skill, the guide, the README and the spec all describe a CLI that no longer matches once the template, body and unblocks work lands. Updates all four surfaces, including the skill's now-false body-editing exception and the guide's required signature list.
-status: open
+status: in_progress
 deps: [AWIT-0NPYAVTA, AWIT-0NPYAWT8, AWIT-0NPYAWTA, AWIT-0NPYAWT2, AWIT-0NPYAVT1]
 labels: [phase7, p2]
 refs_base: repo
 refs: []
+assignee: agent/orchestrator
+claimed_at: "2026-09-21T14:18:11Z"
 ---
 
 ## Summary
