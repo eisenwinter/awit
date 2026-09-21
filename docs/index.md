@@ -17,8 +17,10 @@ right now, and what does finishing it unblock?*
 - **Git is the sync protocol.** Two agents racing a claim produce a merge
   conflict, which quarantine surfaces — instead of a silent double-claim.
 - **Labels adapt to any workflow.** Free-form grouping sets with no enforced meaning — `p0`…`p4` for priority, areas, phases, whatever you need; filter them with `-l`.
+
 [Install and first steps](usage.md){ .md-button .md-button--primary }
 [How it works](how-it-works.md){ .md-button }
+
 ## Quickstart
 
 Paste this to your agent:
