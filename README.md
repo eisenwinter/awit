@@ -188,7 +188,7 @@ awit import https://forge.example/group/sub/project/-/work_items/127 \
 
 ## Contributing
 
-Read [docs/design-spec.md](docs/design-spec.md) first — published at **https://eisenwinter.github.io/awit/design-spec/**. It holds the resolved design decisions, the package layout, every shared Go interface, and the work item index with dependency order. The on-disk format is [docs/schema.md](docs/schema.md). Then open a work item under `.awit/` whose `deps` are all closed.
+Read [docs/design-spec.md](docs/design-spec.md) first — published at **https://eisenwinter.github.io/awit/design-spec/**. It holds the resolved design decisions and the package layout; signatures live in code (`go doc`), the closed v1 items in `.awit/archive/`. The on-disk format is [docs/schema.md](docs/schema.md). Then open a work item under `.awit/` whose `deps` are all closed.
 
 ## License
 

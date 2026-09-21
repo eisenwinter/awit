@@ -222,7 +222,7 @@ func setUsageHandler(cmd *cli.Command, h cli.OnUsageErrorFunc) {
 }
 
 // SplitLabels turns repeated -l values into label groups. Groups are ANDed and
-// the labels inside a group are ORed (guide §2, decision 1), so
+// the labels inside a group are ORed (spec §6, Label Filter Logic), so
 // ["p0,p1", "auth"] means (p0 OR p1) AND auth. Whitespace is trimmed and empty
 // entries are dropped; a flag that contributes no label contributes no group,
 // and no input at all returns nil so graph.FilterLabels treats it as "no filter".

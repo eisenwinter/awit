@@ -4,7 +4,7 @@
 
 **Architecture:** Graph-reading commands rebuild the in-memory graph from `.awit/items/*.md` and operate on the condensed DAG. Mutations write only targeted files. Faults (parse errors, cycles, dangling dependencies, conflict markers, ID mismatches, duplicate IDs) route to quarantine.
 
-**Tech Stack:** Go 1.27.1, `[github.com/urfave/cli/v3](https://github.com/urfave/cli/v3)` (CLI), `gopkg.in/yaml.v3` (frontmatter Node editing), `golang.org/x/sys` (`pkg/lock` Windows only), stdlib. External git operations execute via `os/exec`. External trackers interface via pre-authenticated `tea` (Gitea) and `glab` (GitLab) subprocesses.
+**Tech Stack:** Go 1.27.1, `github.com/urfave/cli/v3` (CLI), `gopkg.in/yaml.v3` (frontmatter Node editing), `golang.org/x/sys` (`pkg/lock` Windows only), stdlib. External git operations execute via `os/exec`. External trackers interface via pre-authenticated `tea` (Gitea) and `glab` (GitLab) subprocesses.
 
 **On-disk contract:** File format bytes are governed by [schema.md](schema.md), which overrides this document on discrepancy.
 
@@ -14,17 +14,17 @@
 
 - **Work item** — one Markdown file under `.awit/items/` (ID = filename stem): frontmatter plus body. The unit of work; `item` is the short form and the Go noun.
 - **Graph** — the in-memory DAG rebuilt from items on every graph-reading command. Nodes are items; edges are `deps`/`Unblocks`.
-- **Ready / Blocked** — derived eligibility, never stored. Ready means open, unheld, all deps closed. Blocked means held or waiting on deps.
+- **Ready / Blocked** — derived eligibility, never stored. Ready means not closed, unheld, every dep closed. Blocked means a non-closed item that is held or waiting on deps.
 - **Quarantine** — the exclusion set for unreadable or faulted items. Visible everywhere, selectable nowhere.
 - **Labels** — free-form grouping sets with no enforced meaning. Any spelling is allowed; `p0`…`p4` may be convention for priority, usable with `-l` filters. Labels carry no scores and enforce no workflow — they group, and flows are built on top.
-- **Claim** — a soft reservation (`status`, `assignee`, `claimed_at` plus a git commit), visible across worktrees only after push.
+- **Claim** — a soft reservation (`status`, `assignee`, `claimed_at`, plus a git commit by default), visible across worktrees only after push.
 - **Refs** — repo-relative file pointers, resolved by `show --full`.
 
 ---
 
 ## 1. System Overview
 
-Every invocation parses `.awit/items/*.md`, operates on the memory graph, and persists changes atomically.
+Graph-reading commands parse `.awit/items/*.md`, operate on the memory graph, and persist changes atomically.
 
 ```mermaid
 flowchart LR
@@ -167,8 +167,6 @@ flowchart TD
 ## 5. CLI Command Matrix
 
 - Standard flag `--format compact|table|json` applies to tabular outputs (defaults to `compact` if stdout is not a TTY).
-- Global flags: `--format`, `--repo <path>`, `--no-color`.
-- Identifiers accept canonical IDs, case-insensitive aliases, or external keys (`repo#12`, `#12`).
 
 | Command | Flags | Target | Description |
 | --- | --- | --- | --- |
@@ -183,7 +181,7 @@ flowchart TD
 | `show <id>` | `--full`, `--refs-only`, `--unblocks` | Both | Displays item metadata, resolved references, or transitive unblocks. |
 | `comment <id> [msg]` | `--file <path>`, `--author` | Both | Writes RFC3339-timestamped comment or moves file attachment; updates `refs`. |
 | `update <id>` | `--status`, `--brief`, `--body`, `--body-file`, `--assign`, `--label`, `--unlabel`, `--title`, `--alias`, `--clear-alias`, `--external-*`, `--push`, `--no-push`, `--tea-login` | Both | Performs surgical frontmatter mutation. Syncs status to external trackers if enabled. |
-| `close <id>` | `--reason`, `--author`, `--push`, `--no-push`, `--tea-login` | Both | Sets `status: closed`, clears claim and hold, appends reason comment. Syncs external status. |
+| `close <id>` | `--reason`, `--author`, `--push`, `--no-push`, `--tea-login` | Both | Sets `status: closed`, clears `claimed_at` and the hold, keeps `assignee`, appends reason comment. Syncs external status. |
 | `release <id>` | `--push`, `--no-push`, `--tea-login` | Both | Resets status to `open`, clears `assignee` and `claimed_at`. Leaves manual hold intact. |
 | `block <id>` | `--reason` | Both | Writes `blocked_reason`, sets status to `open`, drops claim. Refuses closed items. |
 | `unblock <id>` | — | Both | Deletes `blocked_reason`. Retains status, assignee, and external links. |
@@ -238,7 +236,7 @@ Budget estimation uses `len(bytes) / 4`. Budget enforcement is soft with an immu
 3. Row counts reflect pre-truncation totals. Negative token limits exit with code 2.
 
 ### `awit next` Output Contract
-Selects one item from the ready set (ready nodes minus quarantined, filtered by `-l`):
+Selects one item from the ready set (ready nodes minus quarantined, filtered by `-l`). An explicit `[key]` is a lookup, not a rerank; with `--claim` the item must be ready, unheld and unclaimed.
 
 ```text
 [AWIT-0K7M2QX9] Implement OAuth2 token extraction | auth,api,p1 | Unblocks: 4
@@ -275,3 +273,5 @@ pkg/lock/           → advisory .lock (flock / LockFileEx)
 ```
 
 Exact signatures live in code (`go doc`); this map says where to look. Exit codes: `0` success, `1` expected non-success (`next` with no candidates, `validate` with FAIL, drift/error), `2` usage error.
+
+Writes are temp-then-rename in the target directory; unparseable files never panic — they become `Broken`/quarantined. Output is deterministic: no timestamps, map iteration order, or randomness except the `next` tie-break.

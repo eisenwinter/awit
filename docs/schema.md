@@ -103,7 +103,7 @@ Missing required keys or an unknown status → parse error → quarantine
 
 | Key | Type | Rules |
 | --- | --- | --- |
-| `brief` | string | One to three sentences. `create` requires `--brief`; `import` derives it from the remote title (else the body's first sentence, capped at 240 code points) unless given explicitly. `validate` warns when missing or longer; an item that cannot be briefed that tightly should be split |
+| `brief` | string | One to three sentences. `create` requires `--brief`; `import` derives it from the remote title (else the body's first sentence, capped at 240 code points) unless given explicitly. `validate` warns when missing or longer; an item that cannot be briefed that tightly should be split. Written as a folded scalar (`>-`) when it contains a newline or exceeds 80 bytes |
 | `deps` | list of ids | Unknown id → `DANGLING DEP` on this item. Written flow style `[a, b]` |
 | `labels` | list of strings | Free-form. `p0`–`p4` recommended for priority. Flow style. Optional `config.yaml` `labels` is advisory only — unknown names warn on `create`/`update` and still store |
 | `assignee` | string | `human/<name>` or `agent/<id>`. Omitted when empty. Deleted by `release`; kept by `close` as the audit trail |

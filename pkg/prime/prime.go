@@ -20,7 +20,7 @@ type Options struct {
 }
 
 // EstimateTokens approximates LLM tokens as len(b)/4, integer division.
-// It is approximate by design (guide §2 decision 5); callers use it for
+// It is approximate by design (spec §6, Token Budgeting Rules); callers use it for
 // budgeting, never for billing.
 func EstimateTokens(b []byte) int {
 	return len(b) / 4

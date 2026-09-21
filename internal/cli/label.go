@@ -48,7 +48,7 @@ func labelAction(_ context.Context, cmd *cli.Command) error {
 
 // labelCounts builds the label vocabulary rows over the parseable items.
 // Optional config.yaml labels is an advisory vocabulary only: this command
-// still reports actual use (guide §2). Used undeclared labels count; unused
+// still reports actual use (advisory vocabulary: schema.md). Used undeclared labels count; unused
 // declared names do not. state is one of open|closed|all and was validated
 // by the caller: "open" counts every status except closed, "closed" only
 // closed, "all" everything. Graph quarantine is irrelevant here — a

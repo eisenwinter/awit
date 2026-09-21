@@ -5,8 +5,8 @@ import (
 )
 
 // Archivable returns the fixed-point set of closed, non-quarantined
-// nodes with no Unblocks neighbour outside the set (guide §2 "Archive
-// eligibility"). Sorted ID asc; empty when none.
+// nodes with no Unblocks neighbour outside the set (spec §4, Archival
+// Engine). Sorted ID asc; empty when none.
 func (g *Graph) Archivable() []*Node {
 	in := make(map[*Node]bool, len(g.Order))
 	for _, n := range g.Order {

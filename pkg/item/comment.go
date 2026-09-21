@@ -119,7 +119,7 @@ func (s *Store) AttachFile(it *Item, author string, now time.Time, src string) (
 
 // Comment is one file under comments/<id>/. Attachment files (verbatim
 // --file copies) have Attachment == true and empty Author/Created/Text
-// (guide §2 "Comment vs attachment").
+// (spec §3, Comments and Attachments).
 type Comment struct {
 	File       string // filename inside comments/<id>/
 	Author     string

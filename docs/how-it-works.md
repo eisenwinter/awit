@@ -1,7 +1,7 @@
 # How awit works
 
 Files are the state; each command is one process; Git is the sync protocol.
-This page is the conceptual tour. Signatures, flags and conventions live in
+This page is the conceptual tour. Decisions, flags and the package layout live in
 the [Design Spec](design-spec.md); bytes on disk live in the
 [On-disk Schema](schema.md).
 

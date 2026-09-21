@@ -71,7 +71,7 @@ func maybePushExternalState(ctx context.Context, cmd *cli.Command, all []*item.I
 //
 // The command tree is reused across Main calls, so "was the flag passed?"
 // is decided by value alone — an empty --push value means unset — never
-// by cmd.IsSet, whose hasBeenSet sticks to reused flags (guide §5).
+// by cmd.IsSet, whose hasBeenSet sticks to reused flags.
 func externalPushPolicy(cmd *cli.Command, cfg config.Config) (bool, error) {
 	raw := cmd.String("push")
 	var want bool

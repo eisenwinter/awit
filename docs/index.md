@@ -51,6 +51,6 @@ TODO: paste a real multi-agent orchestration log here.
 | --- | --- |
 | [How it works](how-it-works.md) | The store, the graph, ranking, quarantine, archive |
 | [Setup & Usage](usage.md) | Install, `awit init`, the agent loop, every command |
-| [Design Spec](design-spec.md) | Decisions, interfaces, conventions — the contract |
+| [Design Spec](design-spec.md) | Decisions, command matrix, package layout — the contract |
 | [On-disk Schema](schema.md) | The v1 file format, key by key |
 | [FAQ](faq.md) | Short answers to recurring questions |

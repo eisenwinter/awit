@@ -1,5 +1,5 @@
 // Package gitx wraps the git command line. It is the only package in awit that
-// shells out to git; nothing links a git library (guide §1).
+// shells out to git; nothing links a git library (spec Tech Stack).
 package gitx
 
 import (
@@ -28,7 +28,7 @@ func run(dir string, args ...string) (string, error) {
 
 // Branch returns the current branch name for dir or "" when not a git repo /
 // detached. It never returns an error: id.Worker hashes the branch name and
-// must keep working outside a repository (guide §2, decision 2).
+// must keep working outside a repository (spec §2, ID Layout).
 func Branch(dir string) string {
 	out, err := run(dir, "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
@@ -43,7 +43,7 @@ func Branch(dir string) string {
 }
 
 // UserName returns `git config user.name` or "". The empty string lets the
-// author-resolution chain fall through to its own error (guide §2, decision 4).
+// author-resolution chain fall through to its own error (author rules: schema.md).
 func UserName(dir string) string {
 	out, err := run(dir, "config", "user.name")
 	if err != nil {
@@ -65,7 +65,7 @@ var errNoPaths = errors.New("gitx: commit needs at least one path")
 // Commit stages the given paths (relative to or absolute within root) and
 // commits only them.
 //
-// Paths normally arrive as item.Path, which is absolute (guide §4.3). Git
+// Paths normally arrive as item.Path, which is absolute. Git
 // accepts absolute pathspecs inside the worktree and resolves them against the
 // worktree root, so no filepath.Rel conversion is needed — and none should be
 // attempted, because hand-built relative paths break on Windows drive letters.
