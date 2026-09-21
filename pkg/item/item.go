@@ -195,6 +195,10 @@ func (it *Item) Bytes() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// DefaultBody is the body New writes when no config template applies. The
+// awit template command prints these exact bytes, so the two must not drift.
+const DefaultBody = "\n## Summary\n\n## Acceptance Criteria\n\n"
+
 func New(id, title, brief string, deps, labels []string) *Item {
 	depsCopy := append([]string(nil), deps...)
 	labelsCopy := append([]string(nil), labels...)
@@ -234,7 +238,7 @@ func New(id, title, brief string, deps, labels []string) *Item {
 		Refs:     []string{},
 		RefsBase: "repo",
 		doc:      doc,
-		body:     []byte("\n## Summary\n\n## Acceptance Criteria\n\n"),
+		body:     []byte(DefaultBody),
 		dirty:    true,
 	}
 }

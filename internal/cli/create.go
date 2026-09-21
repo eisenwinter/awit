@@ -5,13 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/id"
@@ -169,7 +166,7 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	defer release()
-	body, err := readCreateTemplate(s.Root, s.Config.Template)
+	body, err := readTemplateBody(s.Root, s.Config.Template)
 	if err != nil {
 		return err
 	}
@@ -249,30 +246,4 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 		Unblocks: 0,
 		External: it.External,
 	})
-}
-
-func readCreateTemplate(root, rel string) ([]byte, error) {
-	if rel == "" {
-		return nil, nil
-	}
-	cleaned := path.Clean(rel)
-	abs := filepath.Join(root, filepath.FromSlash(cleaned))
-	fi, err := os.Stat(abs)
-	if err != nil {
-		return nil, fmt.Errorf("template %s: %w", rel, err)
-	}
-	if fi.IsDir() {
-		return nil, fmt.Errorf("template %s: is a directory", rel)
-	}
-	data, err := os.ReadFile(abs)
-	if err != nil {
-		return nil, fmt.Errorf("template %s: %w", rel, err)
-	}
-	if !utf8.Valid(data) {
-		return nil, fmt.Errorf("template %s: not valid UTF-8", rel)
-	}
-	if item.HasConflictMarkers(data) {
-		return nil, fmt.Errorf("template %s: conflict markers", rel)
-	}
-	return data, nil
 }
