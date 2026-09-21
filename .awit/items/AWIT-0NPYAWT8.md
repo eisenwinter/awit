@@ -3,11 +3,13 @@ id: AWIT-0NPYAWT8
 title: 'cli/create: add --body and --body-file'
 brief: >-
   create can only take its body from config.template or the built-in skeleton, so a filled-in body must be written by hand afterwards. Adds --body and --body-file, mutually exclusive and resolved before the lock and the mint.
-status: open
+status: in_progress
 deps: [AWIT-0NPYAVTA]
 labels: [phase7, p0]
 refs_base: repo
 refs: []
+assignee: agent/orchestrator
+claimed_at: "2026-09-21T13:56:34Z"
 ---
 
 ## Summary
