@@ -1,2 +1,3 @@
 prefix: AWIT
 stale_claim: 2h
+template: .awit/templates/workitem.md
