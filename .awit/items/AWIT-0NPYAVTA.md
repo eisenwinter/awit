@@ -3,11 +3,13 @@ id: AWIT-0NPYAVTA
 title: 'cli: add the template command'
 brief: >-
   awit has no way to print the work item body template, so an agent must read the guide to learn which sections are required. Adds awit template, printing the config.yaml template: bytes or the built-in skeleton, and promotes readCreateTemplate to a shared readTemplateBody.
-status: open
+status: in_progress
 deps: []
 labels: [phase7, p0]
 refs_base: repo
 refs: []
+assignee: agent/orchestrator
+claimed_at: "2026-09-21T13:46:41Z"
 ---
 
 ## Summary
