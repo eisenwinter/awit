@@ -31,7 +31,7 @@ files and in Git. `--claim` writes `status: in_progress`, `assignee`,
 commit turns a double-claim across worktrees into a merge conflict instead
 of silent duplication.
 
-→ [Design Spec: Agent surface](design-spec.md#agent-surface)
+→ [Design Spec: Agent surface](design-spec.md#6-agent-surfaces)
 
 ## The graph
 
@@ -56,7 +56,7 @@ stored; ready/blocked eligibility is derived: ready means not closed, no
 manual hold, every dep closed. A stored `blocked_reason` holds an item
 regardless of deps.
 
-→ [Design Spec: Graph engine](design-spec.md#graph-engine)
+→ [Design Spec: Graph engine](design-spec.md#4-graph-engine)
 
 ## Ranking: what to do next
 
@@ -67,7 +67,7 @@ agents racing a claim diverge. The critical path is the longest path over
 open nodes. Priority is a label, never a field: `awit next -l p0` is the
 priority check.
 
-→ [Design Spec: `awit next`](design-spec.md#awit-next)
+→ [Design Spec: `awit next`](design-spec.md#6-agent-surfaces)
 
 ## When files go wrong: quarantine
 
@@ -78,7 +78,7 @@ Quarantined items are excluded from `next`, listed under `GRAPH WARNINGS` in
 that repairs it. The CLI never panics on a bad file. `validate` is the
 intended pre-commit hook.
 
-→ [Design Spec: Decisions](design-spec.md#decisions)
+→ [Design Spec: Quarantine](design-spec.md#fault-handling-and-quarantine)
 
 ## Holding work: blocks vs labels
 
@@ -88,7 +88,7 @@ receives that exact label. `awit block <id> --reason "<obstacle and release
 condition>"` stores the hold (open + claim cleared, one save); `awit
 unblock` removes only it; `release` preserves it, `close` clears it.
 
-→ [Design Spec: Decisions](design-spec.md#decisions)
+→ [Design Spec: Vocabulary](design-spec.md#vocabulary)
 
 ## External trackers
 
@@ -109,4 +109,4 @@ the set (anything else would become a `DANGLING DEP` fault on departure).
 Comments collapse into the archived file; `--file` attachments move beside
 it. There is no `unarchive`; `git revert` is the way back.
 
-→ [Design Spec: Archive](design-spec.md#archive)
+→ [Design Spec: Archival engine](design-spec.md#archival-engine)
