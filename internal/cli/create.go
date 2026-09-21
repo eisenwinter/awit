@@ -22,6 +22,8 @@ var createCmd = &cli.Command{
 	ArgsUsage: "<title>",
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "brief", Usage: "one to three sentences", Required: true},
+		&cli.StringFlag{Name: "body", Usage: "item body below the frontmatter, verbatim; overrides config.yaml template:"},
+		&cli.StringFlag{Name: "body-file", Usage: "read the body from `PATH`, or - for stdin; overrides config.yaml template:"},
 		&cli.StringSliceFlag{Name: "dep", Aliases: []string{"d"}},
 		&cli.StringSliceFlag{Name: "label", Aliases: []string{"l"}, Usage: "metadata label, repeatable; use awit block <id> to pause work"},
 		&cli.StringFlag{Name: "assign"},
@@ -160,15 +162,21 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	body, err := resolveBodyFlags(cmd)
+	if err != nil {
+		return err
+	}
 	noteWalkedUp(cmd, s)
 	release, err := s.Lock(5 * time.Second)
 	if err != nil {
 		return err
 	}
 	defer release()
-	body, err := readTemplateBody(s.Root, s.Config.Template)
-	if err != nil {
-		return err
+	if body == nil {
+		body, err = readTemplateBody(s.Root, s.Config.Template)
+		if err != nil {
+			return err
+		}
 	}
 	itemID := cmd.String("id")
 	if itemID == "" {

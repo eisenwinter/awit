@@ -682,3 +682,77 @@ func TestTemplateMissingDoesNotBreakList(t *testing.T) {
 		t.Fatalf("list exit %d stderr %q (must not read the template file)", code, stderr)
 	}
 }
+
+func TestCreateBodyFlagIsVerbatim(t *testing.T) {
+	dir := initRepo(t)
+	code, _, stderr := run(t, "--repo", dir, "create", "--brief", "B.", "--id", "AWIT-TEST0001", "--body", "## Only\n", "T")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if got := string(readItem(t, dir, "AWIT-TEST0001").Body()); got != "## Only\n" {
+		t.Errorf("body = %q, want %q", got, "## Only\n")
+	}
+}
+
+func TestCreateBodyFileFromStdin(t *testing.T) {
+	dir := initRepo(t)
+	code, _, stderr := runStdin(t, "## Piped\n", "--repo", dir, "create", "--brief", "B.", "--id", "AWIT-TEST0001", "--body-file", "-", "T")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if got := string(readItem(t, dir, "AWIT-TEST0001").Body()); got != "## Piped\n" {
+		t.Errorf("body = %q, want %q", got, "## Piped\n")
+	}
+}
+
+func TestCreateBodyBeatsConfigTemplate(t *testing.T) {
+	dir := initRepo(t)
+	if err := os.WriteFile(filepath.Join(dir, "t.md"), []byte("## FromTemplate\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeConfigTemplate(t, dir, "t.md")
+
+	code, _, stderr := run(t, "--repo", dir, "create", "--brief", "B.", "--id", "AWIT-TEST0001", "--body", "## FromFlag\n", "T")
+	if code != 0 {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+	if got := string(readItem(t, dir, "AWIT-TEST0001").Body()); got != "## FromFlag\n" {
+		t.Errorf("body = %q, want the flag to win over config.template", got)
+	}
+}
+
+func TestCreateBodyFlagsAreMutuallyExclusive(t *testing.T) {
+	dir := initRepo(t)
+	code, _, stderr := run(t, "--repo", dir, "create", "--brief", "B.", "--body", "x", "--body-file", "y.md", "T")
+	if code != 2 {
+		t.Fatalf("exit = %d, want 2 (stderr %q)", code, stderr)
+	}
+	entries, err := os.ReadDir(filepath.Join(dir, ".awit", "items"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("items dir has %d files, want 0: no item may be minted", len(entries))
+	}
+}
+
+func TestCreateBodyRefusesConflictMarkers(t *testing.T) {
+	dir := initRepo(t)
+	// Assembled at runtime to keep literal conflict markers out of tracked
+	// source, where they confuse merge drivers and diff viewers.
+	marker := strings.Repeat("<", 7) + " HEAD\nx\n" + strings.Repeat("=", 7) + "\ny\n" + strings.Repeat(">", 7) + " other\n"
+	code, _, stderr := run(t, "--repo", dir, "create", "--brief", "B.", "--body", marker, "T")
+	if code == 0 {
+		t.Fatalf("exit = 0, want non-zero")
+	}
+	if !strings.Contains(stderr, "conflict markers") {
+		t.Errorf("stderr = %q, want it to mention conflict markers", stderr)
+	}
+	entries, err := os.ReadDir(filepath.Join(dir, ".awit", "items"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("items dir has %d files, want 0", len(entries))
+	}
+}
