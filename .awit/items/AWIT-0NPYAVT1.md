@@ -3,11 +3,13 @@ id: AWIT-0NPYAVT1
 title: 'graph/cli: expose the transitive unblock set'
 brief: >-
   Unblocks: N is printed by list, next and prime, but the set behind N is printed nowhere, even though reachableUnblocks already walks it and throws it away. Returns that set as graph.ReachableUnblocks and adds an awit show --unblocks view.
-status: open
+status: in_progress
 deps: []
 labels: [phase7, p1]
 refs_base: repo
 refs: []
+assignee: agent/orchestrator
+claimed_at: "2026-09-21T13:47:56Z"
 ---
 
 ## Summary
