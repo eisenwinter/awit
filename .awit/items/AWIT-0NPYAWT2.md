@@ -3,13 +3,12 @@ id: AWIT-0NPYAWT2
 title: 'awit: dogfood the guide section 6 body template'
 brief: >-
   Guide section 6 declares seven mandatory body sections but create emits the two-section default, so every item filed in this repo starts out violating the documented format. Adds .awit/templates/workitem.md and points config.yaml template: at it.
-status: in_progress
+status: closed
 deps: [AWIT-0NPYAVTA]
 labels: [phase7, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NPYAWT2/20260921T140442Z-orchestrator.md, .awit/comments/AWIT-0NPYAWT2/20260921T140442Z-orchestrator-2.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-21T13:57:02Z"
 ---
 
 ## Summary
