@@ -4,7 +4,11 @@
 
 _record scratch_ _freeze frame_ Yep, that's me. You're probably wondering how I got here.
 
-It all started when I started experimenting with agentic coding. Everything was fine, the workflow looked good, and everything was nice and dandy. We had TICKETS.md, PLAN.md, and CLAUDE.progress.md sitting there; everything was working nicely. So the project continues for months, features are built, markdown files get added to explain stuff, and the project progressed. Everything was cool — until it wasn't. I noticed that the agents started requiring more and more tokens. Then I was granted access to a 256k context window model. I tried to task it with a simple task, and it went down like this:
+It all started when I started experimenting with agentic coding. Everything was fine, the workflow looked good, and everything was nice and dandy. We had TICKETS.md, PLAN.md, and CLAUDE.progress.md sitting there; everything was working nicely.
+
+So the project continues for months, features are built, markdown files get added to explain stuff, and the project progressed. Everything was cool - until it wasn't.
+
+I noticed that the agents started requiring more and more tokens. Then I was granted access to a 256k context window model. I tried to task it with a simple task, and it went down like this:
 
 ```
 > Working... [0s]
@@ -14,7 +18,11 @@ It all started when I started experimenting with agentic coding. Everything was 
 
 Well. It hadn't done any work; it just started instant-compacting—then compacting—then compacting, and then the quota was gone. `feelsbadman.jpg`
 
-So — `thinking_hat_mode: true`. This was not a `$dayJob`, so I was rather liberal with building agentic workflows since I was building something fun for myself. I wasn't paying that much attention to how things were handled. Well, well, well... months ago, it was a brilliant idea to get CLAUDE.md to fetch TICKETS.md and PLAN.md as well as skim CLAUDE.progress.md.
+So - `thinking_hat_mode: true`.
+
+This was not a `$dayJob`, so I was rather liberal with building agentic workflows since I was building something fun for myself. I wasn't paying that much attention to how things were handled.
+
+Well, well, well... months ago, it was a brilliant idea to get CLAUDE.md to fetch TICKETS.md and PLAN.md as well as skim CLAUDE.progress.md.
 
 Well, those got loaded into context. Every. Single. Time.
 
@@ -26,15 +34,19 @@ Let's look at those numbers:
 | `docs/TICKETS.md`         | 977,850 (955 KiB)    | 132,917 | 2,412  | ~177k - 244k  |
 | `docs/PLAN.md`            | 222,132 (217 KiB)    | 31,020  | 474    | ~41k - 56k    |
 
-Well, well, well. If this wasn't a cute widdley-diddle allocation of tokens. While in the beginning it was so tidy and neat, a combination of accruing gates and checkpoints, open decisions, and feature ideas had grown TICKETS.md into a behemoth—an untameable eldritch horror of plaintext task writing. At least it was consistent (at least somehow).
+Well, well, well. If this wasn't a cute widdley-diddle allocation of tokens.
+
+While in the beginning it was so tidy and neat, a combination of accruing gates and checkpoints, open decisions, and feature ideas had grown TICKETS.md into a behemoth—an untameable eldritch horror of plaintext task writing. At least it was consistent (at least somehow).
 
 So again, `thinking_hat_mode: true` - this is a solved issue. At `$dayJob`, we use GitLab and have all of our issues, plans, and roadmap there. The agent can just utilize that, so why not use it for $funProject? The SCM I had set up was a Gitea instance on a cheap VPS I've been using for years, so yeah, tea it is. Move all the tickets there: tickets become issues, and issues can be filtered without reading a whopping 177k of context in a single markdown file. Prefilter first.
 
 This radically reduced the TICKETS.md file, while PLAN.md was shrunk by introducing references. All good.
 
-UNTIL IT WAS NOT. Again.
+UNTIL IT WAS NOT. **Again.**
 
-So, the VPS had a bunch of massive outages in a row. But I was Prepared™: I had a local low-power machine mirroring the git repositories. Because that device is already booked solid and hence resource-constrained, it was just running standard git via SSH—no bells, no whistles. So yeah, I wanted to continue my work despite that multi-day outage, but of course fetching tickets via tea went straight to 404.
+So, the VPS had a bunch of massive outages in a row. But I was *Prepared*™: I had a local low-power machine mirroring the git repositories. Because that device is already booked solid and hence resource-constrained, it was just running standard git via SSH—no bells, no whistles.
+
+So yeah, I wanted to continue my work despite that multi-day outage, but of course fetching tickets via tea went straight to 404.
 
 Stranded, I was pondering the issue at hand. We need something that can manage work items similar to tea and glab (because that had been working really well despite the ever-growing issue list), that works with standard git—just git—and keeps the work items inline without the classic agent drift over time (if you know, you know).
 
