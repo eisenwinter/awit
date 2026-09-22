@@ -1,0 +1,8 @@
+# awit
+
+> Agent work item tool: a zero-daemon Go CLI that turns Markdown files under .awit/ into a dependency graph for humans and agents.
+
+## Documentation
+- [Design Spec](https://eisenwinter.github.io/awit/design-spec/): Resolved architectural decisions, package structure, and design principles.
+- [Schema](https://eisenwinter.github.io/awit/schema/): On-disk YAML frontmatter specification, snowflake IDs, and file hierarchy.
+- [CLI Reference](https://eisenwinter.github.io/awit/): Complete command list, flags, and pre-commit validation rules.

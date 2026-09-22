@@ -1,5 +1,7 @@
 # awit
 
+> Cast away the eldritch horror of TICKETS.md. A zero-daemon, git-native task graph built for agents and humans alike.[^1]
+
 **Agent work item tool.** A zero-daemon Go CLI that turns Markdown files under
 `.awit/` into a dependency graph that humans and agents work from — offline,
 versioned in Git, no database, no daemon, no server.
@@ -66,3 +68,5 @@ TODO: paste a real multi-agent orchestration log here.
 | [Design Spec](design-spec.md) | Decisions, command matrix, package layout — the contract |
 | [On-disk Schema](schema.md) | The v1 file format, key by key |
 | [FAQ](faq.md) | Short answers to recurring questions |
+
+[^1]: [WHY ?!](faq.md#why)
