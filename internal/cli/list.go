@@ -48,10 +48,16 @@ func listAction(_ context.Context, cmd *cli.Command) error {
 		return cli.Exit("list takes at most one item key", 2)
 	}
 
+	statuses, err := parseStatuses(cmd.StringSlice("status"))
+	if err != nil {
+		return err
+	}
+	labels := SplitLabels(cmd.StringSlice("label"))
+
 	var nodes []*graph.Node
 	if key := cmd.Args().First(); key != "" {
 		// [key] selects exactly one item before the status/label/state
-		// filters below; no key retains the full listing.
+		// filters; no key runs the shared graph.Filter selection.
 		id, err := resolveItemID(graphItems(g), key)
 		if err != nil {
 			return err
@@ -62,46 +68,16 @@ func listAction(_ context.Context, cmd *cli.Command) error {
 			!((ready && n.Ready) || (blocked && n.Blocked) || (quarantined && n.Quarantined())) {
 			nodes = nil
 		}
+		nodes = graph.Narrow(nodes, statuses, labels)
 	} else {
-		switch {
-		case ready && !blocked && !quarantined:
-			nodes = g.Ready()
-		case ready || blocked || quarantined:
-			for _, n := range g.Order {
-				if (ready && n.Ready) || (blocked && n.Blocked) || (quarantined && n.Quarantined()) {
-					nodes = append(nodes, n)
-				}
-			}
-		default:
-			nodes = g.Order
-		}
+		nodes = g.Filter(graph.Filter{
+			Ready:       ready,
+			Blocked:     blocked,
+			Quarantined: quarantined,
+			Statuses:    statuses,
+			Labels:      labels,
+		})
 	}
-
-	if statuses := cmd.StringSlice("status"); len(statuses) > 0 {
-		allow := map[item.Status]bool{}
-		for _, raw := range statuses {
-			for _, part := range strings.Split(raw, ",") {
-				part = strings.TrimSpace(part)
-				if part == "" {
-					continue
-				}
-				st, err := item.ParseStatus(part)
-				if err != nil {
-					return err
-				}
-				allow[st] = true
-			}
-		}
-		var filtered []*graph.Node
-		for _, n := range nodes {
-			if allow[n.Item.Status] {
-				filtered = append(filtered, n)
-			}
-		}
-		nodes = filtered
-	}
-
-	nodes = graph.FilterLabels(nodes, SplitLabels(cmd.StringSlice("label")))
 
 	f, err := detectFormat(cmd)
 	if err != nil {
@@ -116,6 +92,30 @@ func listAction(_ context.Context, cmd *cli.Command) error {
 	}
 	printListFooter(cmd, nodes)
 	return nil
+}
+
+// parseStatuses turns repeated -s values into the ORed status set; a comma
+// list inside one flag also ORs. Blank parts are skipped.
+func parseStatuses(flags []string) ([]item.Status, error) {
+	var out []item.Status
+	seen := map[item.Status]bool{}
+	for _, raw := range flags {
+		for _, part := range strings.Split(raw, ",") {
+			part = strings.TrimSpace(part)
+			if part == "" {
+				continue
+			}
+			st, err := item.ParseStatus(part)
+			if err != nil {
+				return nil, err
+			}
+			if !seen[st] {
+				seen[st] = true
+				out = append(out, st)
+			}
+		}
+	}
+	return out, nil
 }
 
 // printListFooter teaches the transition loop on stderr while the printed

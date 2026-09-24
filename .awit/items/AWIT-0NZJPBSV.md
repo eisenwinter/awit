@@ -3,13 +3,12 @@ id: AWIT-0NZJPBSV
 title: 'graph: add Filter/Narrow/MatchLabels; list uses them'
 brief: >-
   `awit list` state/status/label selection lives inline in listAction; extracting it into pkg/graph as Filter/Narrow/MatchLabels gives the lazy-human TUI list parity by construction.
-status: in_progress
+status: closed
 deps: []
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NZJPBSV/20260924T203415Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-24T20:24:01Z"
 ---
 ## Summary
 
