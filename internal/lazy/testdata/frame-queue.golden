@@ -1,0 +1,30 @@
+awit lazy-human  [1] Issues [2] Graph [3] Queue  focus: list                                        
+ready: 2
+> [AWIT-00000001] open first                  │ == AWIT-00000001 ==                                 
+  [AWIT-00000002] open second                 │ first                                               
+  [AWIT-00000003] open third                  │ status: open                                        
+  [AWIT-00000004] in_progress fourth          │                                                     
+  [AWIT-00000005] closed fifth                │                                                     
+  [AWIT-00000006] open sixth                  │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+warning: 1 items quarantined, run awit validate
+why: AWIT-00000001; unblocks=1; critical-path=yes; selection=max-unblocks; tie-break=none
+1/2/3 tabs | j/k move | space claim | r release | R reload | ? help | q quit

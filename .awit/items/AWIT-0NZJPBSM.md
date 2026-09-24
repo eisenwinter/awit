@@ -3,13 +3,12 @@ id: AWIT-0NZJPBSM
 title: 'lazy: skeleton — deps, Ops, cursorList, keymap, root Model, view frame, fatal screen'
 brief: >-
   Adds the charm v1 dependencies and the internal/lazy package with the Ops seam, a hand-rolled selectable list, the lazygit keymap, the single root Model with tab/focus/mode state, reload, toast, the plain-text layout and the missing-.awit screen, all covered by TTY-free tests.
-status: in_progress
+status: closed
 deps: []
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NZJPBSM/20260924T202347Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-24T20:13:52Z"
 ---
 ## Summary
 
