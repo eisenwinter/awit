@@ -1,0 +1,30 @@
+awit lazy-human  [1] Issues [2] Graph [3] Queue  focus: list                                        
+ready: 3
+> [AWIT-LAZY0001] open Token extraction       │ detail of AWIT-LAZY0001                             
+  [AWIT-LAZY0002] open Migration scripts      │                                                     
+  [AWIT-LAZY0006] in_progress Rotate keys     │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+                                              │                                                     
+warning: 1 items quarantined, run awit validate
+why: AWIT-LAZY0001; unblocks=2; critical-path=yes; selection=max-unblocks; tie-break=none
+close reason (optional): [AWIT-LAZY0001] >  

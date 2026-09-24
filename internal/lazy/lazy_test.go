@@ -28,18 +28,23 @@ var errTest = errors.New("boom")
 
 // fakeOps is a TTY-free Ops over in-memory items.
 type fakeOps struct {
-	items   []*item.Item
-	archive []*item.Item
-	loadErr error
-	fail    error
-	calls   []string
+	items    map[string]*item.Item
+	archive  []*item.Item
+	loadErr  error
+	fail     error
+	calls    []string
+	external string
 }
 
 func (f *fakeOps) Load() (*graph.Graph, error) {
 	if f.loadErr != nil {
 		return nil, f.loadErr
 	}
-	return graph.Build(f.items, nil), nil
+	items := make([]*item.Item, 0, len(f.items))
+	for _, it := range f.items {
+		items = append(items, it)
+	}
+	return graph.Build(items, nil), nil
 }
 
 func (f *fakeOps) LoadArchive() ([]*item.Item, error) {
@@ -64,16 +69,11 @@ func (f *fakeOps) ArchiveDetail(id string) (string, error) {
 }
 
 func (f *fakeOps) find(id string) *item.Item {
-	for _, it := range f.items {
-		if it.ID == id {
-			return it
-		}
-	}
-	return nil
+	return f.items[id]
 }
 
 func (f *fakeOps) Close(id, reason string) error {
-	f.calls = append(f.calls, "close "+id)
+	f.calls = append(f.calls, "Close "+id+" "+reason)
 	if f.fail != nil {
 		return f.fail
 	}
@@ -83,15 +83,15 @@ func (f *fakeOps) Close(id, reason string) error {
 	return nil
 }
 func (f *fakeOps) Block(id, reason string) error {
-	f.calls = append(f.calls, "block "+id)
+	f.calls = append(f.calls, "Block "+id+" "+reason)
 	return f.fail
 }
 func (f *fakeOps) Unblock(id string) error {
-	f.calls = append(f.calls, "unblock "+id)
+	f.calls = append(f.calls, "Unblock "+id)
 	return f.fail
 }
 func (f *fakeOps) Comment(id, text string) error {
-	f.calls = append(f.calls, "comment "+id)
+	f.calls = append(f.calls, "Comment "+id+" "+text)
 	return f.fail
 }
 func (f *fakeOps) Claim(id string) error {
@@ -116,6 +116,10 @@ func (f *fakeOps) Release(id string) error {
 }
 func (f *fakeOps) Validate(g *graph.Graph) string { return "ok: no faults" }
 func (f *fakeOps) ExternalCheck(ctx context.Context, id string) string {
+	f.calls = append(f.calls, "ExternalCheck "+id)
+	if f.external != "" {
+		return f.external
+	}
 	return "MATCH " + id
 }
 
@@ -135,16 +139,21 @@ func newFixture() *fakeOps {
 	l6.SetClaimedAt(&now)
 	l7 := mk("AWIT-LAZY0007", "Vendor contract", item.StatusOpen, nil, []string{"p0"})
 	_ = l7.SetBlockedReason("waiting on vendor")
+	items := []*item.Item{
+		mk("AWIT-LAZY0001", "Token extraction", item.StatusOpen, nil, []string{"auth", "p1"}),
+		mk("AWIT-LAZY0002", "Migration scripts", item.StatusOpen, nil, []string{"db"}),
+		mk("AWIT-LAZY0003", "E2E auth tests", item.StatusOpen, []string{"AWIT-LAZY0001"}, nil),
+		mk("AWIT-LAZY0004", "Rotate API tokens", item.StatusOpen, []string{"AWIT-LAZY0003"}, []string{"p0"}),
+		mk("AWIT-LAZY0005", "Middleware spec", item.StatusClosed, nil, nil),
+		l6, l7,
+		mk("AWIT-LAZY0008", "Dangling", item.StatusOpen, []string{"AWIT-LAZY0999"}, nil),
+	}
+	byID := make(map[string]*item.Item, len(items))
+	for _, it := range items {
+		byID[it.ID] = it
+	}
 	return &fakeOps{
-		items: []*item.Item{
-			mk("AWIT-LAZY0001", "Token extraction", item.StatusOpen, nil, []string{"auth", "p1"}),
-			mk("AWIT-LAZY0002", "Migration scripts", item.StatusOpen, nil, []string{"db"}),
-			mk("AWIT-LAZY0003", "E2E auth tests", item.StatusOpen, []string{"AWIT-LAZY0001"}, nil),
-			mk("AWIT-LAZY0004", "Rotate API tokens", item.StatusOpen, []string{"AWIT-LAZY0003"}, []string{"p0"}),
-			mk("AWIT-LAZY0005", "Middleware spec", item.StatusClosed, nil, nil),
-			l6, l7,
-			mk("AWIT-LAZY0008", "Dangling", item.StatusOpen, []string{"AWIT-LAZY0999"}, nil),
-		},
+		items: byID,
 		archive: []*item.Item{
 			mk("AWIT-LAZY0101", "Old thing one", item.StatusClosed, nil, []string{"auth"}),
 			mk("AWIT-LAZY0102", "Old thing two", item.StatusClosed, nil, nil),

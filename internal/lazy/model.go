@@ -119,6 +119,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyMsg:
 		return m.updateKey(msg)
+	case externalMsg:
+		m.toast = msg.line
+		return m, nil
 	}
 	if m.focus == focusDetail && m.mode == modeNormal {
 		var cmd tea.Cmd
@@ -152,6 +155,8 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if key.Matches(msg, keys.Enter) {
 			if m.mode == modeSearch {
 				m.submitSearch()
+			} else {
+				m.submitInput()
 			}
 			m.mode = modeNormal
 			m.input.Blur()
@@ -164,6 +169,9 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	// Toasts persist until the next key press; no timers.
 	m.toast = ""
+	if cmd, ok := m.mutationKey(msg); ok {
+		return m, cmd
+	}
 	switch {
 	case key.Matches(msg, keys.Quit):
 		return m, tea.Quit

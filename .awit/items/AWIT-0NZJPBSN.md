@@ -3,13 +3,12 @@ id: AWIT-0NZJPBSN
 title: 'lazy: mutations — c/b/m prompts, u, toast, reload, quarantine footer, V, P (async)'
 brief: >-
   Adds the close/block/comment prompts, immediate unblock, read-only archive refusal, external check as an async tea.Cmd with a toast, and pins the quarantine footer and reload-resort behaviour, completing the in-TUI mutation surface over Ops.
-status: in_progress
+status: closed
 deps: [AWIT-0NZJPBSP, AWIT-0NZJPBSZ, AWIT-0NZJPBSQ]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NZJPBSN/20260924T213300Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-24T21:24:44Z"
 ---
 ## Summary
 
