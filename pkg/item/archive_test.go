@@ -175,3 +175,63 @@ func TestArchiveIdempotentAfterCrash(t *testing.T) {
 		t.Fatal("archive file was not rebuilt")
 	}
 }
+
+func TestLoadArchiveEmptyWhenMissing(t *testing.T) {
+	s := archiveStore(t)
+	items, broken, err := s.LoadArchive()
+	if err != nil || items != nil || broken != nil {
+		t.Fatalf("LoadArchive on missing dir = %v, %v, %v; want nil, nil, nil", items, broken, err)
+	}
+}
+
+func TestLoadArchiveReadsArchivedItems(t *testing.T) {
+	s := archiveStore(t)
+	it, err := s.Load("AWIT-TEST0004")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Archive(it); err != nil {
+		t.Fatal(err)
+	}
+	items, broken, err := s.LoadArchive()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(broken) != 0 {
+		t.Fatalf("broken = %v, want none", broken)
+	}
+	if len(items) != 1 || items[0].ID != "AWIT-TEST0004" || items[0].Status != StatusClosed {
+		t.Fatalf("items = %+v, want one closed AWIT-TEST0004", items)
+	}
+	if !bytes.Contains(items[0].Body(), []byte("## Comments")) {
+		t.Fatalf("archived body lacks collapsed comments:\n%s", items[0].Body())
+	}
+	if items[0].Path != s.ArchivePath("AWIT-TEST0004") {
+		t.Fatalf("Path = %q, want %q", items[0].Path, s.ArchivePath("AWIT-TEST0004"))
+	}
+	// LoadAll no longer sees it.
+	live, _, err := s.LoadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(live) != 0 {
+		t.Fatalf("LoadAll after archive = %d items, want 0", len(live))
+	}
+}
+
+func TestLoadArchiveQuarantinesBrokenFiles(t *testing.T) {
+	s := archiveStore(t)
+	if err := os.MkdirAll(s.ArchiveDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(s.ArchivePath("AWIT-TEST0009"), []byte("no frontmatter\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	items, broken, err := s.LoadArchive()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 0 || len(broken) != 1 || broken[0].Reason != ReasonParse {
+		t.Fatalf("items=%v broken=%v", items, broken)
+	}
+}

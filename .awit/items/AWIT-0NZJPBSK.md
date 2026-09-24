@@ -3,13 +3,12 @@ id: AWIT-0NZJPBSK
 title: 'item: Store.LoadArchive via shared loadDir'
 brief: >-
   The archive directory has a writer but no reader; LoadArchive reuses LoadAll's parsing and duplicate rules on .awit/archive so the TUI can browse archived items without new parsing code.
-status: in_progress
+status: closed
 deps: []
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NZJPBSK/20260924T212434Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-24T21:17:54Z"
 ---
 ## Summary
 
