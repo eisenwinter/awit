@@ -3,13 +3,12 @@ id: AWIT-0NZJPBSZ
 title: 'lazy: Graph tab — prime overview rows, focused tree (depth 5, +N more), enter jump'
 brief: >-
   The Graph tab shows awit prime's READY/BLOCKED/CRITICAL PATH text verbatim with selectable node rows, and a focused ASCII tree of deps above and unblocks below the selected id capped at depth 5, with tab toggling modes and enter jumping to the Issues tab.
-status: in_progress
+status: closed
 deps: [AWIT-0NZJPBSM]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NZJPBSZ/20260924T210951Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-24T20:55:14Z"
 ---
 ## Summary
 

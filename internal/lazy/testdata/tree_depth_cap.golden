@@ -1,0 +1,11 @@
+depends on (upstream, depth <= 5)
+[AWIT-CHAIN0001] open N
+
+unblocks (downstream, depth <= 5)
+[AWIT-CHAIN0001] open N
+└─ [AWIT-CHAIN0002] open N
+   └─ [AWIT-CHAIN0003] open N
+      └─ [AWIT-CHAIN0004] open N
+         └─ [AWIT-CHAIN0005] open N
+            └─ [AWIT-CHAIN0006] open N
+               └─ (+1 more)

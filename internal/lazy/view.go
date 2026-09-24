@@ -71,11 +71,14 @@ func (m Model) headerView() string {
 	return out
 }
 
-// tabHeaderView is the per-tab line under the tab bar. WI-5 owns the issues
-// badges, WI-6 the graph overview/focused label, WI-7 the queue counts.
+// tabHeaderView is the per-tab line under the tab bar: issues badges, the
+// graph overview/focused label, the queue counts.
 func (m Model) tabHeaderView() string {
 	switch m.tab {
 	case tabGraph:
+		if m.graphTab.focused {
+			return "Focused on " + m.graphTab.rootID
+		}
 		return "Overview"
 	case tabQueue:
 		n := 0
@@ -107,6 +110,10 @@ func padLines(lines []string, n int) []string {
 // only the focused pane at full width.
 func (m Model) panesView() string {
 	body := m.bodyHeight()
+	if m.tab == tabGraph {
+		// No detail pane: the overview or tree fills the body full width.
+		return m.activeList().view(m.width)
+	}
 	if m.width < 80 {
 		if m.focus == focusDetail {
 			return strings.Join(padLines(strings.Split(m.detail.View(), "\n"), body), "\n")
@@ -169,7 +176,7 @@ func (m Model) helpView() string {
 func (m Model) hintsView() string {
 	switch m.tab {
 	case tabGraph:
-		return "1/2/3 tabs | j/k move | tab focus | enter jump | R reload | ? help | q quit"
+		return "j/k move  tab overview/focused  enter open in issues  c close  b block  u unblock  m comment  ? help"
 	case tabQueue:
 		return "j/k move  space claim  r release  c close  b block  u unblock  m comment  P check  ? help"
 	default:

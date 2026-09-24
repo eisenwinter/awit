@@ -43,10 +43,8 @@ const (
 	inputComment
 )
 
-// graphState and queueState are placeholders until WI-6/WI-7; each owns
-// only its cursor list. issuesState lives in issues.go.
-type graphState struct{ list cursorList }
-
+// queueState is the Queue tab state. graphState (Graph tab) lives in
+// graph.go; issuesState in issues.go.
 type queueState struct{ list cursorList }
 
 type Model struct {
@@ -174,8 +172,7 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.refreshDetail()
 		return m, nil
 	case key.Matches(msg, keys.Tab2):
-		m.tab = tabGraph
-		m.refreshDetail()
+		m.enterGraphTab()
 		return m, nil
 	case key.Matches(msg, keys.Tab3):
 		m.tab = tabQueue
@@ -212,9 +209,24 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, keys.Esc), key.Matches(msg, keys.Left):
 		m.focus = focusList
 		return m, nil
-	case key.Matches(msg, keys.Tab), key.Matches(msg, keys.Enter), key.Matches(msg, keys.Right):
-		// WI-6 retargets Tab on the Graph tab to the Overview/Focused
-		// toggle; until then Tab shifts focus like enter.
+	case key.Matches(msg, keys.Tab):
+		if m.tab == tabGraph {
+			m.toggleGraphMode()
+			return m, nil
+		}
+		m.focus = focusDetail
+		return m, nil
+	case key.Matches(msg, keys.Enter):
+		if m.tab == tabGraph {
+			m.jumpToIssues()
+			return m, nil
+		}
+		m.focus = focusDetail
+		return m, nil
+	case key.Matches(msg, keys.Right):
+		if m.tab == tabGraph {
+			return m, nil // no detail pane to focus
+		}
 		m.focus = focusDetail
 		return m, nil
 	}
@@ -260,22 +272,9 @@ func (m *Model) rebuildRows() {
 		keepQueue = r.id
 	}
 	m.issues.list.setRows(m.issuesRows(), keepIssues)
-	m.graphTab.list.setRows(m.skeletonRows(), keepGraph)
+	m.graphTab.list.setRows(m.graphRows(), keepGraph)
 	m.queue.list.setRows(queueRows(m.g, m.ops.Line), keepQueue)
 	m.refreshDetail()
-}
-
-// skeletonRows lists every node in ID order via Ops.Line; quarantined nodes
-// stay visible but unselectable. WI-5..WI-7 replace this per tab.
-func (m *Model) skeletonRows() []row {
-	if m.g == nil {
-		return nil
-	}
-	var rows []row
-	for _, n := range m.g.Order {
-		rows = append(rows, row{id: n.Item.ID, text: m.ops.Line(n), selectable: !n.Quarantined()})
-	}
-	return rows
 }
 
 func (m *Model) refreshDetail() {
