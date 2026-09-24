@@ -199,6 +199,16 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.toggleArchive()
 		}
 		return m, nil
+	case key.Matches(msg, keys.Claim):
+		if m.tab == tabQueue {
+			m.claimSelected()
+		}
+		return m, nil
+	case key.Matches(msg, keys.Release):
+		if m.tab == tabQueue {
+			m.releaseSelected()
+		}
+		return m, nil
 	case key.Matches(msg, keys.Esc), key.Matches(msg, keys.Left):
 		m.focus = focusList
 		return m, nil
@@ -250,9 +260,8 @@ func (m *Model) rebuildRows() {
 		keepQueue = r.id
 	}
 	m.issues.list.setRows(m.issuesRows(), keepIssues)
-	rows := m.skeletonRows()
-	m.graphTab.list.setRows(rows, keepGraph)
-	m.queue.list.setRows(rows, keepQueue)
+	m.graphTab.list.setRows(m.skeletonRows(), keepGraph)
+	m.queue.list.setRows(queueRows(m.g, m.ops.Line), keepQueue)
 	m.refreshDetail()
 }
 

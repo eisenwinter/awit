@@ -1,6 +1,6 @@
 awit lazy-human  [1] Issues [2] Graph [3] Queue  focus: list                                        
 ready: 3
-> [AWIT-LAZY0001] open Token extraction       │ detail of AWIT-LAZY0001                             
+> [AWIT-LAZY0001] in_progress Token extractio │ detail of AWIT-LAZY0001                             
   [AWIT-LAZY0002] open Migration scripts      │                                                     
   [AWIT-LAZY0006] in_progress Rotate keys     │                                                     
                                               │                                                     
@@ -24,7 +24,7 @@ ready: 3
                                               │                                                     
                                               │                                                     
                                               │                                                     
-                                              │                                                     
 warning: 1 items quarantined, run awit validate
 why: AWIT-LAZY0001; unblocks=2; critical-path=yes; selection=max-unblocks; tie-break=none
+claimed AWIT-LAZY0001
 j/k move  space claim  r release  c close  b block  u unblock  m comment  P check  ? help

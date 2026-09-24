@@ -171,7 +171,7 @@ func (m Model) hintsView() string {
 	case tabGraph:
 		return "1/2/3 tabs | j/k move | tab focus | enter jump | R reload | ? help | q quit"
 	case tabQueue:
-		return "1/2/3 tabs | j/k move | space claim | r release | R reload | ? help | q quit"
+		return "j/k move  space claim  r release  c close  b block  u unblock  m comment  P check  ? help"
 	default:
 		return "j/k move  enter pin  / filter  o open/archive  c close  b block  u unblock  m comment  P check  ? help"
 	}
@@ -195,8 +195,7 @@ func (m Model) promptView() string {
 	return label + " " + m.input.View()
 }
 
-// whyView explains the queue selection in next --why terms. WI-7 owns the
-// queue rows; the line already works on the skeleton lists.
+// whyView explains the queue selection in next --why terms via whyLine.
 func (m Model) whyView() string {
 	id := m.selectedID()
 	if id == "" || m.g == nil {
@@ -206,14 +205,5 @@ func (m Model) whyView() string {
 	if n == nil {
 		return "why: no selection"
 	}
-	cp := "no"
-	if m.onCritical[id] {
-		cp = "yes"
-	}
-	sel := "ranked"
-	if ready := m.g.Ready(); len(ready) > 0 && n.UnblockCount == ready[0].UnblockCount {
-		sel = "max-unblocks"
-	}
-	return fmt.Sprintf("why: %s; unblocks=%d; critical-path=%s; selection=%s; tie-break=none",
-		id, n.UnblockCount, cp, sel)
+	return whyLine(m.g, n, m.onCritical[id])
 }

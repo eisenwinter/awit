@@ -3,13 +3,12 @@ id: AWIT-0NZJPBSQ
 title: 'lazy: Queue tab — Ready() rows, why line, space/r via Ops'
 brief: >-
   The Queue tab lists g.Ready() in its deterministic prime order, shows the next --why explanation for the highlighted row, and claims or releases the selection through Ops with a toast and synchronous reload.
-status: in_progress
+status: closed
 deps: [AWIT-0NZJPBSM]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NZJPBSQ/20260924T205501Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-24T20:48:30Z"
 ---
 ## Summary
 

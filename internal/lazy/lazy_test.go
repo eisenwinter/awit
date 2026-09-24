@@ -2,6 +2,7 @@ package lazy
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"os"
 	"path/filepath"
@@ -21,11 +22,16 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// errTest is the canned Ops failure; setting f.fail makes every mutator
+// return it so refusal paths can be tested.
+var errTest = errors.New("boom")
+
 // fakeOps is a TTY-free Ops over in-memory items.
 type fakeOps struct {
 	items   []*item.Item
 	archive []*item.Item
 	loadErr error
+	fail    error
 	calls   []string
 }
 
@@ -57,15 +63,57 @@ func (f *fakeOps) ArchiveDetail(id string) (string, error) {
 	return "archive of " + id + "\n", nil
 }
 
-func (f *fakeOps) Close(id, reason string) error { f.calls = append(f.calls, "close "+id); return nil }
-func (f *fakeOps) Block(id, reason string) error { f.calls = append(f.calls, "block "+id); return nil }
-func (f *fakeOps) Unblock(id string) error       { f.calls = append(f.calls, "unblock "+id); return nil }
-func (f *fakeOps) Comment(id, text string) error {
-	f.calls = append(f.calls, "comment "+id)
+func (f *fakeOps) find(id string) *item.Item {
+	for _, it := range f.items {
+		if it.ID == id {
+			return it
+		}
+	}
 	return nil
 }
-func (f *fakeOps) Claim(id string) error          { f.calls = append(f.calls, "claim "+id); return nil }
-func (f *fakeOps) Release(id string) error        { f.calls = append(f.calls, "release "+id); return nil }
+
+func (f *fakeOps) Close(id, reason string) error {
+	f.calls = append(f.calls, "close "+id)
+	if f.fail != nil {
+		return f.fail
+	}
+	if it := f.find(id); it != nil {
+		it.SetStatus(item.StatusClosed)
+	}
+	return nil
+}
+func (f *fakeOps) Block(id, reason string) error {
+	f.calls = append(f.calls, "block "+id)
+	return f.fail
+}
+func (f *fakeOps) Unblock(id string) error {
+	f.calls = append(f.calls, "unblock "+id)
+	return f.fail
+}
+func (f *fakeOps) Comment(id, text string) error {
+	f.calls = append(f.calls, "comment "+id)
+	return f.fail
+}
+func (f *fakeOps) Claim(id string) error {
+	f.calls = append(f.calls, "Claim "+id)
+	if f.fail != nil {
+		return f.fail
+	}
+	if it := f.find(id); it != nil {
+		it.SetStatus(item.StatusInProgress)
+	}
+	return nil
+}
+func (f *fakeOps) Release(id string) error {
+	f.calls = append(f.calls, "Release "+id)
+	if f.fail != nil {
+		return f.fail
+	}
+	if it := f.find(id); it != nil {
+		it.SetStatus(item.StatusOpen)
+	}
+	return nil
+}
 func (f *fakeOps) Validate(g *graph.Graph) string { return "ok: no faults" }
 func (f *fakeOps) ExternalCheck(ctx context.Context, id string) string {
 	return "MATCH " + id
