@@ -81,10 +81,7 @@ func showOne(cmd *cli.Command, key string) error {
 		return format.Write(cmd.Root().Writer, f, entries)
 	}
 	itemsDir := s.ItemsDir()
-	baseDir := itemsDir
-	if n.Item.RefsBase == "repo" {
-		baseDir = s.Root
-	}
+	baseDir := refsBaseDir(s, n)
 	refsOnly := cmd.Bool("refs-only")
 	full := cmd.Bool("full")
 	if refsOnly && full {
@@ -103,11 +100,26 @@ func showOne(cmd *cli.Command, key string) error {
 		return nil
 	}
 	if full {
-		fmt.Fprint(cmd.Root().Writer, fullView(g, n, baseDir, itemsDir))
+		fmt.Fprint(cmd.Root().Writer, showFull(s, g, n))
 		return nil
 	}
 	fmt.Fprint(cmd.Root().Writer, defaultView(n))
 	return nil
+}
+
+// showFull is the `show <id> --full` text: the default view plus every
+// ref resolved against the item's refs base (items dir, or repo root for
+// refs_base: repo).
+func showFull(s *item.Store, g *graph.Graph, n *graph.Node) string {
+	return fullView(g, n, refsBaseDir(s, n), s.ItemsDir())
+}
+
+// refsBaseDir is the directory n's refs resolve against.
+func refsBaseDir(s *item.Store, n *graph.Node) string {
+	if n.Item.RefsBase == "repo" {
+		return s.Root
+	}
+	return s.ItemsDir()
 }
 
 // defaultView renders the core item: header, status, faults, deps,

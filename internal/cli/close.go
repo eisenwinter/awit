@@ -44,20 +44,14 @@ func closeAction(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	it.SetStatus(item.StatusClosed)
-	it.SetClaimedAt(nil)
-	if err := it.SetBlockedReason(""); err != nil {
-		return err
+	reason := cmd.String("reason")
+	author := ""
+	if reason != "" {
+		if author, err = resolveAuthor(cmd.String("author"), s.Root, s.Config); err != nil {
+			return err
+		}
 	}
-	if reason := cmd.String("reason"); reason != "" {
-		author, err := resolveAuthor(cmd.String("author"), s.Root, s.Config)
-		if err != nil {
-			return err
-		}
-		if _, err = s.AddComment(it, author, time.Now().UTC(), reason); err != nil {
-			return err
-		}
-	} else if err := s.Save(it); err != nil {
+	if err := closeItem(s, it, reason, author, time.Now().UTC()); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Root().Writer, "closed %s\n", it.ID)
@@ -67,4 +61,20 @@ func closeAction(ctx context.Context, cmd *cli.Command) error {
 		maybePushExternalState(ctx, cmd, []*item.Item{it}, it, "closed", push)
 	}
 	return nil
+}
+
+// closeItem marks it closed, clearing the claim timestamp and any manual
+// block, and saves it. A non-empty reason is recorded as a comment by
+// author at now (AddComment saves); with an empty reason author is unused.
+func closeItem(s *item.Store, it *item.Item, reason, author string, now time.Time) error {
+	it.SetStatus(item.StatusClosed)
+	it.SetClaimedAt(nil)
+	if err := it.SetBlockedReason(""); err != nil {
+		return err
+	}
+	if reason != "" {
+		_, err := s.AddComment(it, author, now, reason)
+		return err
+	}
+	return s.Save(it)
 }

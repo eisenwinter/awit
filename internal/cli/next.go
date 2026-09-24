@@ -187,11 +187,7 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 		if err != nil {
 			return err
 		}
-		now := time.Now().UTC().Truncate(time.Second)
-		it.SetStatus(item.StatusInProgress)
-		it.SetAssignee(withAgentPrefix(agent))
-		it.SetClaimedAt(&now)
-		if err := s.Save(it); err != nil {
+		if err := claimItem(s, it, agent, time.Now()); err != nil {
 			return err
 		}
 		n.Item = it
@@ -284,4 +280,15 @@ func refuseClaim(n *graph.Node) error {
 		return cli.Exit(fmt.Sprintf("%s is claimed by %s; awit release %s", id, n.Item.Assignee, id), 1)
 	}
 	return nil
+}
+
+// claimItem sets it in_progress, assigned to agent (agent/ prefix added
+// when missing) and claimed at now in UTC truncated to the second, then
+// saves. The caller checks identity and claimability first.
+func claimItem(s *item.Store, it *item.Item, agent string, now time.Time) error {
+	at := now.UTC().Truncate(time.Second)
+	it.SetStatus(item.StatusInProgress)
+	it.SetAssignee(withAgentPrefix(agent))
+	it.SetClaimedAt(&at)
+	return s.Save(it)
 }

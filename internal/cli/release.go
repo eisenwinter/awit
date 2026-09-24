@@ -42,10 +42,7 @@ func releaseAction(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	it.SetStatus(item.StatusOpen)
-	it.SetAssignee("")
-	it.SetClaimedAt(nil)
-	if err := s.Save(it); err != nil {
+	if err := releaseItem(s, it); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Root().Writer, "reopened %s\n", it.ID)
@@ -55,4 +52,13 @@ func releaseAction(ctx context.Context, cmd *cli.Command) error {
 		maybePushExternalState(ctx, cmd, []*item.Item{it}, it, "open", push)
 	}
 	return nil
+}
+
+// releaseItem returns it to open and clears its claim; any manual block
+// stays. Saves.
+func releaseItem(s *item.Store, it *item.Item) error {
+	it.SetStatus(item.StatusOpen)
+	it.SetAssignee("")
+	it.SetClaimedAt(nil)
+	return s.Save(it)
 }

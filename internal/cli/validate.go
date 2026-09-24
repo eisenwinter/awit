@@ -74,8 +74,6 @@ func validateAction(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	warnQuarantined(cmd, g)
-	nItems := len(g.Order) + len(g.Broken)
-	nQuar := len(g.Quarantined()) + len(g.Broken)
 	w := cmd.Root().Writer
 
 	if cmd.Root().String("format") == "json" {
@@ -109,28 +107,7 @@ func validateAction(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	status := "PASS"
-	if len(g.Faults) > 0 {
-		status = "FAIL"
-	}
-	fmt.Fprintf(w, "%s  %d items, %d quarantined\n", status, nItems, nQuar)
-	for _, f := range g.Faults {
-		fmt.Fprintf(w, "[%s] %s\n  fix: %s\n", f.Reason, f.Detail, f.Fix)
-	}
-	for _, n := range g.Order {
-		brief := strings.TrimSpace(n.Item.Brief)
-		if brief == "" {
-			fmt.Fprintf(w, "WARN  %s: missing brief\n", n.Item.ID)
-		} else if sentenceCount(brief) > 3 {
-			fmt.Fprintf(w, "WARN  %s: brief is longer than 3 sentences\n", n.Item.ID)
-		}
-		if n.Item.ExternalProblem != "" {
-			fmt.Fprintf(w, "WARN  %s: %s\n", n.Item.ID, n.Item.ExternalProblem)
-		}
-	}
-	for _, line := range aliasWarnLines(g) {
-		fmt.Fprintln(w, line)
-	}
+	fmt.Fprint(w, validateText(g))
 	if cmd.Bool("stale-claims") {
 		for _, line := range staleClaimLines(g, time.Duration(s.Config.StaleClaim), now) {
 			fmt.Fprintln(w, line)
@@ -140,6 +117,38 @@ func validateAction(_ context.Context, cmd *cli.Command) error {
 		return cli.Exit("", 1)
 	}
 	return nil
+}
+
+// validateText is the text report of validate without --stale-claims
+// lines: the PASS/FAIL status line, each fault with its fix, brief and
+// external WARN lines in graph order, then alias warnings.
+func validateText(g *graph.Graph) string {
+	var b strings.Builder
+	status := "PASS"
+	if len(g.Faults) > 0 {
+		status = "FAIL"
+	}
+	nItems := len(g.Order) + len(g.Broken)
+	nQuar := len(g.Quarantined()) + len(g.Broken)
+	fmt.Fprintf(&b, "%s  %d items, %d quarantined\n", status, nItems, nQuar)
+	for _, f := range g.Faults {
+		fmt.Fprintf(&b, "[%s] %s\n  fix: %s\n", f.Reason, f.Detail, f.Fix)
+	}
+	for _, n := range g.Order {
+		brief := strings.TrimSpace(n.Item.Brief)
+		if brief == "" {
+			fmt.Fprintf(&b, "WARN  %s: missing brief\n", n.Item.ID)
+		} else if sentenceCount(brief) > 3 {
+			fmt.Fprintf(&b, "WARN  %s: brief is longer than 3 sentences\n", n.Item.ID)
+		}
+		if n.Item.ExternalProblem != "" {
+			fmt.Fprintf(&b, "WARN  %s: %s\n", n.Item.ID, n.Item.ExternalProblem)
+		}
+	}
+	for _, line := range aliasWarnLines(g) {
+		fmt.Fprintln(&b, line)
+	}
+	return b.String()
 }
 
 func externalWarnLines(g *graph.Graph) []string {

@@ -3,13 +3,12 @@ id: AWIT-0NZJPBSH
 title: 'cli: extract closeItem/blockItem/unblockItem/releaseItem/claimItem/showFull/validateText'
 brief: >-
   The setter-and-save sequences of close, block, unblock, release and next --claim, plus the show --full and validate text renderers, become plain functions so the TUI can call the same code the CLI actions run.
-status: in_progress
+status: closed
 deps: []
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NZJPBSH/20260924T211742Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-24T21:09:59Z"
 ---
 ## Summary
 
