@@ -74,6 +74,7 @@ a quick action instead of storing it).
 | `awit validate` | `--stale-claims` | Integrity report; non-zero exit on `FAIL`; invalid `external` is a WARN |
 | `awit prime` | `--max-tokens`, `-l` label | Deterministic state graph for prompt injection; `--max-tokens` is a soft budget that never sheds warnings or the top ready row |
 | `awit next` | `-l` label, `--claim`, `--commit=true\|false`, `--no-commit` (deprecated), `--seed`, `--why` | Top unblocked item; optional claim; `--why` explains the pick on stderr |
+| `awit lazy-human` | `--agent` | Keyboard-driven TUI: Issues (list + detail), Graph (prime overview / focused DAG), Queue (ready order); `c/b/u/m` close/block/unblock/comment, `space`/`r` claim/release, `V` validate, `P` external check; no mouse, never pushes or commits |
 
 Global flags: `--format compact|table|json`, `--repo <path>` (directory that
 contains `.awit/`; `$AWIT_REPO` when the flag is unset, else walk up from the

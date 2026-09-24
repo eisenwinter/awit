@@ -3,13 +3,12 @@ id: AWIT-0NZJPBSG
 title: 'cli: lazy-human command, lazyOps, parity tests, docs'
 brief: >-
   Registers awit lazy-human, implements lazy.Ops over the store with the extracted CLI primitives so every row, detail and byte matches the CLI, proves parity against list/show/prime/next on the fixtures, and documents the command.
-status: in_progress
+status: closed
 deps: [AWIT-0NZJPBSK, AWIT-0NZJPBSH, AWIT-0NZJPBSN]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NZJPBSG/20260924T215213Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-24T21:33:12Z"
 ---
 ## Summary
 

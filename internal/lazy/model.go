@@ -2,6 +2,7 @@ package lazy
 
 import (
 	"context"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -402,4 +403,37 @@ func (m *Model) columns() (left, detail int) {
 		left = m.width - 10
 	}
 	return left, m.width - left - 3
+}
+
+// OverviewText is a test hook: the Graph-tab overview rows (the prime
+// snapshot verbatim) joined with newlines plus a trailing newline, or ""
+// when there are no rows.
+func OverviewText(m Model) string {
+	if m.g == nil {
+		return ""
+	}
+	rows := overviewRows(m.g)
+	if len(rows) == 0 {
+		return ""
+	}
+	texts := make([]string, 0, len(rows))
+	for _, r := range rows {
+		texts = append(texts, r.text)
+	}
+	return strings.Join(texts, "\n") + "\n"
+}
+
+// QueueIDs is a test hook: the ids of the selectable Queue-tab rows in
+// ready order.
+func QueueIDs(m Model) []string {
+	if m.g == nil || m.ops == nil {
+		return nil
+	}
+	var ids []string
+	for _, r := range queueRows(m.g, m.ops.Line) {
+		if r.selectable {
+			ids = append(ids, r.id)
+		}
+	}
+	return ids
 }

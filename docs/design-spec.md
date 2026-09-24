@@ -191,6 +191,7 @@ flowchart TD
 | `archive` | `--dry-run` | Human | Consolidates terminal closed items to `.awit/archive/`. |
 | `prime` | `--max-tokens`, `-l label` | Agent | Outputs deterministic state graph for agent context injection. |
 | `next [key]` | `-l label`, `--claim`, `--agent`, `--commit`, `--no-commit`, `--seed`, `--why` | Agent | Selects highest-impact unblocked item. Optional claim and Git commit. |
+| `lazy-human` | `--agent` | Human | Keyboard-driven browse + triage TUI (tabs: issues/graph/queue). In-TUI close/block/unblock/comment/claim/release reuse the CLI write paths; never pushes external state and never git-commits; `P` runs a read-only `external check`. |
 
 Global flags: `--format compact|table|json`, `--repo <dir>`, `--no-color`.
 
@@ -262,6 +263,7 @@ internal/gitx/      → branch, user.name, root, commit via os/exec
 internal/teax/      → Gitea `tea` subprocess wrapper
 internal/glabx/     → GitLab `glab` subprocess wrapper
 internal/skill/     → driving-awit skill assets, Detect, Render
+internal/lazy/      → lazy-human TUI: Bubble Tea model, tabs, keymap; writes only through internal/cli primitives
 pkg/id/             → snowflake IDs: encode, decode, mint
 pkg/config/         → config.yaml load/write, agent resolution
 pkg/item/           → frontmatter parse/setters, Store, comments, archive
@@ -273,5 +275,4 @@ pkg/lock/           → advisory .lock (flock / LockFileEx)
 ```
 
 Exact signatures live in code (`go doc`); this map says where to look. Exit codes: `0` success, `1` expected non-success (`next` with no candidates, `validate` with FAIL, drift/error), `2` usage error.
-
-Writes are temp-then-rename in the target directory; unparseable files never panic — they become `Broken`/quarantined. Output is deterministic: no timestamps, map iteration order, or randomness except the `next` tie-break.
+Writes are temp-then-rename in the target directory; unparseable files never panic — they become `Broken`/quarantined. Output is deterministic: no timestamps, map iteration order, or randomness except the `next` tie-break. The TUI adds no output contract; its rows, detail, overview and queue are the `list`, `show --full`, `prime` and `Ready()` renderings.

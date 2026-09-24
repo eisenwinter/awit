@@ -157,6 +157,36 @@ Only closed items with no dependant outside the set move; the rest stay
 closed and archivable later. Comments collapse into the archived file.
 There is no `unarchive`; `git revert` is the way back.
 
+## Browsing interactively
+
+`awit lazy-human` is a keyboard-driven triage TUI over the same data the CLI
+prints. The Issues tab shows the `awit list` rows with the `show --full`
+detail beside them, the Graph tab shows the `awit prime` overview (or the
+focused dependency DAG for one item), and the Queue tab shows the ready
+items in `prime` order. In-TUI close, block, unblock, comment, claim and
+release reuse the CLI write paths and never push external state or
+git-commit; `P` runs a read-only `external check`.
+
+| Key | Action |
+| --- | --- |
+| `1/2/3` | Switch tabs (Issues / Graph / Queue) |
+| `j/k` | Move the cursor |
+| `h/l`/`tab` | Move focus between list and detail (Graph: `tab` toggles overview/focused) |
+| `enter` | Pin / open the selection in Issues |
+| `/` | Filter using `awit list` flags (`-s`, `-l`, `--ready`, `--blocked`, `--quarantined`) plus free words as search |
+| `o` | Toggle open/archive source |
+| `c` | Close the selected item (prompts for a reason) |
+| `b` | Block the selected item (prompts for a reason) |
+| `u` | Unblock the selected item |
+| `m` | Comment on the selected item |
+| `space` | Claim the selected queue item |
+| `r` | Release the selected queue item |
+| `R` | Reload from disk |
+| `P` | Run `external check` on the selection |
+| `V` | Show the `validate` report |
+| `?` | Help |
+| `q` | Quit |
+
 ## Command reference
 
 | Command | Purpose |
@@ -182,6 +212,7 @@ There is no `unarchive`; `git revert` is the way back.
 | `awit archive` | Move finished work out of the hot path |
 | `awit prime` | Deterministic state graph for prompt injection |
 | `awit next` | Top unblocked item; optional `--claim` |
+| `awit lazy-human` | Keyboard-driven triage TUI (issues / graph / queue) |
 
 Global flags: `--format compact|table|json`, `--repo <path>`, `--no-color`
 (accepted, no-op). Exit codes: `0` success, `1` expected non-success, `2`
