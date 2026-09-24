@@ -3,13 +3,12 @@ id: AWIT-0NZJPBSP
 title: 'lazy: Issues tab — rows, filter grammar, archive toggle, detail viewport'
 brief: >-
   The Issues tab renders list-compact rows from graph.Filter plus substring search, accepts awit-list flag grammar in the / prompt, toggles open/archive sources, and mirrors show --full in the detail pane.
-status: in_progress
+status: closed
 deps: [AWIT-0NZJPBSV, AWIT-0NZJPBSM]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0NZJPBSP/20260924T204820Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-24T20:34:25Z"
 ---
 ## Summary
 

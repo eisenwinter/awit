@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/eisenwinter/awit/pkg/graph"
@@ -35,7 +36,10 @@ func (f *fakeOps) Load() (*graph.Graph, error) {
 	return graph.Build(f.items, nil), nil
 }
 
-func (f *fakeOps) LoadArchive() ([]*item.Item, error) { return f.archive, nil }
+func (f *fakeOps) LoadArchive() ([]*item.Item, error) {
+	f.calls = append(f.calls, "LoadArchive")
+	return f.archive, nil
+}
 
 func (f *fakeOps) Line(n *graph.Node) string {
 	return "[" + n.Item.ID + "] " + string(n.Item.Status) + " " + n.Item.Title
@@ -46,20 +50,11 @@ func (f *fakeOps) ArchiveLine(it *item.Item) string {
 }
 
 func (f *fakeOps) Detail(g *graph.Graph, id string) string {
-	n := g.Nodes[id]
-	if n == nil {
-		return "unknown item " + id
-	}
-	return "== " + n.Item.ID + " ==\n" + n.Item.Title + "\nstatus: " + string(n.Item.Status) + "\n"
+	return "detail of " + id + "\n"
 }
 
 func (f *fakeOps) ArchiveDetail(id string) (string, error) {
-	for _, it := range f.archive {
-		if it.ID == id {
-			return "== " + it.ID + " (archive) ==\n" + it.Title + "\n", nil
-		}
-	}
-	return "", os.ErrNotExist
+	return "archive of " + id + "\n", nil
 }
 
 func (f *fakeOps) Close(id, reason string) error { f.calls = append(f.calls, "close "+id); return nil }
@@ -76,38 +71,51 @@ func (f *fakeOps) ExternalCheck(ctx context.Context, id string) string {
 	return "MATCH " + id
 }
 
-func mustItem(id, title string, deps, labels []string) *item.Item {
-	return item.New(id, title, "brief for "+title, deps, labels)
+func mk(id, title string, st item.Status, deps, labels []string) *item.Item {
+	it := item.New(id, title, "Brief for "+title+".", deps, labels)
+	it.SetStatus(st)
+	return it
 }
 
-// newFixture builds a fake over ready, blocked-on-dep, held, in-progress,
-// closed, and quarantined-by-dangling-dep items, plus two archive items.
+// newFixture: L1 ready (unblocks L3,L4), L2 ready, L3 blocked by L1,
+// L4 blocked by L3, L5 closed, L6 in_progress claimed, L7 held,
+// L8 quarantined (dangling dep). Archive: A1, A2.
 func newFixture() *fakeOps {
-	ready := mustItem("AWIT-00000001", "first", nil, []string{"auth"})
-	blocked := mustItem("AWIT-00000002", "second", []string{"AWIT-00000001"}, nil)
-	held := mustItem("AWIT-00000003", "third", nil, nil)
-	if err := held.SetBlockedReason("waiting on keys"); err != nil {
-		panic(err)
-	}
-	prog := mustItem("AWIT-00000004", "fourth", nil, nil)
-	prog.SetStatus(item.StatusInProgress)
-	closed := mustItem("AWIT-00000005", "fifth", nil, nil)
-	closed.SetStatus(item.StatusClosed)
-	dangling := mustItem("AWIT-00000006", "sixth", []string{"AWIT-9ZZZZZZZ"}, nil)
-	arch1 := mustItem("AWIT-000000A1", "archived one", nil, nil)
-	arch1.SetStatus(item.StatusClosed)
-	arch2 := mustItem("AWIT-000000A2", "archived two", nil, nil)
-	arch2.SetStatus(item.StatusClosed)
+	now := time.Date(2026, 9, 24, 9, 0, 0, 0, time.UTC)
+	l6 := mk("AWIT-LAZY0006", "Rotate keys", item.StatusInProgress, nil, nil)
+	l6.SetAssignee("agent/x")
+	l6.SetClaimedAt(&now)
+	l7 := mk("AWIT-LAZY0007", "Vendor contract", item.StatusOpen, nil, []string{"p0"})
+	_ = l7.SetBlockedReason("waiting on vendor")
 	return &fakeOps{
-		items:   []*item.Item{ready, blocked, held, prog, closed, dangling},
-		archive: []*item.Item{arch1, arch2},
+		items: []*item.Item{
+			mk("AWIT-LAZY0001", "Token extraction", item.StatusOpen, nil, []string{"auth", "p1"}),
+			mk("AWIT-LAZY0002", "Migration scripts", item.StatusOpen, nil, []string{"db"}),
+			mk("AWIT-LAZY0003", "E2E auth tests", item.StatusOpen, []string{"AWIT-LAZY0001"}, nil),
+			mk("AWIT-LAZY0004", "Rotate API tokens", item.StatusOpen, []string{"AWIT-LAZY0003"}, []string{"p0"}),
+			mk("AWIT-LAZY0005", "Middleware spec", item.StatusClosed, nil, nil),
+			l6, l7,
+			mk("AWIT-LAZY0008", "Dangling", item.StatusOpen, []string{"AWIT-LAZY0999"}, nil),
+		},
+		archive: []*item.Item{
+			mk("AWIT-LAZY0101", "Old thing one", item.StatusClosed, nil, []string{"auth"}),
+			mk("AWIT-LAZY0102", "Old thing two", item.StatusClosed, nil, nil),
+		},
 	}
 }
 
-func newModel() Model {
-	m := New(newFixture(), context.Background(), Options{})
-	um, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
-	return um.(Model)
+func newModel(t *testing.T, f *fakeOps) Model {
+	t.Helper()
+	m := New(f, context.Background(), Options{})
+	if m.fatal != "" {
+		t.Fatalf("fatal: %s", m.fatal)
+	}
+	return resize(m, 100, 30)
+}
+
+func resize(m Model, w, h int) Model {
+	next, _ := m.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	return next.(Model)
 }
 
 func keyMsg(s string) tea.Msg {
@@ -139,12 +147,26 @@ func keyMsg(s string) tea.Msg {
 	}
 }
 
-func press(m Model, keys ...string) Model {
+func press(m Model, keys ...string) (Model, tea.Cmd) {
+	var cmd tea.Cmd
 	for _, k := range keys {
-		um, _ := m.Update(keyMsg(k))
-		m = um.(Model)
+		var next tea.Model
+		next, cmd = m.Update(keyMsg(k))
+		m = next.(Model)
 	}
-	return m
+	return m, cmd
+}
+
+func contains(s, sub string) bool { return strings.Contains(s, sub) }
+
+func countCalls(f *fakeOps, prefix string) int {
+	n := 0
+	for _, c := range f.calls {
+		if strings.HasPrefix(c, prefix) {
+			n++
+		}
+	}
+	return n
 }
 
 func golden(t *testing.T, name, got string) {

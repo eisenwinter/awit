@@ -43,11 +43,8 @@ const (
 	inputComment
 )
 
-// issuesState, graphState and queueState are placeholders in the skeleton:
-// each tab owns only its cursor list. WI-5..WI-7 grow them into full tab
-// state (filters, archive source, overview/focused, why line).
-type issuesState struct{ list cursorList }
-
+// graphState and queueState are placeholders until WI-6/WI-7; each owns
+// only its cursor list. issuesState lives in issues.go.
 type graphState struct{ list cursorList }
 
 type queueState struct{ list cursorList }
@@ -155,7 +152,9 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if key.Matches(msg, keys.Enter) {
-			// WI-8 dispatches on inputKind; the skeleton discards.
+			if m.mode == modeSearch {
+				m.submitSearch()
+			}
 			m.mode = modeNormal
 			m.input.Blur()
 			m.input.Reset()
@@ -187,6 +186,18 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case key.Matches(msg, keys.Reload):
 		m.reload()
+		return m, nil
+	case key.Matches(msg, keys.Search):
+		if m.tab == tabIssues {
+			m.mode = modeSearch
+			m.input.Reset()
+			return m, m.input.Focus()
+		}
+		return m, nil
+	case key.Matches(msg, keys.Source):
+		if m.tab == tabIssues {
+			m.toggleArchive()
+		}
 		return m, nil
 	case key.Matches(msg, keys.Esc), key.Matches(msg, keys.Left):
 		m.focus = focusList
@@ -228,17 +239,20 @@ func (m *Model) setGraph(g *graph.Graph) {
 // rebuildRows regenerates every tab list, keeping each cursor on its current
 // selection when that row still exists and is selectable.
 func (m *Model) rebuildRows() {
-	lists := []*cursorList{&m.issues.list, &m.graphTab.list, &m.queue.list}
-	keep := make([]string, len(lists))
-	for i, l := range lists {
-		if r, ok := l.selected(); ok {
-			keep[i] = r.id
-		}
+	var keepIssues, keepGraph, keepQueue string
+	if r, ok := m.issues.list.selected(); ok {
+		keepIssues = r.id
 	}
+	if r, ok := m.graphTab.list.selected(); ok {
+		keepGraph = r.id
+	}
+	if r, ok := m.queue.list.selected(); ok {
+		keepQueue = r.id
+	}
+	m.issues.list.setRows(m.issuesRows(), keepIssues)
 	rows := m.skeletonRows()
-	for i, l := range lists {
-		l.setRows(rows, keep[i])
-	}
+	m.graphTab.list.setRows(rows, keepGraph)
+	m.queue.list.setRows(rows, keepQueue)
 	m.refreshDetail()
 }
 
@@ -256,13 +270,19 @@ func (m *Model) skeletonRows() []row {
 }
 
 func (m *Model) refreshDetail() {
-	id := m.selectedID()
-	if id == "" || m.g == nil {
-		m.detail.SetContent("no selectable item")
-		m.detail.GotoTop()
-		return
+	var content string
+	switch m.tab {
+	case tabIssues:
+		content = m.issuesDetail()
+	default:
+		id := m.selectedID()
+		if id == "" || m.g == nil {
+			content = "no selectable item"
+		} else {
+			content = m.ops.Detail(m.g, id)
+		}
 	}
-	m.detail.SetContent(m.ops.Detail(m.g, id))
+	m.detail.SetContent(content)
 	m.detail.GotoTop()
 }
 
@@ -273,6 +293,15 @@ func (m *Model) reload() {
 	if err != nil {
 		m.toast = err.Error()
 		return
+	}
+	if m.archiveLoaded {
+		items, err := m.ops.LoadArchive()
+		if err != nil {
+			m.toast = err.Error()
+		} else {
+			m.archive = items
+			m.issues.archiveN = len(items)
+		}
 	}
 	m.setGraph(g)
 }
@@ -288,8 +317,10 @@ func (m *Model) act(fn func() error, ok string) {
 	m.reload()
 }
 
-// selectedID is the active tab's selectable cursor row id, "" otherwise.
 func (m *Model) selectedID() string {
+	if m.tab == tabIssues && m.issues.showArchive {
+		return ""
+	}
 	if r, ok := m.activeList().selected(); ok {
 		return r.id
 	}

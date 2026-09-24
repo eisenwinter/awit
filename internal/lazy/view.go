@@ -84,15 +84,7 @@ func (m Model) tabHeaderView() string {
 		}
 		return fmt.Sprintf("ready: %d", n)
 	default:
-		n := 0
-		if m.g != nil {
-			n = len(m.g.Order)
-		}
-		archived := "0 (not loaded)"
-		if m.archiveLoaded {
-			archived = fmt.Sprintf("%d", len(m.archive))
-		}
-		return fmt.Sprintf("open: %d  archive: %s   filters: no filter", n, archived)
+		return m.issuesHeader()
 	}
 }
 
@@ -181,7 +173,7 @@ func (m Model) hintsView() string {
 	case tabQueue:
 		return "1/2/3 tabs | j/k move | space claim | r release | R reload | ? help | q quit"
 	default:
-		return "1/2/3 tabs | j/k move | tab focus | / filter | o archive | c/b/u/m mutate | R reload | ? help | q quit"
+		return "j/k move  enter pin  / filter  o open/archive  c close  b block  u unblock  m comment  P check  ? help"
 	}
 }
 

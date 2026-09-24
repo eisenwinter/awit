@@ -25,19 +25,19 @@ func TestViewFatalGolden(t *testing.T) {
 
 func TestViewFrameGolden(t *testing.T) {
 	t.Parallel()
-	m := newModel()
+	m := newModel(t, newFixture())
 	golden(t, "frame-issues", m.View())
 
-	m = press(m, "2")
+	m, _ = press(m, "2")
 	golden(t, "frame-graph", m.View())
 
-	m = press(m, "3")
+	m, _ = press(m, "3")
 	golden(t, "frame-queue", m.View())
 }
 
 func TestViewHelpGolden(t *testing.T) {
 	t.Parallel()
-	m := press(newModel(), "?")
+	m, _ := press(newModel(t, newFixture()), "?")
 	if m.mode != modeHelp {
 		t.Fatalf("mode = %v, want modeHelp", m.mode)
 	}
@@ -46,7 +46,7 @@ func TestViewHelpGolden(t *testing.T) {
 
 func TestViewQuarantineFooter(t *testing.T) {
 	t.Parallel()
-	m := newModel()
+	m := newModel(t, newFixture())
 	if m.quarantined == 0 {
 		t.Fatal("quarantined = 0, want footer data from the dangling-dep item")
 	}
@@ -77,7 +77,7 @@ func TestReloadOnErrorKeepsGraph(t *testing.T) {
 
 func TestActToastAndReload(t *testing.T) {
 	t.Parallel()
-	m := newModel()
+	m := newModel(t, newFixture())
 	id := m.selectedID()
 	if id == "" {
 		t.Fatal("no selection to act on")

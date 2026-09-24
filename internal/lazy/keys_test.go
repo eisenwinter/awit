@@ -64,19 +64,19 @@ func TestKeymapBindings(t *testing.T) {
 
 func TestKeymapTabs(t *testing.T) {
 	t.Parallel()
-	m := newModel()
+	m := newModel(t, newFixture())
 	if m.tab != tabIssues {
 		t.Fatalf("initial tab = %v, want tabIssues", m.tab)
 	}
-	m = press(m, "2")
+	m, _ = press(m, "2")
 	if m.tab != tabGraph {
 		t.Fatalf("after 2 tab = %v, want tabGraph", m.tab)
 	}
-	m = press(m, "3")
+	m, _ = press(m, "3")
 	if m.tab != tabQueue {
 		t.Fatalf("after 3 tab = %v, want tabQueue", m.tab)
 	}
-	m = press(m, "1")
+	m, _ = press(m, "1")
 	if m.tab != tabIssues {
 		t.Fatalf("after 1 tab = %v, want tabIssues", m.tab)
 	}
@@ -84,34 +84,34 @@ func TestKeymapTabs(t *testing.T) {
 
 func TestKeymapMoveAndFocus(t *testing.T) {
 	t.Parallel()
-	m := newModel()
+	m := newModel(t, newFixture())
 	first := m.selectedID()
-	m = press(m, "j")
+	m, _ = press(m, "j")
 	if got := m.selectedID(); got == first || got == "" {
 		t.Fatalf("after j selectedID = %q (was %q), want next row", got, first)
 	}
-	m = press(m, "k")
+	m, _ = press(m, "k")
 	if got := m.selectedID(); got != first {
 		t.Fatalf("after j,k selectedID = %q, want %q", got, first)
 	}
 	// The dangling-dep (quarantined) row is visible but never selected.
-	m = press(m, "j", "j", "j", "j", "j")
-	if got := m.selectedID(); got != "AWIT-00000005" {
-		t.Fatalf("after j*5 selectedID = %q, want last selectable AWIT-00000005", got)
+	m, _ = press(m, "j", "j", "j", "j", "j")
+	if got := m.selectedID(); got != "AWIT-LAZY0006" {
+		t.Fatalf("after j*5 selectedID = %q, want AWIT-LAZY0006", got)
 	}
-	m = press(m, "l")
+	m, _ = press(m, "l")
 	if m.focus != focusDetail {
 		t.Fatalf("after l focus = %v, want focusDetail", m.focus)
 	}
-	m = press(m, "h")
+	m, _ = press(m, "h")
 	if m.focus != focusList {
 		t.Fatalf("after h focus = %v, want focusList", m.focus)
 	}
-	m = press(m, "tab")
+	m, _ = press(m, "tab")
 	if m.focus != focusDetail {
 		t.Fatalf("after tab focus = %v, want focusDetail", m.focus)
 	}
-	m = press(m, "esc")
+	m, _ = press(m, "esc")
 	if m.focus != focusList {
 		t.Fatalf("after esc focus = %v, want focusList", m.focus)
 	}
@@ -119,12 +119,12 @@ func TestKeymapMoveAndFocus(t *testing.T) {
 
 func TestKeymapHelp(t *testing.T) {
 	t.Parallel()
-	m := newModel()
-	m = press(m, "?")
+	m := newModel(t, newFixture())
+	m, _ = press(m, "?")
 	if m.mode != modeHelp {
 		t.Fatalf("after ? mode = %v, want modeHelp", m.mode)
 	}
-	m = press(m, "esc")
+	m, _ = press(m, "esc")
 	if m.mode != modeNormal {
 		t.Fatalf("after esc mode = %v, want modeNormal", m.mode)
 	}

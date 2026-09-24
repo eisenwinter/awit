@@ -1,13 +1,13 @@
 awit lazy-human  [1] Issues [2] Graph [3] Queue  focus: list                                        
-open: 6  archive: 0 (not loaded)   filters: no filter
-> [AWIT-00000001] open first                  │ == AWIT-00000001 ==                                 
-  [AWIT-00000002] open second                 │ first                                               
-  [AWIT-00000003] open third                  │ status: open                                        
-  [AWIT-00000004] in_progress fourth          │                                                     
-  [AWIT-00000005] closed fifth                │                                                     
-  [AWIT-00000006] open sixth                  │                                                     
-                                              │                                                     
-                                              │                                                     
+open: 8  archive: (not loaded)   filters: no filter   source: open
+> [AWIT-LAZY0001] open Token extraction       │ detail of AWIT-LAZY0001                             
+  [AWIT-LAZY0002] open Migration scripts      │                                                     
+  [AWIT-LAZY0003] open E2E auth tests         │                                                     
+  [AWIT-LAZY0004] open Rotate API tokens      │                                                     
+  [AWIT-LAZY0005] closed Middleware spec      │                                                     
+  [AWIT-LAZY0006] in_progress Rotate keys     │                                                     
+  [AWIT-LAZY0007] open Vendor contract        │                                                     
+  [AWIT-LAZY0008] open Dangling               │                                                     
                                               │                                                     
                                               │                                                     
                                               │                                                     
@@ -27,4 +27,4 @@ open: 6  archive: 0 (not loaded)   filters: no filter
                                               │                                                     
                                               │                                                     
 warning: 1 items quarantined, run awit validate
-1/2/3 tabs | j/k move | tab focus | / filter | o archive | c/b/u/m mutate | R reload | ? help | q quit
+j/k move  enter pin  / filter  o open/archive  c close  b block  u unblock  m comment  P check  ? help
