@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/eisenwinter/awit/internal/ops"
-	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
 )
 
@@ -59,7 +58,7 @@ func blockAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	if err := blockItem(s, it, cmd.String("reason")); err != nil {
+	if err := ops.BlockItem(s, it, cmd.String("reason")); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Root().Writer, "blocked %s: %s\n", it.ID, it.BlockedReason)
@@ -84,33 +83,9 @@ func unblockAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	if err := unblockItem(s, it); err != nil {
+	if err := ops.UnblockItem(s, it); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Root().Writer, "unblocked %s\n", it.ID)
 	return nil
-}
-
-// blockItem records reason as its manual block, reopens it and clears
-// its claim, then saves. A closed item is refused (exit 1) and an invalid
-// reason is a usage error (exit 2); neither writes anything.
-func blockItem(s *item.Store, it *item.Item, reason string) error {
-	if it.Status == item.StatusClosed {
-		return cli.Exit(fmt.Sprintf("%s is closed; awit release %s to reopen it before blocking", it.ID, it.ID), 1)
-	}
-	if err := it.SetBlockedReason(reason); err != nil {
-		return cli.Exit("block requires --reason with a non-empty, single-line explanation", 2)
-	}
-	it.SetStatus(item.StatusOpen)
-	it.SetAssignee("")
-	it.SetClaimedAt(nil)
-	return s.Save(it)
-}
-
-// unblockItem removes only the manual block and saves.
-func unblockItem(s *item.Store, it *item.Item) error {
-	if err := it.SetBlockedReason(""); err != nil {
-		return err
-	}
-	return s.Save(it)
 }

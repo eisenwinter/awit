@@ -56,7 +56,7 @@ func commentAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	author, err := resolveAuthor(cmd.String("author"), s.Root, s.Config)
+	author, err := ops.ResolveAuthor(cmd.String("author"), s.Root, s.Config)
 	if err != nil {
 		return err
 	}

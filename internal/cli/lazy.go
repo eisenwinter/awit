@@ -87,11 +87,11 @@ func (o *lazyOps) Close(id, reason string) error {
 	}
 	author := ""
 	if reason != "" {
-		if author, err = resolveAuthor("", o.s.Root, o.s.Config); err != nil {
+		if author, err = ops.ResolveAuthor("", o.s.Root, o.s.Config); err != nil {
 			return err
 		}
 	}
-	return closeItem(o.s, it, reason, author, o.now().UTC())
+	return ops.CloseItem(o.s, it, reason, author, o.now().UTC())
 }
 
 func (o *lazyOps) Block(id, reason string) error {
@@ -104,7 +104,7 @@ func (o *lazyOps) Block(id, reason string) error {
 	if err != nil {
 		return err
 	}
-	return blockItem(o.s, it, reason)
+	return ops.BlockItem(o.s, it, reason)
 }
 
 func (o *lazyOps) Unblock(id string) error {
@@ -117,7 +117,7 @@ func (o *lazyOps) Unblock(id string) error {
 	if err != nil {
 		return err
 	}
-	return unblockItem(o.s, it)
+	return ops.UnblockItem(o.s, it)
 }
 
 func (o *lazyOps) Comment(id, text string) error {
@@ -133,7 +133,7 @@ func (o *lazyOps) Comment(id, text string) error {
 	if strings.TrimSpace(text) == "" {
 		return errors.New("empty comment")
 	}
-	author, err := resolveAuthor("", o.s.Root, o.s.Config)
+	author, err := ops.ResolveAuthor("", o.s.Root, o.s.Config)
 	if err != nil {
 		return err
 	}
@@ -159,14 +159,14 @@ func (o *lazyOps) Claim(id string) error {
 	if n == nil {
 		return fmt.Errorf("unknown item %s", id)
 	}
-	if err := refuseClaim(n); err != nil {
+	if err := ops.RefuseClaim(n); err != nil {
 		return err
 	}
 	agent := o.s.Config.Agent(o.agent)
 	if agent == "" {
 		return fmt.Errorf("no agent identity; pass --agent or set AWIT_AGENT")
 	}
-	return claimItem(o.s, it, agent, o.now())
+	return ops.ClaimItem(o.s, it, agent, o.now())
 }
 
 func (o *lazyOps) Release(id string) error {
@@ -179,7 +179,7 @@ func (o *lazyOps) Release(id string) error {
 	if err != nil {
 		return err
 	}
-	return releaseItem(o.s, it)
+	return ops.ReleaseItem(o.s, it)
 }
 
 func (o *lazyOps) Validate(g *graph.Graph) string {

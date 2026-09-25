@@ -3,13 +3,12 @@ id: AWIT-0P1JVJSV
 title: 'ops: mutations and author — CloseItem, BlockItem, UnblockItem, ReleaseItem, ClaimItem, RefuseClaim, ResolveAuthor'
 brief: >-
   Moves the WI-3 write primitives and author resolution from internal/cli to internal/ops with exported names; CLI actions keep their locks, stdout lines, pushes and commits and call the moved functions, and the primitive tests move with them as external ops tests.
-status: in_progress
+status: closed
 deps: [AWIT-0P1JVJSY]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P1JVJSV/20260925T144134Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T14:34:36Z"
 ---
 ## Summary
 

@@ -14,7 +14,6 @@ import (
 	"github.com/eisenwinter/awit/pkg/config"
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/graph"
-	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
 )
 
@@ -151,7 +150,7 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 		// Without --claim the exact item prints as-is, whatever its
 		// state; with --claim it must be ready and unclaimed.
 		if cmd.Bool("claim") {
-			if err := refuseClaim(n); err != nil {
+			if err := ops.RefuseClaim(n); err != nil {
 				return err
 			}
 		}
@@ -188,7 +187,7 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 		if err != nil {
 			return err
 		}
-		if err := claimItem(s, it, agent, time.Now()); err != nil {
+		if err := ops.ClaimItem(s, it, agent, time.Now()); err != nil {
 			return err
 		}
 		n.Item = it
@@ -250,46 +249,4 @@ func nextNode(g *graph.Graph, key string) (*graph.Node, error) {
 		}
 	}
 	return nil, err
-}
-
-// refuseClaim errors when the exact item cannot be claimed: quarantined,
-// closed, blocked, or already claimed by someone. Messages carry no
-// "Error: " prefix; Main prints the cli.Exit body as-is with exit 1.
-func refuseClaim(n *graph.Node) error {
-	id := n.Item.ID
-	if n.Quarantined() {
-		var reasons []string
-		seen := map[string]bool{}
-		for _, f := range n.Faults {
-			if !seen[string(f.Reason)] {
-				seen[string(f.Reason)] = true
-				reasons = append(reasons, "["+string(f.Reason)+"]")
-			}
-		}
-		return cli.Exit(fmt.Sprintf("%s is quarantined %s; run awit validate", id, strings.Join(reasons, ", ")), 1)
-	}
-	if n.Item.Status == item.StatusClosed {
-		return cli.Exit(fmt.Sprintf("%s is closed; awit release %s to reopen it", id, id), 1)
-	}
-	if n.Item.BlockedReason != "" {
-		return cli.Exit(fmt.Sprintf("%s is manually blocked (%s); awit unblock %s once resolved", id, n.Item.BlockedReason, id), 1)
-	}
-	if n.Blocked {
-		return cli.Exit(fmt.Sprintf("%s is blocked by %s", id, strings.Join(n.OpenDepIDs(), ", ")), 1)
-	}
-	if n.Item.Status == item.StatusInProgress && n.Item.Assignee != "" {
-		return cli.Exit(fmt.Sprintf("%s is claimed by %s; awit release %s", id, n.Item.Assignee, id), 1)
-	}
-	return nil
-}
-
-// claimItem sets it in_progress, assigned to agent (agent/ prefix added
-// when missing) and claimed at now in UTC truncated to the second, then
-// saves. The caller checks identity and claimability first.
-func claimItem(s *item.Store, it *item.Item, agent string, now time.Time) error {
-	at := now.UTC().Truncate(time.Second)
-	it.SetStatus(item.StatusInProgress)
-	it.SetAssignee(withAgentPrefix(agent))
-	it.SetClaimedAt(&at)
-	return s.Save(it)
 }
