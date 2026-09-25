@@ -43,6 +43,7 @@ const (
 	inputClose inputKind = iota
 	inputBlock
 	inputComment
+	inputConfig
 )
 
 // queueState is the Queue tab state. graphState (Graph tab) lives in
@@ -228,6 +229,9 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.releaseSelected()
 		}
 		return m, nil
+	case m.tab == tabConfig && (key.Matches(msg, keys.Edit) || key.Matches(msg, keys.Enter)):
+		m.beginConfigEdit()
+		return m, m.input.Focus()
 	case key.Matches(msg, keys.Esc), key.Matches(msg, keys.Left):
 		m.focus = focusList
 		return m, nil

@@ -1,8 +1,10 @@
 package lazy
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/eisenwinter/awit/pkg/config"
 )
@@ -111,4 +113,98 @@ func configRule(key string) (rule, def string) {
 	default:
 		panic("unknown config key: " + key)
 	}
+}
+
+// setConfigField parses raw into key on a copy of c. prefix must satisfy
+// config.ValidPrefix; stale_claim goes through time.ParseDuration ("" is 0,
+// which Normalize turns into 2h); commit/external_push accept "true",
+// "false" or "" (nil); default_labels/labels split on commas, trim spaces
+// and drop empty pieces (the awit create -l rule); agent_id/template are
+// taken verbatim. Slices and *bool are always fresh, so a refused edit
+// leaves c untouched. Normalize is the caller's job. An unknown key panics.
+func setConfigField(c config.Config, key, raw string) (config.Config, error) {
+	switch key {
+	case "prefix":
+		if !config.ValidPrefix(raw) {
+			return c, errors.New("prefix must be 2-8 uppercase alphanumerics starting with a letter")
+		}
+		c.Prefix = raw
+	case "default_labels":
+		c.DefaultLabels = splitList(raw)
+	case "labels":
+		c.Labels = splitList(raw)
+	case "stale_claim":
+		if raw == "" {
+			c.StaleClaim = 0
+			break
+		}
+		d, err := time.ParseDuration(raw)
+		if err != nil {
+			return c, err
+		}
+		c.StaleClaim = config.Duration(d)
+	case "commit", "external_push":
+		var v *bool
+		switch raw {
+		case "":
+		case "true", "false":
+			b := raw == "true"
+			v = &b
+		default:
+			return c, fmt.Errorf("%s must be true, false, or empty", key)
+		}
+		if key == "commit" {
+			c.Commit = v
+		} else {
+			c.ExternalPush = v
+		}
+	case "agent_id":
+		c.AgentID = raw
+	case "template":
+		c.Template = raw
+	default:
+		panic("unknown config key " + key)
+	}
+	return c, nil
+}
+
+// splitList splits a comma list, trims each piece and drops empties; nil
+// when nothing remains.
+func splitList(s string) []string {
+	var out []string
+	for p := range strings.SplitSeq(s, ",") {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// beginConfigEdit opens the prompt on the selected key (inputConfig),
+// prefilled with configValue and the cursor at the end. Focus is the
+// caller's Cmd.
+func (m *Model) beginConfigEdit() {
+	r, _ := m.config.list.selected()
+	m.mode = modeInput
+	m.inputKind = inputConfig
+	m.inputTarget = r.id
+	m.input.SetValue(configValue(m.config.cfg, r.id))
+	m.input.CursorEnd()
+}
+
+// saveConfigField parses and normalizes raw for key; a failure becomes a
+// toast with nothing written. A success saves the whole config through
+// Ops.SaveConfig via act ("saved <key>"), which reloads rows from the
+// re-read file with the cursor still on key.
+func (m *Model) saveConfigField(key, raw string) {
+	next, err := setConfigField(m.config.cfg, key, raw)
+	if err == nil {
+		next, err = next.Normalize()
+	}
+	if err != nil {
+		m.toast = err.Error()
+		return
+	}
+	m.act(func() error { return m.ops.SaveConfig(next) }, "saved "+key)
 }

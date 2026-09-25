@@ -191,6 +191,9 @@ func (m Model) hintsView() string {
 }
 
 func (m Model) promptView() string {
+	if m.mode == modeInput && m.inputKind == inputConfig {
+		return m.inputTarget + ": " + m.input.View()
+	}
 	label := "filter:"
 	if m.mode == modeInput {
 		switch m.inputKind {

@@ -33,6 +33,8 @@ func (m *Model) submitInput() {
 			return
 		}
 		m.act(func() error { return m.ops.Comment(id, v) }, "commented "+id)
+	case inputConfig:
+		m.saveConfigField(id, v)
 	}
 }
 

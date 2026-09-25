@@ -3,13 +3,12 @@ id: AWIT-0P1XYZSK
 title: 'lazy: Config tab editing — prefilled prompt, validation mirroring Load, save through Ops'
 brief: >-
   Wires e/enter on the Config tab to the existing prompt prefilled with the current value; enter parses the field (prefix grammar, duration, bools, comma lists), runs config.Normalize, and on success saves the whole config through Ops.SaveConfig with toast "saved <key>"; any failure toasts the Load/init message, writes nothing and keeps the selection.
-status: in_progress
+status: closed
 deps: [AWIT-0P1XYZSZ]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P1XYZSK/20260925T181517Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T17:56:19Z"
 ---
 ## Summary
 
