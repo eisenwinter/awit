@@ -115,6 +115,13 @@ func TestMainUnknownCommand(t *testing.T) {
 	}
 }
 
+func TestLazyHumanIsUnknown(t *testing.T) {
+	code, _, stderr := runMain(t, "lazy-human")
+	if code != 2 || !strings.Contains(stderr, `unknown command "lazy-human"`) {
+		t.Fatalf("exit %d stderr %q", code, stderr)
+	}
+}
+
 func TestMainUsageError(t *testing.T) {
 	code, _, stderr := runMain(t, "--bogus")
 	if code != 2 {

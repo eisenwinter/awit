@@ -12,6 +12,7 @@ curl -sL "https://github.com/eisenwinter/awit/releases/download/$V/awit_${V#v}_$
 ```
 
 Assets are named `awit_<version>_<os>_<arch>.tar.gz` (`.zip` on Windows, e.g. `awit_0.5.0_linux_amd64.tar.gz`).
+The human TUI ships separately as `lazyawit_<version>_<os>_<arch>.tar.gz` (`.zip` on Windows); agents only need `awit`.
 
 Or paste this to your agent and skip the shell entirely:
 
@@ -27,6 +28,7 @@ From source (Go 1.27+):
 
 ```bash
 go install github.com/eisenwinter/awit/cmd/awit@latest
+go install github.com/eisenwinter/awit/cmd/lazyawit@latest
 ```
 
 Or download a tagged binary from GitHub Releases. Each tag `v*` publishes
@@ -159,13 +161,15 @@ There is no `unarchive`; `git revert` is the way back.
 
 ## Browsing interactively
 
-`awit lazy-human` is a keyboard-driven triage TUI over the same data the CLI
-prints. The Issues tab shows the `awit list` rows with the `show --full`
+`lazyawit` (a separate binary; flags `--repo` and `--agent`) is a
+keyboard-driven triage TUI over the same data the CLI prints. The Issues
+tab shows the `awit list` rows with the `show --full`
 detail beside them, the Graph tab shows the `awit prime` overview (or the
 focused dependency DAG for one item), and the Queue tab shows the ready
 items in `prime` order. In-TUI close, block, unblock, comment, claim and
 release reuse the CLI write paths and never push external state or
-git-commit; `P` runs a read-only `external check`.
+git-commit; `P` runs a read-only `external check`. `awit` itself has no
+TUI; agents that only have `awit` cannot open it.
 
 | Key | Action |
 | --- | --- |
@@ -212,7 +216,8 @@ git-commit; `P` runs a read-only `external check`.
 | `awit archive` | Move finished work out of the hot path |
 | `awit prime` | Deterministic state graph for prompt injection |
 | `awit next` | Top unblocked item; optional `--claim` |
-| `awit lazy-human` | Keyboard-driven triage TUI (issues / graph / queue) |
+
+`lazyawit` — the TUI, see [Browsing interactively](#browsing-interactively).
 
 Global flags: `--format compact|table|json`, `--repo <path>`, `--no-color`
 (accepted, no-op). Exit codes: `0` success, `1` expected non-success, `2`

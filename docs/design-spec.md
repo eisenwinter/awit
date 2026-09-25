@@ -191,9 +191,10 @@ flowchart TD
 | `archive` | `--dry-run` | Human | Consolidates terminal closed items to `.awit/archive/`. |
 | `prime` | `--max-tokens`, `-l label` | Agent | Outputs deterministic state graph for agent context injection. |
 | `next [key]` | `-l label`, `--claim`, `--agent`, `--commit`, `--no-commit`, `--seed`, `--why` | Agent | Selects highest-impact unblocked item. Optional claim and Git commit. |
-| `lazy-human` | `--agent` | Human | Keyboard-driven browse + triage TUI (tabs: issues/graph/queue). In-TUI close/block/unblock/comment/claim/release reuse the CLI write paths; never pushes external state and never git-commits; `P` runs a read-only `external check`. |
 
 Global flags: `--format compact|table|json`, `--repo <dir>`, `--no-color`.
+
+`lazyawit` is a separate binary in the same release (archive `lazyawit_<version>_<os>_<arch>`), flags `--repo` and `--agent` only. It runs the keyboard-driven browse + triage TUI (tabs: issues/graph/queue) directly; in-TUI close/block/unblock/comment/claim/release call the same `internal/ops` functions the CLI commands call, never push external state and never git-commit; `P` runs a read-only `external check`. `awit` has no `lazy-human` command and no TUI code in its import graph.
 
 Mutating operations from subdirectories log a single path notice to stderr. Graph commands loading quarantined items print `warning: N items quarantined, run awit validate` to stderr.
 
@@ -257,13 +258,15 @@ Selects one item from the ready set (ready nodes minus quarantined, filtered by 
 ## 7. Package Layout
 
 ```text
-cmd/awit            → main: three lines into internal/cli.Main
-internal/cli/       → command tree: one file per command, Main(), store/graph helpers
+cmd/awit            → classic main: three lines into internal/cli.Main
+cmd/lazyawit        → human TUI main: --repo/--agent, boots Bubble Tea over internal/ops
+internal/cli/       → command tree: one file per command, Main(); actions delegate store-level work to internal/ops
+internal/ops/       → store-level service layer shared by internal/cli and cmd/lazyawit: Open, LoadGraph/LoadItem, Close/Block/Unblock/Release/Claim, ShowFull/ValidateText, CheckOne, Lazy (lazy.Ops impl); never pushes, never commits; never imports internal/cli or internal/lazy
 internal/gitx/      → branch, user.name, root, commit via os/exec
 internal/teax/      → Gitea `tea` subprocess wrapper
 internal/glabx/     → GitLab `glab` subprocess wrapper
 internal/skill/     → driving-awit skill assets, Detect, Render
-internal/lazy/      → lazy-human TUI: Bubble Tea model, tabs, keymap; writes only through internal/cli primitives
+internal/lazy/      → lazyawit TUI: Bubble Tea model, tabs, keymap; writes only through internal/ops
 pkg/id/             → snowflake IDs: encode, decode, mint
 pkg/config/         → config.yaml load/write, agent resolution
 pkg/item/           → frontmatter parse/setters, Store, comments, archive
@@ -275,4 +278,4 @@ pkg/lock/           → advisory .lock (flock / LockFileEx)
 ```
 
 Exact signatures live in code (`go doc`); this map says where to look. Exit codes: `0` success, `1` expected non-success (`next` with no candidates, `validate` with FAIL, drift/error), `2` usage error.
-Writes are temp-then-rename in the target directory; unparseable files never panic — they become `Broken`/quarantined. Output is deterministic: no timestamps, map iteration order, or randomness except the `next` tie-break. The TUI adds no output contract; its rows, detail, overview and queue are the `list`, `show --full`, `prime` and `Ready()` renderings.
+Writes are temp-then-rename in the target directory; unparseable files never panic — they become `Broken`/quarantined. Output is deterministic: no timestamps, map iteration order, or randomness except the `next` tie-break. The TUI adds no output contract; its rows, detail, overview and queue are the `list`, `show --full`, `prime` and `Ready()` renderings, produced by the same `internal/ops` functions.

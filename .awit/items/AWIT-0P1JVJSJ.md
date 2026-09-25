@@ -3,13 +3,12 @@ id: AWIT-0P1JVJSJ
 title: 'awit: drop lazy-human, add dependency-graph gate, document lazyawit'
 brief: >-
   Removes the lazy-human command and internal/cli/lazy.go so cmd/awit no longer links internal/lazy or the charm modules, adds the go list -deps test that keeps it that way, and updates design-spec, README and usage.md for the two-binary layout.
-status: in_progress
+status: closed
 deps: [AWIT-0P1JVJSQ]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P1JVJSJ/20260925T153739Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T15:14:02Z"
 ---
 ## Summary
 
