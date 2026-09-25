@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/eisenwinter/awit/pkg/item"
 )
@@ -102,7 +103,7 @@ func TestBlockItemRefusesClosed(t *testing.T) {
 func TestShowFullAndValidateTextMatchCLI(t *testing.T) {
 	dir := copyFixture(t, "clean")
 	s := openTestStore(t, dir)
-	g, err := loadGraph(s)
+	g, err := ops.LoadGraph(s)
 	if err != nil {
 		t.Fatal(err)
 	}

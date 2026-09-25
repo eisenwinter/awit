@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/eisenwinter/awit/internal/glabx"
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/internal/teax"
 	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
@@ -65,7 +66,7 @@ func externalCheckAction(ctx context.Context, cmd *cli.Command) error {
 	login := cmd.String("tea-login")
 	var targets []*item.Item
 	if key := cmd.Args().First(); key != "" {
-		id, err := resolveItemID(items, key)
+		id, err := ops.ResolveItemID(items, key)
 		if err != nil {
 			return err
 		}
@@ -192,7 +193,7 @@ func externalPushBodyAction(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	id, err := resolveItemID(items, cmd.Args().First())
+	id, err := ops.ResolveItemID(items, cmd.Args().First())
 	if err != nil {
 		return err
 	}

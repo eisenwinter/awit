@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/urfave/cli/v3"
 )
 
@@ -78,7 +79,7 @@ func refAdd(cmd *cli.Command, id, raw string) error {
 		return err
 	}
 	defer release()
-	it, err := loadItem(s, id)
+	it, err := ops.LoadItem(s, id)
 	if err != nil {
 		return err
 	}
@@ -125,7 +126,7 @@ func refRm(cmd *cli.Command, id, raw string) error {
 		return err
 	}
 	defer release()
-	it, err := loadItem(s, id)
+	it, err := ops.LoadItem(s, id)
 	if err != nil {
 		return err
 	}

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/eisenwinter/awit/internal/gitx"
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/config"
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/graph"
@@ -131,7 +132,7 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 		}
 		defer release()
 	}
-	g, err := loadGraph(s)
+	g, err := ops.LoadGraph(s)
 	if err != nil {
 		return err
 	}
@@ -201,7 +202,7 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	if err := format.WriteOne(cmd.Root().Writer, f, toEntry(n)); err != nil {
+	if err := format.WriteOne(cmd.Root().Writer, f, ops.ToEntry(n)); err != nil {
 		return err
 	}
 	// The explanation goes to stderr only after the selection or claim
@@ -231,11 +232,11 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 // item refuses like a quarantined node; anything else unknown keeps the
 // existing "unknown item" string.
 func nextNode(g *graph.Graph, key string) (*graph.Node, error) {
-	id, err := resolveItemID(graphItems(g), key)
+	id, err := ops.ResolveItemID(graphItems(g), key)
 	if err == nil {
 		return g.Nodes[id], nil
 	}
-	if errors.Is(err, errUnknownItem) {
+	if errors.Is(err, ops.ErrUnknownItem) {
 		var reasons []string
 		seen := map[string]bool{}
 		for _, br := range g.Broken {

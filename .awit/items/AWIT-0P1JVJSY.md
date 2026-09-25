@@ -3,13 +3,12 @@ id: AWIT-0P1JVJSY
 title: 'ops: new package — Open, WalkedUpNote, LoadGraph, LoadItem, ResolveItemID, ToEntry, ArchiveEntry, Version'
 brief: >-
   Creates internal/ops with the store-open precedence, graph/item loaders, key resolution and entry converters that every CLI command and the future lazyawit main share; internal/cli delegates to them so the classic binary's output stays byte-identical.
-status: in_progress
+status: closed
 deps: []
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P1JVJSY/20260925T143426Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T14:26:51Z"
 ---
 ## Summary
 

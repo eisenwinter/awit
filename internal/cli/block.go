@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
 )
@@ -54,7 +55,7 @@ func blockAction(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	defer release()
-	it, err := loadItem(s, cmd.Args().First())
+	it, err := ops.LoadItem(s, cmd.Args().First())
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func unblockAction(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	defer release()
-	it, err := loadItem(s, cmd.Args().First())
+	it, err := ops.LoadItem(s, cmd.Args().First())
 	if err != nil {
 		return err
 	}

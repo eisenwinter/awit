@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/prime"
 	"github.com/urfave/cli/v3"
 )
@@ -29,7 +30,7 @@ awit list --blocked for the full queue.`,
 		if err != nil {
 			return err
 		}
-		g, err := loadGraph(s)
+		g, err := ops.LoadGraph(s)
 		if err != nil {
 			return err
 		}

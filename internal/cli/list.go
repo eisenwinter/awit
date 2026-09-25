@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/eisenwinter/awit/pkg/item"
@@ -34,7 +35,7 @@ func listAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	g, err := loadGraph(s)
+	g, err := ops.LoadGraph(s)
 	if err != nil {
 		return err
 	}
@@ -58,7 +59,7 @@ func listAction(_ context.Context, cmd *cli.Command) error {
 	if key := cmd.Args().First(); key != "" {
 		// [key] selects exactly one item before the status/label/state
 		// filters; no key runs the shared graph.Filter selection.
-		id, err := resolveItemID(graphItems(g), key)
+		id, err := ops.ResolveItemID(graphItems(g), key)
 		if err != nil {
 			return err
 		}
@@ -85,7 +86,7 @@ func listAction(_ context.Context, cmd *cli.Command) error {
 	}
 	entries := make([]format.Entry, 0, len(nodes))
 	for _, n := range nodes {
-		entries = append(entries, toEntry(n))
+		entries = append(entries, ops.ToEntry(n))
 	}
 	if err := format.Write(cmd.Root().Writer, f, entries); err != nil {
 		return fmt.Errorf("format: %w", err)

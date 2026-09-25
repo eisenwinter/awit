@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/eisenwinter/awit/internal/lazy"
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/eisenwinter/awit/pkg/item"
@@ -42,7 +43,7 @@ type lazyOps struct {
 }
 
 func (o *lazyOps) Load() (*graph.Graph, error) {
-	return loadGraph(o.s)
+	return ops.LoadGraph(o.s)
 }
 
 func (o *lazyOps) LoadArchive() ([]*item.Item, error) {
@@ -51,11 +52,11 @@ func (o *lazyOps) LoadArchive() ([]*item.Item, error) {
 }
 
 func (o *lazyOps) Line(n *graph.Node) string {
-	return format.Line(toEntry(n))
+	return format.Line(ops.ToEntry(n))
 }
 
 func (o *lazyOps) ArchiveLine(it *item.Item) string {
-	return format.Line(archiveEntry(it))
+	return format.Line(ops.ArchiveEntry(it))
 }
 
 func (o *lazyOps) Detail(g *graph.Graph, id string) string {
@@ -80,7 +81,7 @@ func (o *lazyOps) Close(id, reason string) error {
 		return err
 	}
 	defer rel()
-	it, err := loadItem(o.s, id)
+	it, err := ops.LoadItem(o.s, id)
 	if err != nil {
 		return err
 	}
@@ -99,7 +100,7 @@ func (o *lazyOps) Block(id, reason string) error {
 		return err
 	}
 	defer rel()
-	it, err := loadItem(o.s, id)
+	it, err := ops.LoadItem(o.s, id)
 	if err != nil {
 		return err
 	}
@@ -112,7 +113,7 @@ func (o *lazyOps) Unblock(id string) error {
 		return err
 	}
 	defer rel()
-	it, err := loadItem(o.s, id)
+	it, err := ops.LoadItem(o.s, id)
 	if err != nil {
 		return err
 	}
@@ -125,7 +126,7 @@ func (o *lazyOps) Comment(id, text string) error {
 		return err
 	}
 	defer rel()
-	it, err := loadItem(o.s, id)
+	it, err := ops.LoadItem(o.s, id)
 	if err != nil {
 		return err
 	}
@@ -146,11 +147,11 @@ func (o *lazyOps) Claim(id string) error {
 		return err
 	}
 	defer rel()
-	it, err := loadItem(o.s, id)
+	it, err := ops.LoadItem(o.s, id)
 	if err != nil {
 		return err
 	}
-	g, err := loadGraph(o.s)
+	g, err := ops.LoadGraph(o.s)
 	if err != nil {
 		return err
 	}
@@ -174,7 +175,7 @@ func (o *lazyOps) Release(id string) error {
 		return err
 	}
 	defer rel()
-	it, err := loadItem(o.s, id)
+	it, err := ops.LoadItem(o.s, id)
 	if err != nil {
 		return err
 	}
@@ -186,7 +187,7 @@ func (o *lazyOps) Validate(g *graph.Graph) string {
 }
 
 func (o *lazyOps) ExternalCheck(ctx context.Context, id string) string {
-	it, err := loadItem(o.s, id)
+	it, err := ops.LoadItem(o.s, id)
 	if err != nil {
 		return err.Error()
 	}
@@ -205,30 +206,4 @@ func (o *lazyOps) ExternalCheck(ctx context.Context, id string) string {
 		}
 		return fmt.Sprintf("ERROR %s: %s", r.ID, r.Detail)
 	}
-}
-
-// archiveEntry converts an archived item into a format-neutral row. Archived
-// items are always closed and unblock nothing.
-func archiveEntry(it *item.Item) format.Entry {
-	e := format.Entry{
-		ID:            it.ID,
-		Title:         it.Title,
-		Brief:         it.Brief,
-		Status:        string(it.Status),
-		State:         "closed",
-		BlockedReason: it.BlockedReason,
-		Labels:        it.Labels,
-		Deps:          it.Deps,
-		Assignee:      it.Assignee,
-		Alias:         it.Alias,
-		Unblocks:      0,
-		External:      it.External,
-	}
-	if e.Labels == nil {
-		e.Labels = []string{}
-	}
-	if e.Deps == nil {
-		e.Deps = []string{}
-	}
-	return e
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
@@ -30,14 +31,6 @@ type validateFaultJSON struct {
 	IDs    []string `json:"ids"`
 	Detail string   `json:"detail"`
 	Fix    string   `json:"fix"`
-}
-
-func loadGraph(s *item.Store) (*graph.Graph, error) {
-	items, broken, err := s.LoadAll()
-	if err != nil {
-		return nil, err
-	}
-	return graph.Build(items, broken), nil
 }
 
 // sentenceCount counts sentences in s. A sentence ends at '.', '!' or '?'
@@ -69,7 +62,7 @@ func validateAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	g, err := loadGraph(s)
+	g, err := ops.LoadGraph(s)
 	if err != nil {
 		return err
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/eisenwinter/awit/pkg/item"
@@ -43,7 +44,7 @@ func showOne(cmd *cli.Command, key string) error {
 	if err != nil {
 		return err
 	}
-	g, err := loadGraph(s)
+	g, err := ops.LoadGraph(s)
 	if err != nil {
 		return err
 	}
@@ -52,7 +53,7 @@ func showOne(cmd *cli.Command, key string) error {
 	if err != nil {
 		return err
 	}
-	id, err := resolveItemID(graphItems(g), key)
+	id, err := ops.ResolveItemID(graphItems(g), key)
 	if err != nil {
 		// Broken files have no resolvable alias or external metadata; the
 		// exact canonical stem still shows the quarantine view.
@@ -76,7 +77,7 @@ func showOne(cmd *cli.Command, key string) error {
 		}
 		var entries []format.Entry
 		for _, u := range graph.ReachableUnblocks(n) {
-			entries = append(entries, toEntry(u))
+			entries = append(entries, ops.ToEntry(u))
 		}
 		return format.Write(cmd.Root().Writer, f, entries)
 	}
@@ -125,7 +126,7 @@ func refsBaseDir(s *item.Store, n *graph.Node) string {
 // defaultView renders the core item: header, status, faults, deps,
 // assignee, brief, ref count, blank line, verbatim body.
 func defaultView(n *graph.Node) string {
-	e := toEntry(n)
+	e := ops.ToEntry(n)
 	var b strings.Builder
 	fmt.Fprintf(&b, "[%s] %s\n", e.ID, e.Title)
 	state := e.State
@@ -257,7 +258,7 @@ func refBody(g *graph.Graph, itemsDir string, r resolver.Resolved) string {
 }
 
 func fullJSON(g *graph.Graph, n *graph.Node, baseDir, itemsDir string, full bool) showJSON {
-	out := showJSON{Entry: toEntry(n), Body: string(n.Item.Body())}
+	out := showJSON{Entry: ops.ToEntry(n), Body: string(n.Item.Body())}
 	if !full {
 		return out
 	}

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/id"
 	"github.com/eisenwinter/awit/pkg/item"
@@ -199,9 +200,9 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 			return err
 		}
 		for i, d := range deps {
-			cid, err := resolveItemID(items, d)
+			cid, err := ops.ResolveItemID(items, d)
 			if err != nil {
-				if errors.Is(err, errUnknownItem) {
+				if errors.Is(err, ops.ErrUnknownItem) {
 					if !id.Valid(s.Config.Prefix, d) {
 						return fmt.Errorf("invalid id %s", d)
 					}
