@@ -3,13 +3,12 @@ id: AWIT-0P1JVJSR
 title: 'ops: Lazy — lazy.Ops implementation and parity tests move out of internal/cli'
 brief: >-
   Replaces internal/cli's lazyOps with exported ops.Lazy/NewLazy built on the moved primitives, moves the CLI-vs-Ops parity, byte, refusal and archive tests to internal/ops as external tests, and leaves internal/cli/lazy.go as a thin command until the split lands.
-status: in_progress
+status: closed
 deps: [AWIT-0P1JVJSV, AWIT-0P1JVJSH, AWIT-0P1JVJSS]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P1JVJSR/20260925T150719Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T15:01:19Z"
 ---
 ## Summary
 

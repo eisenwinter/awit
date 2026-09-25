@@ -1,11 +1,11 @@
-// Package lazy implements the awit lazy-human TUI: a keyboard-driven
+// Package lazy implements the lazyawit TUI: a keyboard-driven
 // Bubble Tea program (tabs: issues, graph, queue) for browsing open items
 // and archive, inspecting details, and triaging the ready queue.
 //
-// The TUI reads through the Ops seam, implemented by internal/cli with the
-// same helpers the CLI commands use, so every row, detail and byte written
-// matches the corresponding command. The TUI never pushes external state
-// and never git-commits.
+// The TUI reads through the Ops seam, implemented by internal/ops (`ops.Lazy`)
+// with the same functions the CLI commands call, so every row, detail and
+// byte written matches the corresponding command. The TUI never pushes
+// external state and never git-commits.
 package lazy
 
 import (
@@ -15,10 +15,10 @@ import (
 	"github.com/eisenwinter/awit/pkg/item"
 )
 
-// Ops is everything the TUI needs from the store. internal/cli implements it
-// with the same helpers the CLI commands use, so every row, detail and byte
-// written matches the corresponding command. The TUI never pushes external
-// state and never git-commits.
+// Ops is everything the TUI needs from the store. internal/ops (`ops.Lazy`)
+// implements it with the same functions the CLI commands call, so every row,
+// detail and byte written matches the corresponding command. The TUI never
+// pushes external state and never git-commits.
 type Ops interface {
 	Load() (*graph.Graph, error)
 	LoadArchive() ([]*item.Item, error)
