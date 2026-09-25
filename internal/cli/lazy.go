@@ -64,7 +64,7 @@ func (o *lazyOps) Detail(g *graph.Graph, id string) string {
 	if n == nil {
 		return fmt.Sprintf("unknown item %s\n", id)
 	}
-	return showFull(o.s, g, n)
+	return ops.ShowFull(o.s, g, n)
 }
 
 func (o *lazyOps) ArchiveDetail(id string) (string, error) {
@@ -183,7 +183,7 @@ func (o *lazyOps) Release(id string) error {
 }
 
 func (o *lazyOps) Validate(g *graph.Graph) string {
-	return validateText(g)
+	return ops.ValidateText(g)
 }
 
 func (o *lazyOps) ExternalCheck(ctx context.Context, id string) string {

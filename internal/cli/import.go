@@ -202,7 +202,7 @@ const maxDerivedBriefRunes = 240
 // --brief. A title holding any non-whitespace rune wins and is used whole;
 // otherwise the body's first sentence is used, stopping at the first '.',
 // '!' or '?' immediately followed by whitespace or end-of-source (the same
-// boundary convention as sentenceCount). The chosen source is trimmed of
+// boundary rule as internal/ops' sentence counter). The chosen source is trimmed of
 // leading/trailing Unicode whitespace with each internal run collapsed to
 // one ASCII space; Markdown, case and punctuation are untouched. Derived
 // values are capped at maxDerivedBriefRunes code points. Both sources

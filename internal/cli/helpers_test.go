@@ -89,6 +89,15 @@ func readItem(t *testing.T, repo, id string) *item.Item {
 	return it
 }
 
+func openTestStore(t *testing.T, dir string) *item.Store {
+	t.Helper()
+	s, err := item.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
 func initRepo(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()

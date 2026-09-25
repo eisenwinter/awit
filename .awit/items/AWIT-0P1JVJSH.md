@@ -3,13 +3,12 @@ id: AWIT-0P1JVJSH
 title: 'ops: rendering — ShowFull, DefaultView, BrokenView, RefsBaseDir, ValidateText, AliasWarnLines'
 brief: >-
   Moves the show --full and validate text renderers (and their private helpers fullView, refBody, sentenceCount) into internal/ops so the CLI and the TUI detail pane print the same bytes from one implementation; show/validate actions call the exported functions.
-status: in_progress
+status: closed
 deps: [AWIT-0P1JVJSY, AWIT-0P1JVJSV]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P1JVJSH/20260925T145306Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T14:41:45Z"
 ---
 ## Summary
 
