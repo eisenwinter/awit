@@ -8,7 +8,7 @@ labels: [tui, p1]
 refs_base: repo
 refs: []
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T18:57:49Z"
+claimed_at: "2026-09-25T20:49:55Z"
 ---
 ## Summary
 Design-review proposal 16 (deferred, optional): move LoadArchive and reload's Load into tea.Cmds with a `loading…` status line, mirroring externalCmd.
