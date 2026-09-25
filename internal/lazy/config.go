@@ -66,7 +66,7 @@ func configRows(c config.Config) []row {
 		if shown == "" {
 			shown = "(unset)"
 		}
-		rows = append(rows, row{id: k, text: fmt.Sprintf("%-14s %s", k, shown), selectable: true})
+		rows = append(rows, row{id: k, text: sanitize(fmt.Sprintf("%-14s %s", k, shown), false), selectable: true})
 	}
 	return rows
 }
@@ -203,7 +203,7 @@ func (m *Model) saveConfigField(key, raw string) {
 		next, err = next.Normalize()
 	}
 	if err != nil {
-		m.toast = err.Error()
+		m.toast = "error: " + err.Error()
 		return
 	}
 	m.act(func() error { return m.ops.SaveConfig(next) }, "saved "+key)

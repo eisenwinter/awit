@@ -6,11 +6,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var cursorStyle = lipgloss.NewStyle().Reverse(true)
-
 type row struct {
 	id         string
 	text       string
+	status     string
+	head       bool
+	hstatus    string // header slot kind: ready, blocked, critical, or "" (accent)
 	selectable bool
 }
 
@@ -98,7 +99,8 @@ func (l *cursorList) selected() (row, bool) {
 // view renders exactly l.height lines. When focused, the cursor row carries
 // "> " plus reverse; unfocused (detail has focus) it renders plain like
 // every other row, so focus stays unambiguous without color. Text is
-// rune-truncated to width, short lists padded with blank lines.
+// rune-truncated to width, short lists padded with blank lines. Styling runs
+// after truncation so width math never sees ANSI.
 func (l *cursorList) view(width int, focused bool) string {
 	if width < 3 {
 		width = 3
@@ -111,11 +113,15 @@ func (l *cursorList) view(width int, focused bool) string {
 			continue
 		}
 		r := l.rows[idx]
-		if focused && idx == l.cursor && r.selectable {
-			lines = append(lines, cursorStyle.Render("> "+truncateRunes(r.text, width-2)))
+		if r.head {
+			lines = append(lines, "  "+graphHeadStyle(r.hstatus).Render(truncateRunes(r.text, width-2)))
 			continue
 		}
-		lines = append(lines, "  "+truncateRunes(r.text, width-2))
+		if focused && idx == l.cursor && r.selectable {
+			lines = append(lines, stCursor.Render(stCursorMarker.Render("> ")+styleRow(truncateRunes(r.text, width-2), r.status)))
+			continue
+		}
+		lines = append(lines, "  "+styleRow(truncateRunes(r.text, width-2), r.status))
 	}
 	return strings.Join(lines, "\n")
 }

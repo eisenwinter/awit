@@ -40,11 +40,26 @@ func overviewRows(g *graph.Graph) []row {
 	lines := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
 	rows := make([]row, 0, len(lines))
 	for _, line := range lines {
-		r := row{text: line}
-		if rest, ok := strings.CutPrefix(line, "["); ok {
+		clean := sanitize(line, false)
+		r := row{text: clean}
+		if strings.HasPrefix(clean, "===") {
+			r.head = true
+			switch {
+			case strings.Contains(clean, "READY"):
+				r.hstatus = "ready"
+			case strings.Contains(clean, "CRITICAL"):
+				r.hstatus = "critical"
+			default:
+				r.hstatus = "blocked" // BLOCKED and warnings share warn
+			}
+			rows = append(rows, r)
+			continue
+		}
+		if rest, ok := strings.CutPrefix(clean, "["); ok {
 			if i := strings.IndexByte(rest, ']'); i >= 0 {
 				if id := rest[:i]; g.Nodes[id] != nil {
 					r.id, r.selectable = id, true
+					r.status = string(g.Nodes[id].Item.Status)
 				}
 			}
 		}
@@ -70,7 +85,7 @@ func treeRows(root *graph.Node, next func(*graph.Node) []*graph.Node) []row {
 				conn = "└─ "
 			}
 		}
-		rows = append(rows, row{id: n.Item.ID, text: prefix + conn + nodeText(n), selectable: !n.Quarantined()})
+		rows = append(rows, row{id: n.Item.ID, text: sanitize(prefix+conn+nodeText(n), false), status: string(n.Item.Status), selectable: !n.Quarantined()})
 		var children []*graph.Node
 		for _, c := range next(n) {
 			if !path[c.Item.ID] {
@@ -117,10 +132,10 @@ func focusedRows(g *graph.Graph, rootID string) []row {
 	}
 	deps := func(n *graph.Node) []*graph.Node { return n.Deps }
 	unblocks := func(n *graph.Node) []*graph.Node { return n.Unblocks }
-	rows := []row{{text: fmt.Sprintf("depends on (upstream, depth <= %d)", treeDepth)}}
+	rows := []row{{text: fmt.Sprintf("depends on (upstream, depth <= %d)", treeDepth), head: true}}
 	rows = append(rows, treeRows(root, deps)...)
 	rows = append(rows, row{})
-	rows = append(rows, row{text: fmt.Sprintf("unblocks (downstream, depth <= %d)", treeDepth)})
+	rows = append(rows, row{text: fmt.Sprintf("unblocks (downstream, depth <= %d)", treeDepth), head: true})
 	return append(rows, treeRows(root, unblocks)...)
 }
 

@@ -18,7 +18,7 @@ func queueRows(g *graph.Graph, line func(*graph.Node) string) []row {
 	}
 	rows := make([]row, 0, len(ready))
 	for _, n := range ready {
-		rows = append(rows, row{id: n.Item.ID, text: line(n), selectable: true})
+		rows = append(rows, row{id: n.Item.ID, text: sanitize(line(n), false), status: string(n.Item.Status), selectable: true})
 	}
 	return rows
 }

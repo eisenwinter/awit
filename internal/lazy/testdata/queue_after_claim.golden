@@ -1,30 +1,30 @@
 lazyawit [1] Issues [2] Graph>[3] Queue [4] Config  focus: list                                     
 ready: 3
-> [AWIT-LAZY0001] in_progress Token extracti… │ detail of AWIT-LAZY0001                             
-  [AWIT-LAZY0002] open Migration scripts      │                                                     
-  [AWIT-LAZY0006] in_progress Rotate keys     │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
+╭───────────────────────────────────────────╮╭─────────────────────────────────────────────────────╮
+│> [AWIT-LAZY0001] in_progress Token extrac…││detail of AWIT-LAZY0001                              │
+│  [AWIT-LAZY0002] open Migration scripts   ││                                                     │
+│  [AWIT-LAZY0006] in_progress Rotate keys  ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+╰───────────────────────────────────────────╯╰─────────────────────────────────────────────────────╯
 warning: 1 item(s) quarantined, run awit validate
 why: AWIT-LAZY0001; unblocks=2; critical-path=yes; selection=max-unblocks; tie-break=none
-claimed AWIT-LAZY0001
+ok: claimed AWIT-LAZY0001
 j/k move  space claim  r release  c/b/u/m mutate  P check  ? help

@@ -99,7 +99,7 @@ func TestConfigReload(t *testing.T) {
 	}
 	f.cfgErr = errors.New("config: prefix is required")
 	m, _ = press(m, "R")
-	if m.toast != "config: prefix is required" || configRowTexts(m)[4] != "agent_id       claude" {
+	if m.toast != "error: config: prefix is required" || configRowTexts(m)[4] != "agent_id       claude" {
 		t.Fatalf("failed reload: toast=%q rows=%v", m.toast, configRowTexts(m))
 	}
 }
@@ -166,18 +166,18 @@ func TestConfigRefusesInvalid(t *testing.T) {
 		toast  string
 		direct bool // feed saveConfigField, skipping the prompt
 	}{
-		{0, "prefix", "awit", "prefix must be 2-8 uppercase alphanumerics starting with a letter", false},
-		{0, "prefix", "", "prefix must be 2-8 uppercase alphanumerics starting with a letter", false},
-		{3, "stale_claim", "banana", `time: invalid duration "banana"`, false},
-		{7, "template", "../x.md", "config: template escapes repository root", false},
-		{7, "template", "/etc/x.md", "config: template must be a repo-root-relative path", false},
+		{0, "prefix", "awit", "error: prefix must be 2-8 uppercase alphanumerics starting with a letter", false},
+		{0, "prefix", "", "error: prefix must be 2-8 uppercase alphanumerics starting with a letter", false},
+		{3, "stale_claim", "banana", `error: time: invalid duration "banana"`, false},
+		{7, "template", "../x.md", "error: config: template escapes repository root", false},
+		{7, "template", "/etc/x.md", "error: config: template must be a repo-root-relative path", false},
 		// The textinput sanitizer replaces tabs/newlines with spaces and
 		// drops other control characters, so a control char can never
 		// reach setConfigField through the prompt; exercise the rule at
 		// the layer where it is reachable.
-		{2, "labels", "a\tb", "config: labels entry must not contain control characters", true},
-		{5, "commit", "maybe", "commit must be true, false, or empty", false},
-		{6, "external_push", "yes", "external_push must be true, false, or empty", false},
+		{2, "labels", "a\tb", "error: config: labels entry must not contain control characters", true},
+		{5, "commit", "maybe", "error: commit must be true, false, or empty", false},
+		{6, "external_push", "yes", "error: external_push must be true, false, or empty", false},
 	}
 	for _, c := range cases {
 		t.Run(c.key+"="+c.typed, func(t *testing.T) {

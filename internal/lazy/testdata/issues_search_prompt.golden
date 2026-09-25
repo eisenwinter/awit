@@ -1,30 +1,30 @@
 lazyawit>[1] Issues [2] Graph [3] Queue [4] Config  focus: list                                     
 open: 8  archive: (not loaded)   filters: no filter   source: open
-> [AWIT-LAZY0001] open Token extraction       │ detail of AWIT-LAZY0001                             
-  [AWIT-LAZY0002] open Migration scripts      │                                                     
-  [AWIT-LAZY0003] open E2E auth tests         │                                                     
-  [AWIT-LAZY0004] open Rotate API tokens      │                                                     
-  [AWIT-LAZY0005] closed Middleware spec      │                                                     
-  [AWIT-LAZY0006] in_progress Rotate keys     │                                                     
-  [AWIT-LAZY0007] open Vendor contract        │                                                     
-  [AWIT-LAZY0008] open Dangling               │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
+╭───────────────────────────────────────────╮╭─────────────────────────────────────────────────────╮
+│> [AWIT-LAZY0001] open Token extraction    ││detail of AWIT-LAZY0001                              │
+│  [AWIT-LAZY0002] open Migration scripts   ││                                                     │
+│  [AWIT-LAZY0003] open E2E auth tests      ││                                                     │
+│  [AWIT-LAZY0004] open Rotate API tokens   ││                                                     │
+│  [AWIT-LAZY0005] closed Middleware spec   ││                                                     │
+│  [AWIT-LAZY0006] in_progress Rotate keys  ││                                                     │
+│  [AWIT-LAZY0007] open Vendor contract     ││                                                     │
+│  [AWIT-LAZY0008] open Dangling            ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+╰───────────────────────────────────────────╯╰─────────────────────────────────────────────────────╯
 warning: 1 item(s) quarantined, run awit validate
 
 filter: >  

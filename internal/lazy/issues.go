@@ -13,7 +13,7 @@ func (m *Model) issuesRows() []row {
 	if m.issues.showArchive {
 		var rows []row
 		for _, it := range m.issues.filter.applyArchive(m.archive) {
-			rows = append(rows, row{id: it.ID, text: m.ops.ArchiveLine(it), selectable: true})
+			rows = append(rows, row{id: it.ID, text: sanitize(m.ops.ArchiveLine(it), false), status: "closed", selectable: true})
 		}
 		if len(rows) == 0 {
 			return []row{{text: "Archive is empty"}}
@@ -25,7 +25,7 @@ func (m *Model) issuesRows() []row {
 	}
 	var rows []row
 	for _, n := range m.issues.filter.applyOpen(m.g) {
-		rows = append(rows, row{id: n.Item.ID, text: m.ops.Line(n), selectable: !n.Quarantined()})
+		rows = append(rows, row{id: n.Item.ID, text: sanitize(m.ops.Line(n), false), status: string(n.Item.Status), selectable: !n.Quarantined()})
 	}
 	if len(rows) == 0 {
 		return []row{{text: "No open items"}}
@@ -76,7 +76,7 @@ func (m *Model) toggleArchive() {
 	if m.issues.showArchive && !m.archiveLoaded {
 		items, err := m.ops.LoadArchive()
 		if err != nil {
-			m.toast = err.Error()
+			m.toast = "error: " + err.Error()
 			m.issues.showArchive = false
 			return
 		}
@@ -104,7 +104,7 @@ func (m *Model) toggleArchive() {
 func (m *Model) submitSearch() {
 	f, err := ParseQuery(m.input.Value())
 	if err != nil {
-		m.toast = err.Error()
+		m.toast = "error: " + err.Error()
 		return
 	}
 	keep := ""

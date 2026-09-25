@@ -179,8 +179,15 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.input, cmd = m.input.Update(msg)
 		return m, cmd
 	}
-	// Toasts persist until the next key press; no timers.
-	m.toast = ""
+	// Toasts persist without timers: success clears on the next key, while
+	// error: toasts stick until esc, a tab switch, or the next outcome.
+	if isErrToast(m.toast) {
+		if key.Matches(msg, keys.Esc, keys.Tab1, keys.Tab2, keys.Tab3, keys.Tab4) {
+			m.toast = ""
+		}
+	} else {
+		m.toast = ""
+	}
 	if cmd, ok := m.mutationKey(msg); ok {
 		return m, cmd
 	}
@@ -334,10 +341,11 @@ func (m *Model) refreshDetail() {
 }
 
 // setDetail stores the unwrapped source and wraps it to the current detail
-// width; layout re-wraps the stored source on resize.
+// width; layout re-wraps the stored source on resize. Untrusted content is
+// sanitized at this trust boundary, then styled.
 func (m *Model) setDetail(content string) {
 	m.detailRaw = content
-	m.detail.SetContent(wrapDetail(content, m.detail.Width))
+	m.detail.SetContent(styleDetail(wrapDetail(sanitize(content, true), m.detail.Width)))
 }
 
 // wrapDetail word-wraps s to width cells without breaking words; long words
@@ -354,20 +362,20 @@ func wrapDetail(s string, width int) string {
 func (m *Model) reload() {
 	g, err := m.ops.Load()
 	if err != nil {
-		m.toast = err.Error()
+		m.toast = "error: " + err.Error()
 		return
 	}
 	if m.archiveLoaded {
 		items, err := m.ops.LoadArchive()
 		if err != nil {
-			m.toast = err.Error()
+			m.toast = "error: " + err.Error()
 		} else {
 			m.archive = items
 			m.issues.archiveN = len(items)
 		}
 	}
 	if c, err := m.ops.Config(); err != nil {
-		m.toast = err.Error()
+		m.toast = "error: " + err.Error()
 	} else {
 		m.config.cfg = c
 	}
@@ -413,6 +421,8 @@ func (m *Model) activeList() *cursorList {
 }
 
 // layout sizes the lists and the detail viewport for the current window.
+// Panes render inside rounded borders, so content dims are the inner values
+// (outer minus the two border cells); columns keeps returning outer widths.
 func (m *Model) layout() {
 	if m.width <= 0 {
 		m.width = 80
@@ -424,13 +434,21 @@ func (m *Model) layout() {
 	if body < 1 {
 		body = 1
 	}
-	for _, l := range []*cursorList{&m.issues.list, &m.graphTab.list, &m.queue.list, &m.config.list} {
-		l.height = body
+	innerH := body - 2
+	if innerH < 1 {
+		innerH = 1
 	}
-	_, detailW := m.columns()
+	for _, l := range []*cursorList{&m.issues.list, &m.graphTab.list, &m.queue.list, &m.config.list} {
+		l.height = innerH
+	}
+	_, detailOuter := m.columns()
+	detailW := detailOuter - 2
+	if detailW < 1 {
+		detailW = 1
+	}
 	m.detail.Width = detailW
-	m.detail.Height = body
-	m.detail.SetContent(wrapDetail(m.detailRaw, detailW))
+	m.detail.Height = innerH
+	m.detail.SetContent(styleDetail(wrapDetail(sanitize(m.detailRaw, true), detailW)))
 }
 
 // footerLines reserves fixed footer slots so the body height never moves
@@ -448,8 +466,9 @@ func (m *Model) footerLines() int {
 	return n
 }
 
-// columns splits the width into list and detail panes. Narrow terminals show
-// only the focused pane at full width.
+// columns splits the width into list and detail outer panes at 45/55. The
+// borders join with no gap, so detail is the full remainder. Narrow
+// terminals show only the focused pane at full width.
 func (m *Model) columns() (left, detail int) {
 	if m.width < 80 {
 		return m.width, m.width
@@ -461,7 +480,7 @@ func (m *Model) columns() (left, detail int) {
 	if left > m.width-10 {
 		left = m.width - 10
 	}
-	return left, m.width - left - 3
+	return left, m.width - left
 }
 
 // OverviewText is a test hook: the Graph-tab overview rows (the prime

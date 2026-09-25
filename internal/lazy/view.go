@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var tabActive = lipgloss.NewStyle().Bold(true)
+// Tab-active styling lives in theme.go (stTabActive).
 
 // View implements tea.Model: two header lines, the pane area (or help),
 // quarantine footer, queue why line, toast slot, and the key-hint line. The
@@ -30,12 +30,12 @@ func (m Model) View() string {
 		b.WriteString("\n" + m.panesView())
 	}
 	if m.quarantined > 0 {
-		fmt.Fprintf(&b, "\nwarning: %d item(s) quarantined, run awit validate", m.quarantined)
+		b.WriteString("\n" + stQuarantine.Render(fmt.Sprintf("warning: %d item(s) quarantined, run awit validate", m.quarantined)))
 	}
 	if m.tab == tabQueue {
-		b.WriteString("\n" + m.whyView())
+		b.WriteString("\n" + stWhy.Render(m.whyView()))
 	}
-	b.WriteString("\n" + m.toast)
+	b.WriteString("\n" + styleToast(m.toast))
 	hints := false
 	if m.mode == modeInput || m.mode == modeSearch {
 		b.WriteString("\n" + m.promptView())
@@ -79,22 +79,21 @@ func (m Model) headerView() string {
 		{"Config", tabConfig},
 	}
 	var b strings.Builder
-	b.WriteString("lazyawit")
+	b.WriteString(stBrand.Render("lazyawit"))
 	for i := range tabs {
 		label := fmt.Sprintf("[%d] %s", i+1, tabs[i].name)
-		marker := " "
 		if m.tab == tabs[i].t {
-			marker = ">"
-			label = tabActive.Render(label)
+			b.WriteString(stTabActive.Render(">" + label))
+		} else {
+			b.WriteString(" " + stTabInactive.Render(label))
 		}
-		b.WriteString(marker + label)
 	}
 	focusName := "list"
 	if m.focus == focusDetail {
 		focusName = fmt.Sprintf("detail %d%%", int(m.detail.ScrollPercent()*100+0.5))
 	}
 	tail := "  focus: " + focusName
-	out := b.String() + tail
+	out := b.String() + stMuted.Render(tail)
 	if pad := m.width - lipgloss.Width(out); pad > 0 {
 		out += strings.Repeat(" ", pad)
 	}
@@ -102,30 +101,33 @@ func (m Model) headerView() string {
 }
 
 // tabHeaderView is the per-tab line under the tab bar: issues badges, the
-// graph overview/focused label, the queue counts.
+// graph overview/focused label, the queue counts. Metadata, dimmed.
 func (m Model) tabHeaderView() string {
+	var s string
 	switch m.tab {
 	case tabGraph:
 		if m.graphTab.focused {
 			if m.graphTab.rootID == "" {
-				return "Focused (no root — select an item on Issues)"
+				s = "Focused (no root — select an item on Issues)"
+				break
 			}
-			return "Focused on " + m.graphTab.rootID
+			s = "Focused on " + m.graphTab.rootID
+			break
 		}
-		return "Overview"
+		s = "Overview"
 	case tabConfig:
-		return ".awit/config.yaml"
+		s = ".awit/config.yaml"
 	case tabQueue:
 		n := 0
 		if m.g != nil {
 			n = len(m.g.Ready())
 		}
-		return fmt.Sprintf("ready: %d", n)
+		s = fmt.Sprintf("ready: %d", n)
 	default:
-		return m.issuesHeader()
+		s = m.issuesHeader()
 	}
+	return stMuted.Render(s)
 }
-
 func (m Model) bodyHeight() int {
 	body := m.height - 2 - m.footerLines()
 	if body < 1 {
@@ -141,40 +143,35 @@ func padLines(lines []string, n int) []string {
 	return lines[:n]
 }
 
-// panesView draws the list beside the detail viewport. The list gets the
-// focused flag so its cursor goes plain when the detail has focus. Narrow
-// terminals show only the focused pane at full width.
+// panesView draws the list beside the detail viewport inside rounded-light
+// borders, joined with no gap. The list gets the focused flag so its cursor
+// goes plain when the detail has focus. Narrow terminals show only the
+// focused pane in a single full-width border; the Graph tab (no detail
+// pane) always renders one full-width border.
 func (m Model) panesView() string {
 	body := m.bodyHeight()
+	innerH := body - 2
+	if innerH < 1 {
+		innerH = 1
+	}
 	listFocused := m.focus == focusList
 	if m.tab == tabGraph {
-		// No detail pane: the overview or tree fills the body full width.
-		return m.activeList().view(m.width, listFocused)
+		// No detail pane: the overview or tree fills one bordered body.
+		return borderStyle(listFocused).Width(m.width - 2).Height(innerH).Render(
+			m.activeList().view(m.width-2, listFocused))
 	}
 	if m.width < 80 {
 		if m.focus == focusDetail {
-			return strings.Join(padLines(strings.Split(m.detail.View(), "\n"), body), "\n")
+			return borderStyle(true).Width(m.width - 2).Height(innerH).Render(m.detail.View())
 		}
-		return m.activeList().view(m.width, listFocused)
+		return borderStyle(listFocused).Width(m.width - 2).Height(innerH).Render(
+			m.activeList().view(m.width-2, listFocused))
 	}
 	leftW, detailW := m.columns()
-	left := padLines(strings.Split(m.activeList().view(leftW, listFocused), "\n"), body)
-	right := padLines(strings.Split(m.detail.View(), "\n"), body)
-	lines := make([]string, 0, body)
-	for i := range body {
-		cell := truncateRunes(left[i], leftW)
-		cell += leftWLine(leftW, cell)
-		lines = append(lines, cell+" │ "+truncateRunes(right[i], detailW))
-	}
-	return strings.Join(lines, "\n")
-}
-
-// leftWLine pads s with trailing spaces to width w (in cells).
-func leftWLine(w int, s string) string {
-	if pad := w - lipgloss.Width(s); pad > 0 {
-		return strings.Repeat(" ", pad)
-	}
-	return ""
+	left := borderStyle(listFocused).Width(leftW - 2).Height(innerH).Render(
+		m.activeList().view(leftW-2, listFocused))
+	right := borderStyle(m.focus == focusDetail).Width(detailW - 2).Height(innerH).Render(m.detail.View())
+	return lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 }
 
 func (m Model) fatalView() string {
@@ -216,16 +213,18 @@ func (m Model) helpView() string {
 }
 
 func (m Model) hintsView() string {
+	var s string
 	switch m.tab {
 	case tabGraph:
-		return "j/k move  tab mode  enter issues  c/b/u/m mutate  ? help"
+		s = "j/k move  tab mode  enter issues  c/b/u/m mutate  ? help"
 	case tabQueue:
-		return "j/k move  space claim  r release  c/b/u/m mutate  P check  ? help"
+		s = "j/k move  space claim  r release  c/b/u/m mutate  P check  ? help"
 	case tabConfig:
-		return "j/k move  e/enter edit  esc cancel  R reload  ? help"
+		s = "j/k move  e/enter edit  esc cancel  R reload  ? help"
 	default:
-		return "j/k move  enter detail  / filter  o archive  c/b/u/m mutate  P check  ? help"
+		s = "j/k move  enter detail  / filter  o archive  c/b/u/m mutate  P check  ? help"
 	}
+	return styleHints(s)
 }
 
 func (m Model) promptView() string {

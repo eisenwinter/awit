@@ -47,7 +47,7 @@ func TestIssuesSearchPromptAppliesAndEscDiscards(t *testing.T) {
 		t.Fatalf("esc must discard the draft: rows=%d toast=%q", len(m.issues.list.rows), m.toast)
 	}
 	m, _ = press(m, "/", "-", "x", "enter")
-	if m.toast != "unknown flag -x" || len(m.issues.list.rows) != 3 {
+	if m.toast != "error: unknown flag -x" || len(m.issues.list.rows) != 3 {
 		t.Fatalf("bad query: toast=%q rows=%d", m.toast, len(m.issues.list.rows))
 	}
 	m, _ = press(m, "/", "q", "enter")

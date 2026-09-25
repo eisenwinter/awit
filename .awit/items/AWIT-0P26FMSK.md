@@ -3,13 +3,12 @@ id: AWIT-0P26FMSK
 title: lazyawit premium visual treatment (theme, borders, sticky errors, sanitization)
 brief: >-
   Rounded pane chrome, ANSI-slot palette, render-time toast pairing, ANSI sanitization and sticky error toasts.
-status: in_progress
+status: closed
 deps: []
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P26FMSK/20260925T202842Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T20:00:57Z"
 ---
 ## Summary
 Premium visual treatment for lazyawit per the approved design proposal (full text in agent transcript history://TuiVisual): ANSI-named 4-hue palette, rounded-light pane chrome, render-time ok:/error: toasts, new theme.go, F1 ANSI/OSC sanitization at the lazy boundary, F2 sticky error toasts.

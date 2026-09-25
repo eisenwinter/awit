@@ -67,7 +67,7 @@ func TestReloadOnErrorKeepsGraph(t *testing.T) {
 	if m.g == nil || len(m.g.Order) == 0 {
 		t.Fatal("reload on error dropped the graph")
 	}
-	if m.toast != "store locked" {
+	if m.toast != "error: store locked" {
 		t.Fatalf("toast = %q, want the load error", m.toast)
 	}
 	if got := m.selectedID(); got != before {

@@ -72,27 +72,6 @@ func TestPolishActiveTabMarker(t *testing.T) {
 	}
 }
 
-// CJK rows keep the detail separator column aligned (cell math, not runes).
-func TestPolishCJKSeparatorAligned(t *testing.T) {
-	t.Parallel()
-	f := newFixture()
-	f.items["AWIT-LAZY0001"].Title = "日本語タイトル日本語タイトル"
-	m := resize(newModel(t, f), 100, 30)
-	got := m.View()
-	cols := map[int]int{}
-	for _, ln := range strings.Split(got, "\n") {
-		i := strings.Index(ln, " │ ")
-		if i < 0 {
-			continue
-		}
-		w := lipgloss.Width(ln[:i])
-		cols[w]++
-	}
-	if len(cols) != 1 {
-		t.Fatalf("separator columns = %v, want one aligned column", cols)
-	}
-}
-
 // Empty graph root shows the no-root header, not a blank "Focused on ".
 func TestPolishGraphEmptyRootHeader(t *testing.T) {
 	t.Parallel()

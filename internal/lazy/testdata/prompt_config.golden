@@ -1,30 +1,30 @@
 lazyawit [1] Issues [2] Graph [3] Queue>[4] Config  focus: list                                     
 .awit/config.yaml
-> prefix         AWIT                         │ required. Id prefix for new items: 2-8 uppercase    
-  default_labels (unset)                      │ alphanumerics starting with a letter ([A-Z][A-Z0-   
-  labels         auth, db                     │ 9]{1,7}). Existing item ids keep their prefix.      
-  stale_claim    2h                           │ current: AWIT                                       
-  agent_id       (unset)                      │                                                     
-  commit         (unset)                      │ e/enter edits, esc discards, R re-reads the file.   
-  external_push  (unset)                      │ saving rewrites .awit/config.yaml; comments and     
-  template       .awit/templates/workitem.md  │ unknown keys are dropped.                           
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
+╭───────────────────────────────────────────╮╭─────────────────────────────────────────────────────╮
+│> prefix         AWIT                      ││required. Id prefix for new items: 2-8 uppercase     │
+│  default_labels (unset)                   ││alphanumerics starting with a letter ([A-Z][A-Z0-    │
+│  labels         auth, db                  ││9]{1,7}). Existing item ids keep their prefix.       │
+│  stale_claim    2h                        ││current: AWIT                                        │
+│  agent_id       (unset)                   ││                                                     │
+│  commit         (unset)                   ││e/enter edits, esc discards, R re-reads the file.    │
+│  external_push  (unset)                   ││saving rewrites .awit/config.yaml; comments and      │
+│  template       .awit/templates/workitem.…││unknown keys are dropped.                            │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+╰───────────────────────────────────────────╯╰─────────────────────────────────────────────────────╯
 warning: 1 item(s) quarantined, run awit validate
 
 prefix: > AWIT 
