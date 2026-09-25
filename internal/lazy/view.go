@@ -35,7 +35,7 @@ func (m Model) View() string {
 	if m.tab == tabQueue {
 		b.WriteString("\n" + stWhy.Render(m.whyView()))
 	}
-	b.WriteString("\n" + styleToast(m.toast))
+	b.WriteString("\n" + m.statusLine())
 	hints := false
 	if m.mode == modeInput || m.mode == modeSearch {
 		b.WriteString("\n" + m.promptView())

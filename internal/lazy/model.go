@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/eisenwinter/awit/pkg/config"
 	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/eisenwinter/awit/pkg/item"
 )
@@ -61,19 +62,32 @@ type Model struct {
 	quarantined   int
 	archive       []*item.Item
 	archiveLoaded bool
-	tab           tab
-	focus         focus
-	mode          mode
-	issues        issuesState
-	graphTab      graphState
-	queue         queueState
-	config        configState
-	detail        viewport.Model
-	detailRaw     string // unwrapped detail source; wrapped to detail.Width on set/resize
-	input         textinput.Model
-	inputKind     inputKind
-	inputTarget   string
-	toast         string
+	// archiveLoading tracks an in-flight LoadArchive; reloadLoading an
+	// in-flight reload. Either one renders the shared loading… status line
+	// (same toast slot, so the frame height never moves) until its result
+	// message arrives. No timers, no overlays: just state-rendered lines.
+	archiveLoading bool
+	reloadLoading  bool
+	// reloadGen is the generation of the latest dispatched reload;
+	// reloadMsg carries it so stale (slower-first) results drop instead of
+	// overwriting a newer snapshot.
+	reloadGen int
+	// pendingArchiveIdx is the open-list cursor to restore when an async
+	// archive load lands (sync toggleArchive kept idx across the swap).
+	pendingArchiveIdx int
+	tab               tab
+	focus             focus
+	mode              mode
+	issues            issuesState
+	graphTab          graphState
+	queue             queueState
+	config            configState
+	detail            viewport.Model
+	detailRaw         string // unwrapped detail source; wrapped to detail.Width on set/resize
+	input             textinput.Model
+	inputKind         inputKind
+	inputTarget       string
+	toast             string
 }
 
 type Options struct{ Fatal string }
@@ -81,6 +95,10 @@ type Options struct{ Fatal string }
 // New builds the root model. opts.Fatal != "" skips Load and renders the
 // missing-.awit screen; otherwise Load runs once and a load error becomes
 // the fatal screen.
+// The initial load stays blocking by design (AWIT-0P21ZYSM): moving it into
+// Init would restructure the init flow and every newModel test setup for no
+// visible win on tiny repos. Async tea.Cmd loads cover the interactive
+// paths (archive toggle, R reload) where input must never block on file I/O.
 func New(ops Ops, ctx context.Context, opts Options) Model {
 	if ctx == nil {
 		ctx = context.Background()
@@ -134,6 +152,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case externalMsg:
 		m.toast = msg.line
 		return m, nil
+	case archiveMsg:
+		m.applyArchiveMsg(msg)
+		return m, nil
+	case reloadMsg:
+		m.applyReloadMsg(msg)
+		return m, nil
 	}
 	if m.focus == focusDetail && m.mode == modeNormal {
 		var cmd tea.Cmd
@@ -165,15 +189,16 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if key.Matches(msg, keys.Enter) {
+			var cmd tea.Cmd
 			if m.mode == modeSearch {
 				m.submitSearch()
 			} else {
-				m.submitInput()
+				cmd = m.submitInput()
 			}
 			m.mode = modeNormal
 			m.input.Blur()
 			m.input.Reset()
-			return m, nil
+			return m, cmd
 		}
 		var cmd tea.Cmd
 		m.input, cmd = m.input.Update(msg)
@@ -214,8 +239,7 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.mode = modeHelp
 		return m, nil
 	case key.Matches(msg, keys.Reload):
-		m.reload()
-		return m, nil
+		return m, m.reload()
 	case key.Matches(msg, keys.Search):
 		if m.tab == tabIssues {
 			m.mode = modeSearch
@@ -225,17 +249,17 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case key.Matches(msg, keys.Source):
 		if m.tab == tabIssues {
-			m.toggleArchive()
+			return m, m.toggleArchive()
 		}
 		return m, nil
 	case key.Matches(msg, keys.Claim):
 		if m.tab == tabQueue {
-			m.claimSelected()
+			return m, m.claimSelected()
 		}
 		return m, nil
 	case key.Matches(msg, keys.Release):
 		if m.tab == tabQueue {
-			m.releaseSelected()
+			return m, m.releaseSelected()
 		}
 		return m, nil
 	case m.tab == tabConfig && (key.Matches(msg, keys.Edit) || key.Matches(msg, keys.Enter)):
@@ -357,41 +381,173 @@ func wrapDetail(s string, width int) string {
 	return ansi.Wordwrap(s, width, " ")
 }
 
-// reload rebuilds the snapshot; on error the toast reports it and the old
-// graph (and selections) stay.
-func (m *Model) reload() {
-	g, err := m.ops.Load()
-	if err != nil {
-		m.toast = "error: " + err.Error()
+// archiveMsg carries an async LoadArchive result. errors keep the open view
+// + an error toast (the sync toggleArchive semantics).
+type archiveMsg struct {
+	items []*item.Item
+	err   error
+}
+
+// reloadMsg carries an async reload: the fresh graph (or loadErr, which
+// keeps the old graph), plus the archive + config refresh the sync reload
+// did after a successful Load. archWanted reports whether the archive
+// refresh was attempted.
+type reloadMsg struct {
+	g          *graph.Graph
+	loadErr    error
+	arch       []*item.Item
+	archErr    error
+	archWanted bool
+	cfg        config.Config
+	cfgErr     error
+	// gen tags the reload that produced this message; applyReloadMsg drops
+	// stale generations so a slower first Load can never overwrite a newer
+	// snapshot (double-R / reload-during-pending).
+	gen int
+}
+
+// isLoading reports an in-flight archive or reload load. The View renders
+// the shared loading… status line (same toast slot) while true.
+func (m Model) isLoading() bool { return m.archiveLoading || m.reloadLoading }
+
+// statusLine is the toast slot: loading… while a load is in flight,
+// otherwise the styled toast (blank when empty). The toast bytes are
+// untouched during loading so the outcome (ok/error) reappears after.
+func (m Model) statusLine() string {
+	if m.isLoading() {
+		return "loading…"
+	}
+	return styleToast(m.toast)
+}
+
+// archiveCmd runs LoadArchive off the Update path, mirroring externalCmd.
+func (m *Model) archiveCmd() tea.Cmd {
+	ops := m.ops
+	return func() tea.Msg {
+		items, err := ops.LoadArchive()
+		return archiveMsg{items: items, err: err}
+	}
+}
+
+// applyArchiveMsg swaps the loading placeholder for archive rows (or caches
+// a background load when the user already toggled back to open).
+func (m *Model) applyArchiveMsg(msg archiveMsg) {
+	m.archiveLoading = false
+	if msg.err != nil {
+		m.toast = "error: " + msg.err.Error()
+		if !m.issues.showArchive {
+			return
+		}
+		m.issues.showArchive = false
+		m.issues.list.setRows(m.issuesRows(), "")
+		m.refreshDetail()
 		return
 	}
-	if m.archiveLoaded {
-		items, err := m.ops.LoadArchive()
+	m.archive = msg.items
+	m.archiveLoaded = true
+	m.issues.archiveN = len(msg.items)
+	if !m.issues.showArchive {
+		return
+	}
+	m.issues.list.setRows(m.issuesRows(), "")
+	n := len(m.issues.list.rows)
+	if n == 0 {
+		m.issues.list.cursor = -1
+	} else {
+		idx := m.pendingArchiveIdx
+		if idx < 0 {
+			idx = 0
+		}
+		if idx >= n {
+			idx = n - 1
+		}
+		// setRows lands on the first selectable row; clamp to the saved
+		// open cursor so j,o keeps its position like the sync toggle did.
+		// Archive rows are all selectable, so idx is directly usable
+		// unless the empty placeholder is showing.
+		if r := m.issues.list.rows[idx]; r.selectable {
+			m.issues.list.cursor = idx
+		}
+		m.issues.list.clampOffset()
+	}
+	m.refreshDetail()
+}
+
+// reloadCmd runs Load (plus the archive + config refresh the sync reload
+// did) off the Update path. A Load error returns early, like sync reload.
+func (m *Model) reloadCmd() tea.Cmd {
+	ops := m.ops
+	wantArchive := m.archiveLoaded || m.archiveLoading
+	gen := m.reloadGen
+	return func() tea.Msg {
+		g, err := ops.Load()
 		if err != nil {
-			m.toast = "error: " + err.Error()
+			return reloadMsg{loadErr: err, gen: gen}
+		}
+		var out reloadMsg
+		out.g = g
+		out.gen = gen
+		if wantArchive {
+			out.archWanted = true
+			out.arch, out.archErr = ops.LoadArchive()
+		}
+		out.cfg, out.cfgErr = ops.Config()
+		return out
+	}
+}
+
+// applyReloadMsg swaps in the fresh snapshot; on Load error the toast
+// reports it and the old graph (and selections) stay.
+func (m *Model) applyReloadMsg(msg reloadMsg) {
+	if msg.gen != m.reloadGen {
+		return
+	}
+	m.reloadLoading = false
+	if msg.loadErr != nil {
+		m.toast = "error: " + msg.loadErr.Error()
+		return
+	}
+	if msg.archWanted {
+		if msg.archErr != nil {
+			m.toast = "error: " + msg.archErr.Error()
 		} else {
-			m.archive = items
-			m.issues.archiveN = len(items)
+			m.archive = msg.arch
+			m.archiveLoaded = true
+			m.issues.archiveN = len(msg.arch)
+			m.archiveLoading = false
+			// No explicit row swap: setGraph→rebuildRows below re-renders
+			// the archive (or open) rows from the new cache while keeping
+			// the selection, exactly like the sync reload did.
 		}
 	}
-	if c, err := m.ops.Config(); err != nil {
-		m.toast = "error: " + err.Error()
+	if msg.cfgErr != nil {
+		m.toast = "error: " + msg.cfgErr.Error()
 	} else {
-		m.config.cfg = c
+		m.config.cfg = msg.cfg
 	}
-	m.setGraph(g)
+	m.setGraph(msg.g)
+}
+
+// reload starts an async snapshot rebuild with the loading… status; the
+// result message swaps the graph (errors keep the old graph + toast).
+// Each dispatch bumps reloadGen so a slower first Load drops instead of
+// overwriting a newer snapshot.
+func (m *Model) reload() tea.Cmd {
+	m.reloadGen++
+	m.reloadLoading = true
+	return m.reloadCmd()
 }
 
 // act runs fn; on error the toast shows the message, otherwise the toast
-// shows ok and the snapshot reloads. Failure toasts carry an "error: "
+// shows ok and the snapshot reloads async. Failure toasts carry an "error: "
 // prefix so they read as failures under NO_COLOR.
-func (m *Model) act(fn func() error, ok string) {
+func (m *Model) act(fn func() error, ok string) tea.Cmd {
 	if err := fn(); err != nil {
 		m.toast = "error: " + err.Error()
-		return
+		return nil
 	}
 	m.toast = ok
-	m.reload()
+	return m.reload()
 }
 
 func (m *Model) selectedID() string {

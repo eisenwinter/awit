@@ -2,13 +2,12 @@
 id: AWIT-0P21ZYSM
 title: 'lazyawit: async loads with loading status (deferred)'
 brief: 'Optional design-review follow-up: tea.Cmd loads + loading line.'
-status: in_progress
+status: closed
 deps: []
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P21ZYSM/20260925T211011Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T20:49:55Z"
 ---
 ## Summary
 Design-review proposal 16 (deferred, optional): move LoadArchive and reload's Load into tea.Cmds with a `loading…` status line, mirroring externalCmd.

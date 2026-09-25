@@ -13,10 +13,15 @@ func TestCloseFlowResortsQueue(t *testing.T) {
 		t.Fatalf("c: mode=%d target=%s", m.mode, m.inputTarget)
 	}
 	golden(t, "prompt_close", m.View())
-	m, _ = press(m, "d", "o", "n", "e", "enter")
+	m, cmd := press(m, "d", "o", "n", "e", "enter")
 	if countCalls(f, "Close AWIT-LAZY0001 done") != 1 || m.toast != "closed AWIT-LAZY0001" || m.mode != modeNormal {
 		t.Fatalf("submit: calls=%v toast=%q mode=%d", f.calls, m.toast, m.mode)
 	}
+	if cmd == nil {
+		t.Fatal("close submit must dispatch an async reload")
+	}
+	next, _ := m.Update(cmd())
+	m = next.(Model)
 	var ids []string
 	for _, r := range m.queue.list.rows {
 		ids = append(ids, r.id)
@@ -39,10 +44,15 @@ func TestBlockRequiresReasonAndCommentRequiresText(t *testing.T) {
 	if m.toast != "error: block requires a non-empty reason" || countCalls(f, "Block") != 0 {
 		t.Fatalf("empty block: toast=%q calls=%v", m.toast, f.calls)
 	}
-	m, _ = press(m, "b", "v", "e", "n", "d", "o", "r", "enter")
+	m, cmd := press(m, "b", "v", "e", "n", "d", "o", "r", "enter")
 	if countCalls(f, "Block AWIT-LAZY0001 vendor") != 1 || m.toast != "blocked AWIT-LAZY0001: vendor" {
 		t.Fatalf("block: calls=%v toast=%q", f.calls, m.toast)
 	}
+	if cmd == nil {
+		t.Fatal("block submit must dispatch an async reload")
+	}
+	next, _ := m.Update(cmd())
+	m = next.(Model)
 	m, _ = press(m, "m")
 	golden(t, "prompt_comment", m.View())
 	m, _ = press(m, "esc")
@@ -111,7 +121,12 @@ func TestQuarantineFooterTracksSnapshot(t *testing.T) {
 		t.Fatalf("footer missing:\n%s", m.View())
 	}
 	delete(f.items, "AWIT-LAZY0008")
-	m, _ = press(m, "R")
+	m, cmd := press(m, "R")
+	if cmd == nil {
+		t.Fatal("R must dispatch an async reload")
+	}
+	next, _ := m.Update(cmd())
+	m = next.(Model)
 	if contains(m.View(), "quarantined, run awit validate") {
 		t.Fatal("footer must disappear after reload")
 	}

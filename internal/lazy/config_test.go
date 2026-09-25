@@ -89,7 +89,12 @@ func TestConfigReload(t *testing.T) {
 	m, _ := press(newModel(t, f), "4", "j", "j", "j")
 	f.cfg.AgentID = "claude"
 	f.cfg.StaleClaim = config.Duration(90 * time.Minute)
-	m, _ = press(m, "R")
+	m, cmd := press(m, "R")
+	if cmd == nil {
+		t.Fatal("R must dispatch an async reload")
+	}
+	next, _ := m.Update(cmd())
+	m = next.(Model)
 	rows := configRowTexts(m)
 	if rows[3] != "stale_claim    90m" || rows[4] != "agent_id       claude" {
 		t.Fatalf("rows after R = %v", rows)
@@ -98,7 +103,12 @@ func TestConfigReload(t *testing.T) {
 		t.Fatalf("selection after R = %q", r.id)
 	}
 	f.cfgErr = errors.New("config: prefix is required")
-	m, _ = press(m, "R")
+	m, cmd = press(m, "R")
+	if cmd == nil {
+		t.Fatal("R must dispatch an async reload")
+	}
+	next, _ = m.Update(cmd())
+	m = next.(Model)
 	if m.toast != "error: config: prefix is required" || configRowTexts(m)[4] != "agent_id       claude" {
 		t.Fatalf("failed reload: toast=%q rows=%v", m.toast, configRowTexts(m))
 	}
@@ -139,10 +149,15 @@ func TestConfigEditPrefillsAndEscDiscards(t *testing.T) {
 func TestConfigSaveValid(t *testing.T) {
 	t.Parallel()
 	f := newFixture()
-	m, _ := press(newModel(t, f), "4", "j", "j", "j", "e", "backspace", "backspace", "9", "0", "m", "enter")
+	m, cmd := press(newModel(t, f), "4", "j", "j", "j", "e", "backspace", "backspace", "9", "0", "m", "enter")
 	if countCalls(f, "SaveConfig") != 1 || m.toast != "saved stale_claim" || m.mode != modeNormal {
 		t.Fatalf("calls=%v toast=%q mode=%v", f.calls, m.toast, m.mode)
 	}
+	if cmd == nil {
+		t.Fatal("save must dispatch an async reload")
+	}
+	next, _ := m.Update(cmd())
+	m = next.(Model)
 	if got := time.Duration(f.saved[0].StaleClaim); got != 90*time.Minute {
 		t.Fatalf("saved stale_claim = %s", got)
 	}

@@ -63,7 +63,12 @@ func TestReloadOnErrorKeepsGraph(t *testing.T) {
 	m = um.(Model)
 	before := m.selectedID()
 	fx.loadErr = errors.New("store locked")
-	m.reload()
+	cmd := m.reload()
+	if cmd == nil {
+		t.Fatal("reload must dispatch an async Load")
+	}
+	um, _ = m.Update(cmd())
+	m = um.(Model)
 	if m.g == nil || len(m.g.Order) == 0 {
 		t.Fatal("reload on error dropped the graph")
 	}

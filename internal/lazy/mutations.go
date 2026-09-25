@@ -15,27 +15,28 @@ func (m *Model) openInput(kind inputKind, id string) {
 	m.input.Focus()
 }
 
-func (m *Model) submitInput() {
+func (m *Model) submitInput() tea.Cmd {
 	v := m.input.Value()
 	id := m.inputTarget
 	switch m.inputKind {
 	case inputClose:
-		m.act(func() error { return m.ops.Close(id, v) }, "closed "+id)
+		return m.act(func() error { return m.ops.Close(id, v) }, "closed "+id)
 	case inputBlock:
 		if v == "" {
 			m.toast = "error: block requires a non-empty reason"
-			return
+			return nil
 		}
-		m.act(func() error { return m.ops.Block(id, v) }, "blocked "+id+": "+v)
+		return m.act(func() error { return m.ops.Block(id, v) }, "blocked "+id+": "+v)
 	case inputComment:
 		if v == "" {
 			m.toast = "error: empty comment"
-			return
+			return nil
 		}
-		m.act(func() error { return m.ops.Comment(id, v) }, "commented "+id)
+		return m.act(func() error { return m.ops.Comment(id, v) }, "commented "+id)
 	case inputConfig:
-		m.saveConfigField(id, v)
+		return m.saveConfigField(id, v)
 	}
+	return nil
 }
 
 func (m *Model) externalCmd(id string) tea.Cmd {
@@ -65,13 +66,12 @@ func (m *Model) beginInput(kind inputKind) {
 	}
 	m.openInput(kind, id)
 }
-
-func (m *Model) unblockSelected() {
+func (m *Model) unblockSelected() tea.Cmd {
 	id, ok := m.mutationID()
 	if !ok {
-		return
+		return nil
 	}
-	m.act(func() error { return m.ops.Unblock(id) }, "unblocked "+id)
+	return m.act(func() error { return m.ops.Unblock(id) }, "unblocked "+id)
 }
 
 func (m *Model) startExternalCheck() tea.Cmd {
@@ -115,8 +115,7 @@ func (m *Model) mutationKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 		}
 		return nil, true
 	case key.Matches(msg, keys.Unblock):
-		m.unblockSelected()
-		return nil, true
+		return m.unblockSelected(), true
 	case key.Matches(msg, keys.External):
 		return m.startExternalCheck(), true
 	case key.Matches(msg, keys.Validate):

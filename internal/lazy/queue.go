@@ -3,6 +3,7 @@ package lazy
 import (
 	"fmt"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/eisenwinter/awit/pkg/graph"
 )
 
@@ -41,21 +42,21 @@ func whyLine(g *graph.Graph, n *graph.Node, onCritical bool) string {
 
 // claimSelected claims the queue selection through Ops; failures arrive as
 // errors and become toasts with the selection kept.
-func (m *Model) claimSelected() {
+func (m *Model) claimSelected() tea.Cmd {
 	id := m.selectedID()
 	if id == "" {
 		m.toast = "error: no item selected"
-		return
+		return nil
 	}
-	m.act(func() error { return m.ops.Claim(id) }, "claimed "+id)
+	return m.act(func() error { return m.ops.Claim(id) }, "claimed "+id)
 }
 
 // releaseSelected releases the queue selection back to open.
-func (m *Model) releaseSelected() {
+func (m *Model) releaseSelected() tea.Cmd {
 	id := m.selectedID()
 	if id == "" {
 		m.toast = "error: no item selected"
-		return
+		return nil
 	}
-	m.act(func() error { return m.ops.Release(id) }, "reopened "+id)
+	return m.act(func() error { return m.ops.Release(id) }, "reopened "+id)
 }

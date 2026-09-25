@@ -35,17 +35,30 @@ func TestQueueRowsAreReadyOrder(t *testing.T) {
 func TestQueueClaimAndRelease(t *testing.T) {
 	f := newFixture()
 	m := newModel(t, f)
-	m, _ = press(m, "3", "space")
+	m, cmd := press(m, "3", "space")
 	if countCalls(f, "Claim AWIT-LAZY0001") != 1 || m.toast != "claimed AWIT-LAZY0001" {
 		t.Fatalf("claim: calls=%v toast=%q", f.calls, m.toast)
 	}
+	if cmd == nil {
+		t.Fatal("space must dispatch an async reload")
+	}
+	next, _ := m.Update(cmd())
+	m = next.(Model)
 	if m.selectedID() != "AWIT-LAZY0001" || !contains(m.queue.list.rows[0].text, "in_progress") {
 		t.Fatalf("after claim: sel=%s rows=%+v", m.selectedID(), m.queue.list.rows)
 	}
 	golden(t, "queue_after_claim", m.View())
-	m, _ = press(m, "r")
-	if countCalls(f, "Release AWIT-LAZY0001") != 1 || m.toast != "reopened AWIT-LAZY0001" || !contains(m.queue.list.rows[0].text, "open") {
+	m, cmd = press(m, "r")
+	if countCalls(f, "Release AWIT-LAZY0001") != 1 || m.toast != "reopened AWIT-LAZY0001" {
 		t.Fatalf("release: calls=%v toast=%q", f.calls, m.toast)
+	}
+	if cmd == nil {
+		t.Fatal("r must dispatch an async reload")
+	}
+	next, _ = m.Update(cmd())
+	m = next.(Model)
+	if !contains(m.queue.list.rows[0].text, "open") {
+		t.Fatalf("release rows: %+v", m.queue.list.rows)
 	}
 }
 

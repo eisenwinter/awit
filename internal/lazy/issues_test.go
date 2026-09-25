@@ -62,7 +62,15 @@ func TestIssuesArchiveToggle(t *testing.T) {
 	if contains(m.View(), "archive: 2") {
 		t.Fatal("archive counted before load")
 	}
-	m, _ = press(m, "j", "o")
+	m, cmd := press(m, "j", "o")
+	if cmd == nil {
+		t.Fatal("first o must dispatch an async LoadArchive")
+	}
+	if n := countCalls(f, "LoadArchive"); n != 0 {
+		t.Fatalf("LoadArchive called synchronously (%d), want async", n)
+	}
+	next, _ := m.Update(cmd())
+	m = next.(Model)
 	if !m.issues.showArchive || len(m.issues.list.rows) != 2 || m.issues.list.cursor != 1 {
 		t.Fatalf("archive: show=%v rows=%d cursor=%d", m.issues.showArchive, len(m.issues.list.rows), m.issues.list.cursor)
 	}
@@ -77,7 +85,12 @@ func TestIssuesArchiveToggle(t *testing.T) {
 	if n := countCalls(f, "LoadArchive"); n != 1 {
 		t.Fatalf("LoadArchive called %d times, want 1 (cached)", n)
 	}
-	m, _ = press(m, "R")
+	m, cmd = press(m, "R")
+	if cmd == nil {
+		t.Fatal("R must dispatch an async reload")
+	}
+	next, _ = m.Update(cmd())
+	m = next.(Model)
 	if n := countCalls(f, "LoadArchive"); n != 2 {
 		t.Fatalf("R must reload the archive once loaded; calls=%d", n)
 	}

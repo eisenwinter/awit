@@ -1,6 +1,10 @@
 package lazy
 
-import "fmt"
+import (
+	"fmt"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 type issuesState struct {
 	filter      Filter
@@ -50,6 +54,9 @@ func (m *Model) issuesHeader() string {
 }
 
 func (m *Model) issuesDetail() string {
+	if m.issues.showArchive && m.archiveLoading {
+		return "loading…"
+	}
 	r, ok := m.issues.list.selected()
 	if !ok {
 		if len(m.issues.list.rows) == 0 {
@@ -70,35 +77,65 @@ func (m *Model) issuesDetail() string {
 	return m.ops.Detail(m.g, r.id)
 }
 
-func (m *Model) toggleArchive() {
-	idx := m.issues.list.cursor
-	m.issues.showArchive = !m.issues.showArchive
-	if m.issues.showArchive && !m.archiveLoaded {
-		items, err := m.ops.LoadArchive()
-		if err != nil {
-			m.toast = "error: " + err.Error()
-			m.issues.showArchive = false
-			return
+func (m *Model) toggleArchive() tea.Cmd {
+	// Leaving the archive (or cancelling a pending load) is instant: keep
+	// the background load caching if one is in flight.
+	if m.issues.showArchive {
+		m.issues.showArchive = false
+		m.issues.list.setRows(m.issuesRows(), "")
+		n := len(m.issues.list.rows)
+		if n == 0 {
+			m.issues.list.cursor = -1
+		} else {
+			idx := m.issues.list.cursor
+			if idx < 0 {
+				idx = 0
+			}
+			if idx >= n {
+				idx = n - 1
+			}
+			m.issues.list.cursor = idx
+			m.issues.list.clampOffset()
 		}
-		m.archive = items
-		m.archiveLoaded = true
-		m.issues.archiveN = len(items)
+		m.refreshDetail()
+		return nil
 	}
-	m.issues.list.setRows(m.issuesRows(), "")
-	n := len(m.issues.list.rows)
-	if n == 0 {
-		m.issues.list.cursor = -1
-	} else {
-		if idx < 0 {
-			idx = 0
+	// Entering a cached archive is instant.
+	if m.archiveLoaded {
+		idx := m.issues.list.cursor
+		m.issues.showArchive = true
+		m.issues.list.setRows(m.issuesRows(), "")
+		n := len(m.issues.list.rows)
+		if n == 0 {
+			m.issues.list.cursor = -1
+		} else {
+			if idx < 0 {
+				idx = 0
+			}
+			if idx >= n {
+				idx = n - 1
+			}
+			m.issues.list.cursor = idx
+			m.issues.list.clampOffset()
 		}
-		if idx >= n {
-			idx = n - 1
-		}
-		m.issues.list.cursor = idx
-		m.issues.list.clampOffset()
+		m.refreshDetail()
+		return nil
 	}
+	// Re-expressing interest while a load is in flight needs no new Cmd.
+	if m.archiveLoading {
+		m.issues.showArchive = true
+		m.issues.list.setRows([]row{{text: "loading…"}}, "")
+		m.refreshDetail()
+		return nil
+	}
+	// First entry: flip optimistically, show the loading row + status,
+	// and load off the Update path.
+	m.pendingArchiveIdx = m.issues.list.cursor
+	m.issues.showArchive = true
+	m.archiveLoading = true
+	m.issues.list.setRows([]row{{text: "loading…"}}, "")
 	m.refreshDetail()
+	return m.archiveCmd()
 }
 
 func (m *Model) submitSearch() {

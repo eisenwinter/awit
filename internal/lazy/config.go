@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/eisenwinter/awit/pkg/config"
 )
 
@@ -197,14 +198,14 @@ func (m *Model) beginConfigEdit() {
 // toast with nothing written. A success saves the whole config through
 // Ops.SaveConfig via act ("saved <key>"), which reloads rows from the
 // re-read file with the cursor still on key.
-func (m *Model) saveConfigField(key, raw string) {
+func (m *Model) saveConfigField(key, raw string) tea.Cmd {
 	next, err := setConfigField(m.config.cfg, key, raw)
 	if err == nil {
 		next, err = next.Normalize()
 	}
 	if err != nil {
 		m.toast = "error: " + err.Error()
-		return
+		return nil
 	}
-	m.act(func() error { return m.ops.SaveConfig(next) }, "saved "+key)
+	return m.act(func() error { return m.ops.SaveConfig(next) }, "saved "+key)
 }
