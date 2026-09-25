@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eisenwinter/awit/pkg/config"
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/eisenwinter/awit/pkg/item"
@@ -17,7 +18,8 @@ import (
 // the same functions the CLI commands call, so every row, detail and byte
 // written matches the corresponding command. Every mutation takes the
 // store lock for 5s like the CLI actions do. It never pushes external state
-// and never git-commits.
+// and never git-commits. Config and SaveConfig read and write
+// .awit/config.yaml, adopting the result into the store.
 type Lazy struct {
 	s     *item.Store
 	agent string
@@ -32,6 +34,34 @@ func NewLazy(s *item.Store, agent string, now func() time.Time) *Lazy {
 
 func (o *Lazy) Load() (*graph.Graph, error) {
 	return LoadGraph(o.s)
+}
+
+// Config re-reads .awit/config.yaml with config.Load and adopts the result
+// as the store's config, so a later Claim or comment author resolution sees
+// the file's current agent_id. On error the store's config is left as is.
+func (o *Lazy) Config() (config.Config, error) {
+	c, err := config.Load(o.s.Dir)
+	if err != nil {
+		return config.Config{}, err
+	}
+	o.s.Config = c
+	return c, nil
+}
+
+// SaveConfig takes the store lock, writes c with Config.Write
+// (temp-then-rename) and adopts c as the store's config. c is expected to
+// be Normalize output; the TUI validates before calling.
+func (o *Lazy) SaveConfig(c config.Config) error {
+	rel, err := o.s.Lock(5 * time.Second)
+	if err != nil {
+		return err
+	}
+	defer rel()
+	if err := c.Write(o.s.Dir); err != nil {
+		return err
+	}
+	o.s.Config = c
+	return nil
 }
 
 func (o *Lazy) LoadArchive() ([]*item.Item, error) {

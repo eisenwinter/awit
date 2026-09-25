@@ -3,13 +3,12 @@ id: AWIT-0P1XYZSS
 title: 'ops: Config/SaveConfig on the lazy.Ops seam — read and write .awit/config.yaml'
 brief: >-
   Extends the lazy.Ops interface with Config() (re-read from disk, adopted into the store) and SaveConfig() (Config.Write under the store lock, adopted into the store), implements both on ops.Lazy with tests, and stubs them on the TUI's fakeOps so nothing else changes yet.
-status: in_progress
+status: closed
 deps: []
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P1XYZSS/20260925T174306Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T17:35:53Z"
 ---
 ## Summary
 

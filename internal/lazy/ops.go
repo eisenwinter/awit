@@ -11,6 +11,7 @@ package lazy
 import (
 	"context"
 
+	"github.com/eisenwinter/awit/pkg/config"
 	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/eisenwinter/awit/pkg/item"
 )
@@ -18,7 +19,9 @@ import (
 // Ops is everything the TUI needs from the store. internal/ops (`ops.Lazy`)
 // implements it with the same functions the CLI commands call, so every row,
 // detail and byte written matches the corresponding command. The TUI never
-// pushes external state and never git-commits.
+// pushes external state and never git-commits. The Config tab reads and
+// writes .awit/config.yaml through Config and SaveConfig; nothing else in
+// the TUI touches the file.
 type Ops interface {
 	Load() (*graph.Graph, error)
 	LoadArchive() ([]*item.Item, error)
@@ -34,4 +37,6 @@ type Ops interface {
 	Release(id string) error
 	Validate(g *graph.Graph) string
 	ExternalCheck(ctx context.Context, id string) string
+	Config() (config.Config, error)
+	SaveConfig(c config.Config) error
 }

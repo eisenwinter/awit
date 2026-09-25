@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/eisenwinter/awit/internal/lazy"
 	"github.com/eisenwinter/awit/internal/ops"
+	"github.com/eisenwinter/awit/pkg/config"
 	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/eisenwinter/awit/pkg/item"
 )
@@ -225,5 +227,50 @@ func TestLazyArchiveOps(t *testing.T) {
 	txt, err := o.ArchiveDetail(items[0].ID)
 	if err != nil || !strings.Contains(txt, "## Comments") {
 		t.Fatalf("ArchiveDetail = %q, %v", txt, err)
+	}
+}
+
+func TestLazyConfigSaveAndReread(t *testing.T) {
+	o, s, _ := newLazyOps(t, "clean")
+	c, err := o.Config()
+	if err != nil || c.Prefix != "AWIT" || time.Duration(c.StaleClaim) != 2*time.Hour {
+		t.Fatalf("Config = %+v, %v", c, err)
+	}
+	no := false
+	c.AgentID = "claude"
+	c.StaleClaim = config.Duration(90 * time.Minute)
+	c.Commit = &no
+	if err := o.SaveConfig(c); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(s.Dir, config.FileName)
+	raw, _ := os.ReadFile(path)
+	if want := "prefix: AWIT\nstale_claim: 90m\nagent_id: claude\ncommit: false\n"; string(raw) != want {
+		t.Fatalf("file = %q, want %q", raw, want)
+	}
+	if s.Config.AgentID != "claude" || s.Config.ShouldCommit() || time.Duration(s.Config.StaleClaim) != 90*time.Minute {
+		t.Fatalf("store config not adopted: %+v", s.Config)
+	}
+	back, err := config.Load(s.Dir)
+	if err != nil || back.AgentID != "claude" || back.Commit == nil || *back.Commit {
+		t.Fatalf("Load after save = %+v, %v", back, err)
+	}
+	// An external edit is picked up by Config() and adopted.
+	if err := os.WriteFile(path, []byte("prefix: AWIT\nagent_id: other\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c2, err := o.Config()
+	if err != nil || c2.AgentID != "other" || time.Duration(c2.StaleClaim) != 2*time.Hour || s.Config.AgentID != "other" {
+		t.Fatalf("re-read = %+v, %v, store %+v", c2, err, s.Config)
+	}
+	// A broken file fails Config() and leaves the store's config alone.
+	if err := os.WriteFile(path, []byte("stale_claim: 1h\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := o.Config(); err == nil || err.Error() != "config: prefix is required" {
+		t.Fatalf("broken file err = %v", err)
+	}
+	if s.Config.AgentID != "other" {
+		t.Fatalf("store config changed on error: %+v", s.Config)
 	}
 }

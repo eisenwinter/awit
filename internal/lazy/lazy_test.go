@@ -11,6 +11,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/eisenwinter/awit/pkg/config"
 	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/eisenwinter/awit/pkg/item"
 )
@@ -34,6 +35,9 @@ type fakeOps struct {
 	fail     error
 	calls    []string
 	external string
+	cfg      config.Config
+	cfgErr   error
+	saved    []config.Config
 }
 
 func (f *fakeOps) Load() (*graph.Graph, error) {
@@ -121,6 +125,21 @@ func (f *fakeOps) ExternalCheck(ctx context.Context, id string) string {
 		return f.external
 	}
 	return "MATCH " + id
+}
+func (f *fakeOps) Config() (config.Config, error) {
+	if f.cfgErr != nil {
+		return config.Config{}, f.cfgErr
+	}
+	return f.cfg, nil
+}
+func (f *fakeOps) SaveConfig(c config.Config) error {
+	f.calls = append(f.calls, "SaveConfig")
+	if f.fail != nil {
+		return f.fail
+	}
+	f.cfg = c
+	f.saved = append(f.saved, c)
+	return nil
 }
 
 func mk(id, title string, st item.Status, deps, labels []string) *item.Item {
