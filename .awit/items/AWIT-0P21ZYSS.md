@@ -2,13 +2,12 @@
 id: AWIT-0P21ZYSS
 title: lazyawit polish (cosmetic 1-10 + brand)
 brief: Design-review cosmetic polish plus lazyawit brand rename; golden-text-only.
-status: in_progress
+status: closed
 deps: []
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P21ZYSS/20260925T185713Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T18:44:19Z"
 ---
 ## Summary
 Design-review polish, cosmetic half (proposals 1-10) plus the approved brand rename. All changes are golden-text-only; architecture untouched (one root Model, cursorList, toast-until-next-key, NO_COLOR discipline).

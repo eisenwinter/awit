@@ -1,4 +1,4 @@
-awit lazy-human  [1] Issues [2] Graph [3] Queue [4] Config  focus: list                             
+lazyawit [1] Issues [2] Graph [3] Queue>[4] Config  focus: list                                     
 .awit/config.yaml
 > prefix         AWIT                         │ required. Id prefix for new items: 2-8 uppercase alp
   default_labels (unset)                      │ current: AWIT                                       
@@ -26,5 +26,5 @@ awit lazy-human  [1] Issues [2] Graph [3] Queue [4] Config  focus: list
                                               │                                                     
                                               │                                                     
                                               │                                                     
-warning: 1 items quarantined, run awit validate
+warning: 1 item(s) quarantined, run awit validate
 prefix: > AWIT 

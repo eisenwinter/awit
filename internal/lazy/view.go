@@ -13,7 +13,7 @@ var tabActive = lipgloss.NewStyle().Bold(true)
 // quarantine footer, queue why line, toast, and the key-hint line.
 func (m Model) View() string {
 	if m.fatal != "" {
-		return m.fatalView()
+		return truncateLines(m.fatalView(), m.width)
 	}
 	m.layout()
 	var b strings.Builder
@@ -25,7 +25,7 @@ func (m Model) View() string {
 		b.WriteString("\n" + m.panesView())
 	}
 	if m.quarantined > 0 {
-		fmt.Fprintf(&b, "\nwarning: %d items quarantined, run awit validate", m.quarantined)
+		fmt.Fprintf(&b, "\nwarning: %d item(s) quarantined, run awit validate", m.quarantined)
 	}
 	if m.tab == tabQueue {
 		b.WriteString("\n" + m.whyView())
@@ -33,12 +33,36 @@ func (m Model) View() string {
 	if m.toast != "" {
 		b.WriteString("\n" + m.toast)
 	}
+	hints := false
 	if m.mode == modeInput || m.mode == modeSearch {
 		b.WriteString("\n" + m.promptView())
 	} else {
 		b.WriteString("\n" + m.hintsView())
+		hints = true
 	}
-	return b.String()
+	return truncateViewLines(b.String(), m.width, hints)
+}
+
+// truncateViewLines fits every emitted line to width cells: content lines
+// get an ellipsis, the hints line is hard-cut.
+func truncateViewLines(s string, width int, hints bool) string {
+	lines := strings.Split(s, "\n")
+	for i, ln := range lines {
+		if hints && i == len(lines)-1 {
+			lines[i] = truncateHard(ln, width)
+			continue
+		}
+		lines[i] = truncateRunes(ln, width)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func truncateLines(s string, width int) string {
+	lines := strings.Split(s, "\n")
+	for i, ln := range lines {
+		lines[i] = truncateRunes(ln, width)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m Model) headerView() string {
@@ -52,13 +76,15 @@ func (m Model) headerView() string {
 		{"Config", tabConfig},
 	}
 	var b strings.Builder
-	b.WriteString("awit lazy-human ")
+	b.WriteString("lazyawit")
 	for i := range tabs {
 		label := fmt.Sprintf("[%d] %s", i+1, tabs[i].name)
+		marker := " "
 		if m.tab == tabs[i].t {
+			marker = ">"
 			label = tabActive.Render(label)
 		}
-		b.WriteString(" " + label)
+		b.WriteString(marker + label)
 	}
 	focusName := "list"
 	if m.focus == focusDetail {
@@ -66,7 +92,7 @@ func (m Model) headerView() string {
 	}
 	tail := "  focus: " + focusName
 	out := b.String() + tail
-	if pad := m.width - len([]rune(out)); pad > 0 {
+	if pad := m.width - lipgloss.Width(out); pad > 0 {
 		out += strings.Repeat(" ", pad)
 	}
 	return out
@@ -78,6 +104,9 @@ func (m Model) tabHeaderView() string {
 	switch m.tab {
 	case tabGraph:
 		if m.graphTab.focused {
+			if m.graphTab.rootID == "" {
+				return "Focused (no root — select an item on Issues)"
+			}
 			return "Focused on " + m.graphTab.rootID
 		}
 		return "Overview"
@@ -135,9 +164,9 @@ func (m Model) panesView() string {
 	return strings.Join(lines, "\n")
 }
 
-// leftWLine pads s with trailing spaces to width w (in runes).
+// leftWLine pads s with trailing spaces to width w (in cells).
 func leftWLine(w int, s string) string {
-	if pad := w - len([]rune(s)); pad > 0 {
+	if pad := w - lipgloss.Width(s); pad > 0 {
 		return strings.Repeat(" ", pad)
 	}
 	return ""
@@ -148,7 +177,7 @@ func (m Model) fatalView() string {
 }
 
 func (m Model) helpView() string {
-	return strings.Join([]string{
+	lines := []string{
 		"HELP",
 		"",
 		"1/2/3/4      switch tab (issues/graph/queue/config)",
@@ -174,19 +203,23 @@ func (m Model) helpView() string {
 		"q            quit",
 		"",
 		"press ?/esc/q to close",
-	}, "\n")
+	}
+	if n := m.bodyHeight(); len(lines) > n {
+		lines = lines[:n]
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m Model) hintsView() string {
 	switch m.tab {
 	case tabGraph:
-		return "j/k move  tab overview/focused  enter open in issues  c close  b block  u unblock  m comment  ? help"
+		return "j/k move  tab mode  enter issues  c/b/u/m mutate  ? help"
 	case tabQueue:
-		return "j/k move  space claim  r release  c close  b block  u unblock  m comment  P check  ? help"
+		return "j/k move  space claim  r release  c/b/u/m mutate  P check  ? help"
 	case tabConfig:
 		return "j/k move  e/enter edit  esc cancel  R reload  ? help"
 	default:
-		return "j/k move  enter pin  / filter  o open/archive  c close  b block  u unblock  m comment  P check  ? help"
+		return "j/k move  enter detail  / filter  o archive  c/b/u/m mutate  P check  ? help"
 	}
 }
 

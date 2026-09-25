@@ -36,7 +36,7 @@ func TestBlockRequiresReasonAndCommentRequiresText(t *testing.T) {
 	m, _ = press(m, "b")
 	golden(t, "prompt_block", m.View())
 	m, _ = press(m, "enter")
-	if m.toast != "block requires a non-empty reason" || countCalls(f, "Block") != 0 {
+	if m.toast != "error: block requires a non-empty reason" || countCalls(f, "Block") != 0 {
 		t.Fatalf("empty block: toast=%q calls=%v", m.toast, f.calls)
 	}
 	m, _ = press(m, "b", "v", "e", "n", "d", "o", "r", "enter")
@@ -50,7 +50,7 @@ func TestBlockRequiresReasonAndCommentRequiresText(t *testing.T) {
 		t.Fatal("esc must cancel the comment prompt")
 	}
 	m, _ = press(m, "m", "enter")
-	if m.toast != "empty comment" {
+	if m.toast != "error: empty comment" {
 		t.Fatalf("empty comment toast = %q", m.toast)
 	}
 	m, _ = press(m, "m", "h", "i", "enter")
@@ -71,7 +71,7 @@ func TestUnblockAndErrorToastKeepsSelection(t *testing.T) {
 	}
 	f.fail = errTest
 	m, _ = press(m, "u")
-	if m.toast != "boom" || m.selectedID() != "AWIT-LAZY0007" {
+	if m.toast != "error: boom" || m.selectedID() != "AWIT-LAZY0007" {
 		t.Fatalf("error: toast=%q sel=%s", m.toast, m.selectedID())
 	}
 }
@@ -80,7 +80,7 @@ func TestArchiveAndGraphHeaderRefusals(t *testing.T) {
 	f := newFixture()
 	m := newModel(t, f)
 	m, _ = press(m, "o", "c")
-	if m.mode != modeNormal || m.toast != "archived items are read-only" {
+	if m.mode != modeNormal || m.toast != "error: archived items are read-only" {
 		t.Fatalf("archive c: mode=%d toast=%q", m.mode, m.toast)
 	}
 	m, _ = press(m, "o", "2", "tab", "c") // focused tree: cursor lands on the root node row → prompt opens
@@ -107,7 +107,7 @@ func TestExternalCheckAsyncToast(t *testing.T) {
 func TestQuarantineFooterTracksSnapshot(t *testing.T) {
 	f := newFixture()
 	m := newModel(t, f)
-	if !contains(m.View(), "warning: 1 items quarantined, run awit validate") {
+	if !contains(m.View(), "warning: 1 item(s) quarantined, run awit validate") {
 		t.Fatalf("footer missing:\n%s", m.View())
 	}
 	delete(f.items, "AWIT-LAZY0008")

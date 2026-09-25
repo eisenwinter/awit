@@ -54,7 +54,7 @@ func TestQueueRefusalKeepsSelection(t *testing.T) {
 	m := newModel(t, f)
 	f.fail = errTest
 	m, _ = press(m, "3", "j", "space")
-	if m.toast != "boom" || m.selectedID() != "AWIT-LAZY0002" {
+	if m.toast != "error: boom" || m.selectedID() != "AWIT-LAZY0002" {
 		t.Fatalf("toast=%q sel=%s", m.toast, m.selectedID())
 	}
 }
@@ -66,7 +66,7 @@ func TestQueueEmpty(t *testing.T) {
 	}
 	m := newModel(t, f)
 	m, _ = press(m, "3", "space")
-	if m.toast != "no item selected" || !contains(m.View(), "No ready items") {
+	if m.toast != "error: no item selected" || !contains(m.View(), "No ready items") {
 		t.Fatalf("empty queue: toast=%q\n%s", m.toast, m.View())
 	}
 }

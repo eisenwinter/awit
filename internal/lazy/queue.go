@@ -44,7 +44,7 @@ func whyLine(g *graph.Graph, n *graph.Node, onCritical bool) string {
 func (m *Model) claimSelected() {
 	id := m.selectedID()
 	if id == "" {
-		m.toast = "no item selected"
+		m.toast = "error: no item selected"
 		return
 	}
 	m.act(func() error { return m.ops.Claim(id) }, "claimed "+id)
@@ -54,7 +54,7 @@ func (m *Model) claimSelected() {
 func (m *Model) releaseSelected() {
 	id := m.selectedID()
 	if id == "" {
-		m.toast = "no item selected"
+		m.toast = "error: no item selected"
 		return
 	}
 	m.act(func() error { return m.ops.Release(id) }, "reopened "+id)

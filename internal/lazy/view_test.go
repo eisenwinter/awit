@@ -50,7 +50,7 @@ func TestViewQuarantineFooter(t *testing.T) {
 	if m.quarantined == 0 {
 		t.Fatal("quarantined = 0, want footer data from the dangling-dep item")
 	}
-	if !strings.Contains(m.View(), "warning: 1 items quarantined, run awit validate") {
+	if !strings.Contains(m.View(), "warning: 1 item(s) quarantined, run awit validate") {
 		t.Fatalf("frame missing quarantine footer:\n%s", m.View())
 	}
 }
@@ -83,8 +83,8 @@ func TestActToastAndReload(t *testing.T) {
 		t.Fatal("no selection to act on")
 	}
 	m.act(func() error { return errors.New("boom") }, "ok")
-	if m.toast != "boom" {
-		t.Fatalf("toast on error = %q, want boom", m.toast)
+	if m.toast != "error: boom" {
+		t.Fatalf("toast on error = %q, want error: boom", m.toast)
 	}
 	m.act(func() error { return nil }, "closed "+id)
 	if m.toast != "closed "+id {

@@ -1,4 +1,4 @@
-awit lazy-human  [1] Issues [2] Graph [3] Queue [4] Config  focus: list                             
+lazyawit>[1] Issues [2] Graph [3] Queue [4] Config  focus: list                                     
 open: 8  archive: (not loaded)   filters: no filter   source: open
   [AWIT-LAZY0001] open Token extraction       │ detail of AWIT-LAZY0007                             
   [AWIT-LAZY0002] open Migration scripts      │                                                     
@@ -26,5 +26,5 @@ open: 8  archive: (not loaded)   filters: no filter   source: open
                                               │                                                     
                                               │                                                     
                                               │                                                     
-warning: 1 items quarantined, run awit validate
-j/k move  enter pin  / filter  o open/archive  c close  b block  u unblock  m comment  P check  ? help
+warning: 1 item(s) quarantined, run awit validate
+j/k move  enter detail  / filter  o archive  c/b/u/m mutate  P check  ? help

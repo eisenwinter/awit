@@ -210,7 +210,7 @@ func TestConfigSaveErrorToast(t *testing.T) {
 	f := newFixture()
 	f.fail = errTest
 	m, _ := press(newModel(t, f), "4", "j", "j", "j", "j", "e", "x", "enter")
-	if m.toast != "boom" || countCalls(f, "SaveConfig") != 1 || len(f.saved) != 0 {
+	if m.toast != "error: boom" || countCalls(f, "SaveConfig") != 1 || len(f.saved) != 0 {
 		t.Fatalf("toast=%q calls=%v saved=%d", m.toast, f.calls, len(f.saved))
 	}
 	if r, _ := m.config.list.selected(); r.id != "agent_id" {

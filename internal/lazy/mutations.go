@@ -23,13 +23,13 @@ func (m *Model) submitInput() {
 		m.act(func() error { return m.ops.Close(id, v) }, "closed "+id)
 	case inputBlock:
 		if v == "" {
-			m.toast = "block requires a non-empty reason"
+			m.toast = "error: block requires a non-empty reason"
 			return
 		}
 		m.act(func() error { return m.ops.Block(id, v) }, "blocked "+id+": "+v)
 	case inputComment:
 		if v == "" {
-			m.toast = "empty comment"
+			m.toast = "error: empty comment"
 			return
 		}
 		m.act(func() error { return m.ops.Comment(id, v) }, "commented "+id)
@@ -47,12 +47,12 @@ func (m *Model) externalCmd(id string) tea.Cmd {
 // mutationID is the selected item for a write, or ("", false) after a refusal toast.
 func (m *Model) mutationID() (string, bool) {
 	if m.tab == tabIssues && m.issues.showArchive {
-		m.toast = "archived items are read-only"
+		m.toast = "error: archived items are read-only"
 		return "", false
 	}
 	id := m.selectedID()
 	if id == "" {
-		m.toast = "no item selected"
+		m.toast = "error: no item selected"
 		return "", false
 	}
 	return id, true

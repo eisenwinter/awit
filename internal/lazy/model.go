@@ -357,10 +357,11 @@ func (m *Model) reload() {
 }
 
 // act runs fn; on error the toast shows the message, otherwise the toast
-// shows ok and the snapshot reloads.
+// shows ok and the snapshot reloads. Failure toasts carry an "error: "
+// prefix so they read as failures under NO_COLOR.
 func (m *Model) act(fn func() error, ok string) {
 	if err := fn(); err != nil {
-		m.toast = err.Error()
+		m.toast = "error: " + err.Error()
 		return
 	}
 	m.toast = ok

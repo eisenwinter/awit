@@ -1,4 +1,4 @@
-awit lazy-human  [1] Issues [2] Graph [3] Queue [4] Config  focus: list                             
+lazyawit [1] Issues [2] Graph>[3] Queue [4] Config  focus: list                                     
 ready: 3
 > [AWIT-LAZY0001] open Token extraction       │ detail of AWIT-LAZY0001                             
   [AWIT-LAZY0002] open Migration scripts      │                                                     
@@ -25,6 +25,6 @@ ready: 3
                                               │                                                     
                                               │                                                     
                                               │                                                     
-warning: 1 items quarantined, run awit validate
+warning: 1 item(s) quarantined, run awit validate
 why: AWIT-LAZY0001; unblocks=2; critical-path=yes; selection=max-unblocks; tie-break=none
 close reason (optional): [AWIT-LAZY0001] >  

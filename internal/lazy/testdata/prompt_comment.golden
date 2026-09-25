@@ -1,4 +1,4 @@
-awit lazy-human  [1] Issues [2] Graph [3] Queue [4] Config  focus: list                             
+lazyawit>[1] Issues [2] Graph [3] Queue [4] Config  focus: list                                     
 open: 8  archive: (not loaded)   filters: no filter   source: open
 > [AWIT-LAZY0001] open Token extraction       │ detail of AWIT-LAZY0001                             
   [AWIT-LAZY0002] open Migration scripts      │                                                     
@@ -26,5 +26,5 @@ open: 8  archive: (not loaded)   filters: no filter   source: open
                                               │                                                     
                                               │                                                     
                                               │                                                     
-warning: 1 items quarantined, run awit validate
+warning: 1 item(s) quarantined, run awit validate
 comment: [AWIT-LAZY0001] >  

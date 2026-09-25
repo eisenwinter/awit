@@ -23,7 +23,7 @@ var keys = keymap{
 	Left:     key.NewBinding(key.WithKeys("h", "left"), key.WithHelp("h", "focus list")),
 	Right:    key.NewBinding(key.WithKeys("l", "right"), key.WithHelp("l", "focus detail")),
 	Tab:      key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "toggle focus")),
-	Enter:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
+	Enter:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "detail")),
 	Edit:     key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit")),
 	Esc:      key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
 	Search:   key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),

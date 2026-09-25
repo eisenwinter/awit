@@ -119,11 +119,45 @@ func (l *cursorList) view(width int) string {
 }
 
 func truncateRunes(s string, n int) string {
-	if n < 0 {
-		n = 0
+	if n <= 0 {
+		return ""
 	}
-	if r := []rune(s); len(r) > n {
-		return string(r[:n])
+	if lipgloss.Width(s) <= n {
+		return s
 	}
-	return s
+	if n == 1 {
+		return "…"
+	}
+	w := 0
+	var out []rune
+	for _, r := range s {
+		rw := lipgloss.Width(string(r))
+		if w+rw > n-1 {
+			break
+		}
+		out = append(out, r)
+		w += rw
+	}
+	return string(out) + "…"
+}
+
+// truncateHard cuts s to n cells without an ellipsis (hints line).
+func truncateHard(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	if lipgloss.Width(s) <= n {
+		return s
+	}
+	w := 0
+	var out []rune
+	for _, r := range s {
+		rw := lipgloss.Width(string(r))
+		if w+rw > n {
+			break
+		}
+		out = append(out, r)
+		w += rw
+	}
+	return string(out)
 }

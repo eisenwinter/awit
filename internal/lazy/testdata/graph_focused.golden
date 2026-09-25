@@ -1,4 +1,4 @@
-awit lazy-human  [1] Issues [2] Graph [3] Queue [4] Config  focus: list                             
+lazyawit [1] Issues>[2] Graph [3] Queue [4] Config  focus: list                                     
 Focused on AWIT-LAZY0003
   depends on (upstream, depth <= 5)
   [AWIT-LAZY0003] open E2E auth tests
@@ -26,5 +26,5 @@ Focused on AWIT-LAZY0003
 
 
 
-warning: 1 items quarantined, run awit validate
-j/k move  tab overview/focused  enter open in issues  c close  b block  u unblock  m comment  ? help
+warning: 1 item(s) quarantined, run awit validate
+j/k move  tab mode  enter issues  c/b/u/m mutate  ? help

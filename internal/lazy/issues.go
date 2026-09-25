@@ -15,14 +15,20 @@ func (m *Model) issuesRows() []row {
 		for _, it := range m.issues.filter.applyArchive(m.archive) {
 			rows = append(rows, row{id: it.ID, text: m.ops.ArchiveLine(it), selectable: true})
 		}
+		if len(rows) == 0 {
+			return []row{{text: "Archive is empty"}}
+		}
 		return rows
 	}
 	if m.g == nil {
-		return nil
+		return []row{{text: "No open items"}}
 	}
 	var rows []row
 	for _, n := range m.issues.filter.applyOpen(m.g) {
 		rows = append(rows, row{id: n.Item.ID, text: m.ops.Line(n), selectable: !n.Quarantined()})
+	}
+	if len(rows) == 0 {
+		return []row{{text: "No open items"}}
 	}
 	return rows
 }
