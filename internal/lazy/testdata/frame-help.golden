@@ -1,13 +1,14 @@
-awit lazy-human  [1] Issues [2] Graph [3] Queue  focus: list                                        
+awit lazy-human  [1] Issues [2] Graph [3] Queue [4] Config  focus: list                             
 open: 8  archive: (not loaded)   filters: no filter   source: open
 HELP
 
-1/2/3        switch tab (issues/graph/queue)
+1/2/3/4      switch tab (issues/graph/queue/config)
 j/k, up/down move selection (list) / scroll (detail)
 h/left       focus list
 l/right      focus detail
 tab          toggle focus list/detail
 enter        focus detail
+e/enter      edit value (config)
 esc          back to list
 /            search (issues)
 o            toggle open/archive (issues)

@@ -49,6 +49,7 @@ func (m Model) headerView() string {
 		{"Issues", tabIssues},
 		{"Graph", tabGraph},
 		{"Queue", tabQueue},
+		{"Config", tabConfig},
 	}
 	var b strings.Builder
 	b.WriteString("awit lazy-human ")
@@ -80,6 +81,8 @@ func (m Model) tabHeaderView() string {
 			return "Focused on " + m.graphTab.rootID
 		}
 		return "Overview"
+	case tabConfig:
+		return ".awit/config.yaml"
 	case tabQueue:
 		n := 0
 		if m.g != nil {
@@ -148,12 +151,13 @@ func (m Model) helpView() string {
 	return strings.Join([]string{
 		"HELP",
 		"",
-		"1/2/3        switch tab (issues/graph/queue)",
+		"1/2/3/4      switch tab (issues/graph/queue/config)",
 		"j/k, up/down move selection (list) / scroll (detail)",
 		"h/left       focus list",
 		"l/right      focus detail",
 		"tab          toggle focus list/detail",
 		"enter        focus detail",
+		"e/enter      edit value (config)",
 		"esc          back to list",
 		"/            search (issues)",
 		"o            toggle open/archive (issues)",
@@ -179,6 +183,8 @@ func (m Model) hintsView() string {
 		return "j/k move  tab overview/focused  enter open in issues  c close  b block  u unblock  m comment  ? help"
 	case tabQueue:
 		return "j/k move  space claim  r release  c close  b block  u unblock  m comment  P check  ? help"
+	case tabConfig:
+		return "j/k move  e/enter edit  esc cancel  R reload  ? help"
 	default:
 		return "j/k move  enter pin  / filter  o open/archive  c close  b block  u unblock  m comment  P check  ? help"
 	}

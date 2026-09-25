@@ -1,4 +1,4 @@
-awit lazy-human  [1] Issues [2] Graph [3] Queue  focus: list                                        
+awit lazy-human  [1] Issues [2] Graph [3] Queue [4] Config  focus: list                             
 Focused on AWIT-LAZY0003
   depends on (upstream, depth <= 5)
   [AWIT-LAZY0003] open E2E auth tests

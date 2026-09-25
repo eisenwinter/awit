@@ -18,6 +18,7 @@ const (
 	tabIssues tab = iota
 	tabGraph
 	tabQueue
+	tabConfig
 )
 
 type focus int
@@ -64,6 +65,7 @@ type Model struct {
 	issues        issuesState
 	graphTab      graphState
 	queue         queueState
+	config        configState
 	detail        viewport.Model
 	input         textinput.Model
 	inputKind     inputKind
@@ -102,6 +104,12 @@ func New(ops Ops, ctx context.Context, opts Options) Model {
 		m.fatal = err.Error()
 		return m
 	}
+	c, err := ops.Config()
+	if err != nil {
+		m.fatal = err.Error()
+		return m
+	}
+	m.config.cfg = c
 	m.setGraph(g)
 	m.layout()
 	return m
@@ -185,6 +193,11 @@ func (m Model) updateKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case key.Matches(msg, keys.Tab3):
 		m.tab = tabQueue
+		m.refreshDetail()
+		return m, nil
+	case key.Matches(msg, keys.Tab4):
+		m.tab = tabConfig
+		m.focus = focusList
 		m.refreshDetail()
 		return m, nil
 	case key.Matches(msg, keys.Help):
@@ -280,9 +293,14 @@ func (m *Model) rebuildRows() {
 	if r, ok := m.queue.list.selected(); ok {
 		keepQueue = r.id
 	}
+	var keepConfig string
+	if r, ok := m.config.list.selected(); ok {
+		keepConfig = r.id
+	}
 	m.issues.list.setRows(m.issuesRows(), keepIssues)
 	m.graphTab.list.setRows(m.graphRows(), keepGraph)
 	m.queue.list.setRows(queueRows(m.g, m.ops.Line), keepQueue)
+	m.config.list.setRows(configRows(m.config.cfg), keepConfig)
 	m.refreshDetail()
 }
 
@@ -291,6 +309,12 @@ func (m *Model) refreshDetail() {
 	switch m.tab {
 	case tabIssues:
 		content = m.issuesDetail()
+	case tabConfig:
+		if r, ok := m.config.list.selected(); ok {
+			content = configDetail(m.config.cfg, r.id)
+		} else {
+			content = "no selectable item"
+		}
 	default:
 		id := m.selectedID()
 		if id == "" || m.g == nil {
@@ -320,6 +344,11 @@ func (m *Model) reload() {
 			m.issues.archiveN = len(items)
 		}
 	}
+	if c, err := m.ops.Config(); err != nil {
+		m.toast = err.Error()
+	} else {
+		m.config.cfg = c
+	}
 	m.setGraph(g)
 }
 
@@ -335,6 +364,9 @@ func (m *Model) act(fn func() error, ok string) {
 }
 
 func (m *Model) selectedID() string {
+	if m.tab == tabConfig {
+		return ""
+	}
 	if m.tab == tabIssues && m.issues.showArchive {
 		return ""
 	}
@@ -350,6 +382,8 @@ func (m *Model) activeList() *cursorList {
 		return &m.graphTab.list
 	case tabQueue:
 		return &m.queue.list
+	case tabConfig:
+		return &m.config.list
 	default:
 		return &m.issues.list
 	}
@@ -367,7 +401,7 @@ func (m *Model) layout() {
 	if body < 1 {
 		body = 1
 	}
-	for _, l := range []*cursorList{&m.issues.list, &m.graphTab.list, &m.queue.list} {
+	for _, l := range []*cursorList{&m.issues.list, &m.graphTab.list, &m.queue.list, &m.config.list} {
 		l.height = body
 	}
 	_, detailW := m.columns()

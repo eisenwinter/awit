@@ -177,6 +177,7 @@ func newFixture() *fakeOps {
 			mk("AWIT-LAZY0101", "Old thing one", item.StatusClosed, nil, []string{"auth"}),
 			mk("AWIT-LAZY0102", "Old thing two", item.StatusClosed, nil, nil),
 		},
+		cfg: config.Config{Prefix: "AWIT", StaleClaim: config.Duration(2 * time.Hour), Labels: []string{"auth", "db"}, Template: ".awit/templates/workitem.md"},
 	}
 }
 

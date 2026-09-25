@@ -3,13 +3,12 @@ id: AWIT-0P1XYZSZ
 title: 'lazy: Config tab shell — tab 4, rows, detail, header/help/hints, reload from disk'
 brief: >-
   Adds tabConfig with one row per config.yaml key (schema order, "(unset)" for empties), per-key rule/default/current detail text, the 4 and e bindings, header "[4] Config", help and hint rows, config loaded in New and re-read in reload; mutation keys are inert on the tab. The only ticket that regenerates existing goldens — header line and two help rows, nothing else.
-status: in_progress
+status: closed
 deps: [AWIT-0P1XYZSP, AWIT-0P1XYZSS]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P1XYZSZ/20260925T175608Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T17:48:18Z"
 ---
 ## Summary
 

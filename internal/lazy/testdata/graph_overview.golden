@@ -1,4 +1,4 @@
-awit lazy-human  [1] Issues [2] Graph [3] Queue  focus: list                                        
+awit lazy-human  [1] Issues [2] Graph [3] Queue [4] Config  focus: list                             
 Overview
   === GRAPH WARNINGS ===
   [DANGLING DEP] AWIT-LAZY0008 depends on unknown AWIT-LAZY0999 (excluded from next)

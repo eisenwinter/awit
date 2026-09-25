@@ -90,6 +90,9 @@ func (m *Model) showValidate() {
 }
 
 func (m *Model) mutationKey(msg tea.KeyMsg) (tea.Cmd, bool) {
+	if m.tab == tabConfig {
+		return nil, false
+	}
 	switch {
 	case key.Matches(msg, keys.Close):
 		m.beginInput(inputClose)

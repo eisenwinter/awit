@@ -1,13 +1,13 @@
 awit lazy-human  [1] Issues [2] Graph [3] Queue [4] Config  focus: list                             
-open: 8  archive: 2   filters: no filter   source: archive
-  [AWIT-LAZY0101] archived Old thing one      │ archive of AWIT-LAZY0102                            
-> [AWIT-LAZY0102] archived Old thing two      │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
-                                              │                                                     
+.awit/config.yaml
+> prefix         AWIT                         │ required. Id prefix for new items: 2-8 uppercase alp
+  default_labels (unset)                      │ current: AWIT                                       
+  labels         auth, db                     │                                                     
+  stale_claim    2h                           │ e/enter edits, esc discards, R re-reads the file.   
+  agent_id       (unset)                      │ saving rewrites .awit/config.yaml; comments and unkn
+  commit         (unset)                      │                                                     
+  external_push  (unset)                      │                                                     
+  template       .awit/templates/workitem.md  │                                                     
                                               │                                                     
                                               │                                                     
                                               │                                                     
@@ -27,4 +27,4 @@ open: 8  archive: 2   filters: no filter   source: archive
                                               │                                                     
                                               │                                                     
 warning: 1 items quarantined, run awit validate
-j/k move  enter pin  / filter  o open/archive  c close  b block  u unblock  m comment  P check  ? help
+j/k move  e/enter edit  esc cancel  R reload  ? help

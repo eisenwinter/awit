@@ -18,6 +18,8 @@ func TestKeymapBindings(t *testing.T) {
 		{"Tab1", keys.Tab1, []string{"1"}, "2"},
 		{"Tab2", keys.Tab2, []string{"2"}, "1"},
 		{"Tab3", keys.Tab3, []string{"3"}, "1"},
+		{"Tab4", keys.Tab4, []string{"4"}, "3"},
+		{"Edit", keys.Edit, []string{"e"}, "enter"},
 		{"Up", keys.Up, []string{"k", "up"}, "j"},
 		{"Down", keys.Down, []string{"j", "down"}, "k"},
 		{"Left", keys.Left, []string{"h", "left"}, "l"},
@@ -75,6 +77,10 @@ func TestKeymapTabs(t *testing.T) {
 	m, _ = press(m, "3")
 	if m.tab != tabQueue {
 		t.Fatalf("after 3 tab = %v, want tabQueue", m.tab)
+	}
+	m, _ = press(m, "4")
+	if m.tab != tabConfig {
+		t.Fatalf("after 4 tab = %v, want tabConfig", m.tab)
 	}
 	m, _ = press(m, "1")
 	if m.tab != tabIssues {
