@@ -3,13 +3,12 @@ id: AWIT-0P1XYZSP
 title: 'config: expose Load''s rules — Normalize, ValidPrefix, Duration.String'
 brief: >-
   Refactors pkg/config so Load = Unmarshal + Normalize, exports the init prefix grammar as ValidPrefix (init.go cut over) and gives Duration a String method; no behaviour change, groundwork for the lazyawit Config tab's validation.
-status: in_progress
+status: closed
 deps: []
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P1XYZSP/20260925T174807Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T17:43:16Z"
 ---
 ## Summary
 

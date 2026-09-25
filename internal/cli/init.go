@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/eisenwinter/awit/internal/skill"
@@ -16,8 +15,6 @@ import (
 	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
 )
-
-var prefixRE = regexp.MustCompile(`^[A-Z][A-Z0-9]{1,7}$`)
 
 var initCmd = &cli.Command{
 	Name:  "init",
@@ -46,7 +43,7 @@ var initCmd = &cli.Command{
 
 func initAction(_ context.Context, cmd *cli.Command) error {
 	prefix := cmd.String("prefix")
-	if !prefixRE.MatchString(prefix) {
+	if !config.ValidPrefix(prefix) {
 		return fmt.Errorf("prefix must be 2-8 uppercase alphanumerics starting with a letter")
 	}
 	if cmd.Bool("skills") && cmd.Bool("no-skills") {
