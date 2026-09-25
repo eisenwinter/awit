@@ -89,11 +89,12 @@ or error), `2` usage error.
 
 `lazyawit` is a separate binary with only `--repo` and `--agent`. It opens a
 keyboard-driven TUI: Issues (list + detail), Graph (prime overview / focused
-DAG), Queue (ready order); `c/b/u/m` close/block/unblock/comment,
-`space`/`r` claim/release, `V` validate, `P` external check; no mouse. It
-writes through the same code the CLI uses and never pushes external state or
-git-commits. `awit` itself has no TUI, so an agent holding only `awit`
-cannot open one.
+DAG), Queue (ready order), Config (view and edit `.awit/config.yaml` with
+the same validation `awit` applies on load); `c/b/u/m`
+close/block/unblock/comment, `space`/`r` claim/release, `e` edit a config
+value, `V` validate, `P` external check; no mouse. It writes through the
+same code the CLI uses and never pushes external state or git-commits.
+`awit` itself has no TUI, so an agent holding only `awit` cannot open one.
 
 When a graph-reading command (`list`, `next`, `prime`, `show`, `validate`,
 `dep`, `archive`) loads quarantined items or broken files, it prints one

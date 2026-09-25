@@ -28,7 +28,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	cli.VersionPrinter = func(cmd *cli.Command) { fmt.Fprintf(cmd.Root().Writer, "lazyawit %s\n", ops.Version) }
 	root := &cli.Command{
 		Name:            "lazyawit",
-		Usage:           "Browse and triage .awit items in a keyboard-driven TUI (tabs: issues, graph, queue)",
+		Usage:           "Browse and triage .awit items in a keyboard-driven TUI (tabs: issues, graph, queue, config)",
 		Version:         ops.Version,
 		HideHelpCommand: true,
 		Reader:          stdin,

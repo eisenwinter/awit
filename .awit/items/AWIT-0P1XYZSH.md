@@ -3,13 +3,12 @@ id: AWIT-0P1XYZSH
 title: 'docs+usage: Config tab in README, usage, design-spec, schema, lazyawit Usage and package docs'
 brief: >-
   Updates every three-tab mention and key table for the fourth tab and the e key, adds the schema.md note that lazyawit saves are validated full rewrites, changes the lazyawit root Usage and internal/lazy package doc, and records the manual smoke; no behaviour change, no golden change.
-status: in_progress
+status: closed
 deps: [AWIT-0P1XYZSK]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P1XYZSH/20260925T182624Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T18:15:26Z"
 ---
 ## Summary
 

@@ -169,14 +169,19 @@ focused dependency DAG for one item), and the Queue tab shows the ready
 items in `prime` order. In-TUI close, block, unblock, comment, claim and
 release reuse the CLI write paths and never push external state or
 git-commit; `P` runs a read-only `external check`. `awit` itself has no
-TUI; agents that only have `awit` cannot open it.
+TUI; agents that only have `awit` cannot open it. The Config tab lists every
+`config.yaml` key with its rule, default and current value; `e`/`enter` edits
+one value, which is checked with the rules `awit` applies when loading the
+file (plus the `prefix` grammar) and then written atomically; `R` re-reads
+the file.
 
 | Key | Action |
 | --- | --- |
-| `1/2/3` | Switch tabs (Issues / Graph / Queue) |
+| `1/2/3/4` | Switch tabs (Issues / Graph / Queue / Config) |
 | `j/k` | Move the cursor |
 | `h/l`/`tab` | Move focus between list and detail (Graph: `tab` toggles overview/focused) |
 | `enter` | Pin / open the selection in Issues |
+| `e` | Edit the selected config value (Config; `enter` also edits) |
 | `/` | Filter using `awit list` flags (`-s`, `-l`, `--ready`, `--blocked`, `--quarantined`) plus free words as search |
 | `o` | Toggle open/archive source |
 | `c` | Close the selected item (prompts for a reason) |
@@ -185,7 +190,7 @@ TUI; agents that only have `awit` cannot open it.
 | `m` | Comment on the selected item |
 | `space` | Claim the selected queue item |
 | `r` | Release the selected queue item |
-| `R` | Reload from disk |
+| `R` | Reload items and config from disk |
 | `P` | Run `external check` on the selection |
 | `V` | Show the `validate` report |
 | `?` | Help |
