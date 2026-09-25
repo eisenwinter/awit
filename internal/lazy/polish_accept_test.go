@@ -55,7 +55,7 @@ func TestPolishActiveTabMarker(t *testing.T) {
 		press string
 		want  string
 	}{
-		{"1", ">[1] Issues"},
+		{"1", ">[1] Work items"},
 		{"2", ">[2] Graph"},
 		{"3", ">[3] Queue"},
 		{"4", ">[4] Config"},
@@ -79,7 +79,7 @@ func TestPolishGraphEmptyRootHeader(t *testing.T) {
 	m.tab = tabGraph
 	m.graphTab.focused = true
 	m.graphTab.rootID = ""
-	if got := m.tabHeaderView(); got != "Focused (no root — select an item on Issues)" {
+	if got := m.tabHeaderView(); got != "Focused (no root — select an item on Work items)" {
 		t.Fatalf("header = %q, want no-root hint", got)
 	}
 }

@@ -3,13 +3,12 @@ id: AWIT-0P2890SR
 title: 'lazyawit: coherent Work-items wording and top-bar spacing'
 brief: >-
   Rename the Issues tab to Work items in all user-facing strings and widen top-bar spacing.
-status: in_progress
+status: closed
 deps: []
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P2890SR/20260925T203833Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T20:31:33Z"
 ---
 ## Summary
 Coherent work-item wording in lazyawit: the first tab and all user-facing strings say "Issues"; the tool's unit is the work item. Rename to "Work items" everywhere users read it, and widen top-bar tab spacing.

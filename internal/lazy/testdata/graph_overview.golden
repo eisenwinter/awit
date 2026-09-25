@@ -1,4 +1,4 @@
-lazyawit [1] Issues>[2] Graph [3] Queue [4] Config  focus: list                                     
+lazyawit  [1] Work items  >[2] Graph  [3] Queue  [4] Config  focus: list                            
 Overview
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
 │  === GRAPH WARNINGS ===                                                                          │
@@ -27,4 +27,4 @@ Overview
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 warning: 1 item(s) quarantined, run awit validate
 
-j/k move  tab mode  enter issues  c/b/u/m mutate  ? help
+j/k move  tab mode  enter work items  c/b/u/m mutate  ? help

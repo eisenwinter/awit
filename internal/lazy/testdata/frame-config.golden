@@ -1,4 +1,4 @@
-lazyawit [1] Issues [2] Graph [3] Queue>[4] Config  focus: list                                     
+lazyawit  [1] Work items  [2] Graph  [3] Queue  >[4] Config  focus: list                            
 .awit/config.yaml
 ╭───────────────────────────────────────────╮╭─────────────────────────────────────────────────────╮
 │> prefix         AWIT                      ││required. Id prefix for new items: 2-8 uppercase     │

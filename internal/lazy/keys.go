@@ -14,7 +14,7 @@ type keymap struct {
 // mutate through Ops, space/r drive the queue, R reloads, P/V inspect,
 // ? helps, q quits.
 var keys = keymap{
-	Tab1:     key.NewBinding(key.WithKeys("1"), key.WithHelp("1", "issues tab")),
+	Tab1:     key.NewBinding(key.WithKeys("1"), key.WithHelp("1", "work items tab")),
 	Tab2:     key.NewBinding(key.WithKeys("2"), key.WithHelp("2", "graph tab")),
 	Tab3:     key.NewBinding(key.WithKeys("3"), key.WithHelp("3", "queue tab")),
 	Tab4:     key.NewBinding(key.WithKeys("4"), key.WithHelp("4", "config tab")),

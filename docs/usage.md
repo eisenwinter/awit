@@ -162,7 +162,7 @@ There is no `unarchive`; `git revert` is the way back.
 ## Browsing interactively
 
 `lazyawit` (a separate binary; flags `--repo` and `--agent`) is a
-keyboard-driven triage TUI over the same data the CLI prints. The Issues
+keyboard-driven triage TUI over the same data the CLI prints. The Work items
 tab shows the `awit list` rows with the `show --full`
 detail beside them, the Graph tab shows the `awit prime` overview (or the
 focused dependency DAG for one item), and the Queue tab shows the ready
@@ -177,10 +177,10 @@ the file.
 
 | Key | Action |
 | --- | --- |
-| `1/2/3/4` | Switch tabs (Issues / Graph / Queue / Config) |
+| `1/2/3/4` | Switch tabs (Work items / Graph / Queue / Config) |
 | `j/k` | Move the cursor |
 | `h/l`/`tab` | Move focus between list and detail (Graph: `tab` toggles overview/focused) |
-| `enter` | Pin / open the selection in Issues |
+| `enter` | Pin / open the selection in Work items |
 | `e` | Edit the selected config value (Config; `enter` also edits) |
 | `/` | Filter using `awit list` flags (`-s`, `-l`, `--ready`, `--blocked`, `--quarantined`) plus free words as search |
 | `o` | Toggle open/archive source |

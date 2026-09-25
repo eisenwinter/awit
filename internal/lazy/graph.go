@@ -128,7 +128,7 @@ func treeRows(root *graph.Node, next func(*graph.Node) []*graph.Node) []row {
 func focusedRows(g *graph.Graph, rootID string) []row {
 	root := g.Nodes[rootID]
 	if rootID == "" || root == nil {
-		return []row{{text: "select an item on the Issues tab first"}}
+		return []row{{text: "select an item on the Work items tab first"}}
 	}
 	deps := func(n *graph.Node) []*graph.Node { return n.Deps }
 	unblocks := func(n *graph.Node) []*graph.Node { return n.Unblocks }

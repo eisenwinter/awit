@@ -88,7 +88,7 @@ or error), `2` usage error.
 ## lazyawit (human TUI)
 
 `lazyawit` is a separate binary with only `--repo` and `--agent`. It opens a
-keyboard-driven TUI: Issues (list + detail), Graph (prime overview / focused
+keyboard-driven TUI: Work items (list + detail), Graph (prime overview / focused
 DAG), Queue (ready order), Config (view and edit `.awit/config.yaml` with
 the same validation `awit` applies on load); `c/b/u/m`
 close/block/unblock/comment, `space`/`r` claim/release, `e` edit a config

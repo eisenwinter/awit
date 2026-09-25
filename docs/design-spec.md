@@ -194,7 +194,7 @@ flowchart TD
 
 Global flags: `--format compact|table|json`, `--repo <dir>`, `--no-color`.
 
-`lazyawit` is a separate binary in the same release (archive `lazyawit_<version>_<os>_<arch>`), flags `--repo` and `--agent` only. It runs the keyboard-driven browse + triage TUI (tabs: issues/graph/queue/config) directly; in-TUI close/block/unblock/comment/claim/release call the same `internal/ops` functions the CLI commands call, never push external state and never git-commit; `P` runs a read-only `external check`. `awit` has no `lazy-human` command and no TUI code in its import graph. The Config tab edits `.awit/config.yaml` through `pkg/config` `Load`/`Write` with the same validation and the `init` prefix grammar; a save rewrites the file under the store lock.
+`lazyawit` is a separate binary in the same release (archive `lazyawit_<version>_<os>_<arch>`), flags `--repo` and `--agent` only. It runs the keyboard-driven browse + triage TUI (tabs: work items/graph/queue/config) directly; in-TUI close/block/unblock/comment/claim/release call the same `internal/ops` functions the CLI commands call, never push external state and never git-commit; `P` runs a read-only `external check`. `awit` has no `lazy-human` command and no TUI code in its import graph. The Config tab edits `.awit/config.yaml` through `pkg/config` `Load`/`Write` with the same validation and the `init` prefix grammar; a save rewrites the file under the store lock.
 
 Mutating operations from subdirectories log a single path notice to stderr. Graph commands loading quarantined items print `warning: N items quarantined, run awit validate` to stderr.
 

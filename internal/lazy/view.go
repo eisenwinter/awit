@@ -68,12 +68,15 @@ func truncateLines(s string, width int) string {
 	return strings.Join(lines, "\n")
 }
 
+// topBarGap is the single source for spacing between top-bar tab options.
+const topBarGap = "  "
+
 func (m Model) headerView() string {
 	tabs := []struct {
 		name string
 		t    tab
 	}{
-		{"Issues", tabIssues},
+		{"Work items", tabIssues},
 		{"Graph", tabGraph},
 		{"Queue", tabQueue},
 		{"Config", tabConfig},
@@ -81,11 +84,12 @@ func (m Model) headerView() string {
 	var b strings.Builder
 	b.WriteString(stBrand.Render("lazyawit"))
 	for i := range tabs {
+		b.WriteString(topBarGap)
 		label := fmt.Sprintf("[%d] %s", i+1, tabs[i].name)
 		if m.tab == tabs[i].t {
 			b.WriteString(stTabActive.Render(">" + label))
 		} else {
-			b.WriteString(" " + stTabInactive.Render(label))
+			b.WriteString(stTabInactive.Render(label))
 		}
 	}
 	focusName := "list"
@@ -108,7 +112,7 @@ func (m Model) tabHeaderView() string {
 	case tabGraph:
 		if m.graphTab.focused {
 			if m.graphTab.rootID == "" {
-				s = "Focused (no root — select an item on Issues)"
+				s = "Focused (no root — select an item on Work items)"
 				break
 			}
 			s = "Focused on " + m.graphTab.rootID
@@ -182,7 +186,7 @@ func (m Model) helpView() string {
 	lines := []string{
 		"HELP",
 		"",
-		"1/2/3/4      switch tab (issues/graph/queue/config)",
+		"1/2/3/4      switch tab (work items/graph/queue/config)",
 		"j/k, up/down move selection (list) / scroll (detail)",
 		"h/left       focus list",
 		"l/right      focus detail",
@@ -190,8 +194,8 @@ func (m Model) helpView() string {
 		"enter        focus detail",
 		"e/enter      edit value (config)",
 		"esc          back to list",
-		"/            search (issues)",
-		"o            toggle open/archive (issues)",
+		"/            search (work items)",
+		"o            toggle open/archive (work items)",
 		"c            close item",
 		"b            block item",
 		"u            unblock item",
@@ -216,7 +220,7 @@ func (m Model) hintsView() string {
 	var s string
 	switch m.tab {
 	case tabGraph:
-		s = "j/k move  tab mode  enter issues  c/b/u/m mutate  ? help"
+		s = "j/k move  tab mode  enter work items  c/b/u/m mutate  ? help"
 	case tabQueue:
 		s = "j/k move  space claim  r release  c/b/u/m mutate  P check  ? help"
 	case tabConfig:

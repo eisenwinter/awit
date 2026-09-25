@@ -1,5 +1,5 @@
 // Package lazy implements the lazyawit TUI: a keyboard-driven
-// Bubble Tea program (tabs: issues, graph, queue, config) for browsing open items
+// Bubble Tea program (tabs: work items, graph, queue, config) for browsing open items
 // and archive, inspecting details, triaging the ready queue and editing
 // .awit/config.yaml.
 //
