@@ -10,8 +10,13 @@ import (
 var tabActive = lipgloss.NewStyle().Bold(true)
 
 // View implements tea.Model: two header lines, the pane area (or help),
-// quarantine footer, queue why line, toast, and the key-hint line.
+// quarantine footer, queue why line, toast slot, and the key-hint line. The
+// toast slot renders every frame (blank when empty) so the body height never
+// moves when a toast appears. Terminals below 50x12 get only the gate line.
 func (m Model) View() string {
+	if m.width < 50 || m.height < 12 {
+		return fmt.Sprintf("lazyawit needs >= 50x12 (have %dx%d)", m.width, m.height)
+	}
 	if m.fatal != "" {
 		return truncateLines(m.fatalView(), m.width)
 	}
@@ -30,9 +35,7 @@ func (m Model) View() string {
 	if m.tab == tabQueue {
 		b.WriteString("\n" + m.whyView())
 	}
-	if m.toast != "" {
-		b.WriteString("\n" + m.toast)
-	}
+	b.WriteString("\n" + m.toast)
 	hints := false
 	if m.mode == modeInput || m.mode == modeSearch {
 		b.WriteString("\n" + m.promptView())
@@ -88,7 +91,7 @@ func (m Model) headerView() string {
 	}
 	focusName := "list"
 	if m.focus == focusDetail {
-		focusName = "detail"
+		focusName = fmt.Sprintf("detail %d%%", int(m.detail.ScrollPercent()*100+0.5))
 	}
 	tail := "  focus: " + focusName
 	out := b.String() + tail
@@ -138,22 +141,24 @@ func padLines(lines []string, n int) []string {
 	return lines[:n]
 }
 
-// panesView draws the list beside the detail viewport. Narrow terminals show
-// only the focused pane at full width.
+// panesView draws the list beside the detail viewport. The list gets the
+// focused flag so its cursor goes plain when the detail has focus. Narrow
+// terminals show only the focused pane at full width.
 func (m Model) panesView() string {
 	body := m.bodyHeight()
+	listFocused := m.focus == focusList
 	if m.tab == tabGraph {
 		// No detail pane: the overview or tree fills the body full width.
-		return m.activeList().view(m.width)
+		return m.activeList().view(m.width, listFocused)
 	}
 	if m.width < 80 {
 		if m.focus == focusDetail {
 			return strings.Join(padLines(strings.Split(m.detail.View(), "\n"), body), "\n")
 		}
-		return m.activeList().view(m.width)
+		return m.activeList().view(m.width, listFocused)
 	}
 	leftW, detailW := m.columns()
-	left := padLines(strings.Split(m.activeList().view(leftW), "\n"), body)
+	left := padLines(strings.Split(m.activeList().view(leftW, listFocused), "\n"), body)
 	right := padLines(strings.Split(m.detail.View(), "\n"), body)
 	lines := make([]string, 0, body)
 	for i := range body {

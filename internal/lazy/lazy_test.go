@@ -27,10 +27,12 @@ func TestMain(m *testing.M) {
 // return it so refusal paths can be tested.
 var errTest = errors.New("boom")
 
-// fakeOps is a TTY-free Ops over in-memory items.
+// fakeOps is a TTY-free Ops over in-memory items. Setting detail overrides
+// Detail() with long content for wrap tests.
 type fakeOps struct {
 	items    map[string]*item.Item
 	archive  []*item.Item
+	detail   string
 	loadErr  error
 	fail     error
 	calls    []string
@@ -65,6 +67,9 @@ func (f *fakeOps) ArchiveLine(it *item.Item) string {
 }
 
 func (f *fakeOps) Detail(g *graph.Graph, id string) string {
+	if f.detail != "" {
+		return f.detail
+	}
 	return "detail of " + id + "\n"
 }
 

@@ -75,7 +75,7 @@ func TestCursorListViewHeight(t *testing.T) {
 	var l cursorList
 	l.height = 4
 	l.setRows(sampleRows(), "")
-	view := l.view(100)
+	view := l.view(100, true)
 	lines := strings.Split(view, "\n")
 	if len(lines) != 4 {
 		t.Fatalf("view lines = %d, want exactly height (4):\n%q", len(lines), view)
@@ -87,7 +87,7 @@ func TestCursorListViewHeight(t *testing.T) {
 		t.Fatalf("header line = %q, want \"  \" prefix", lines[0])
 	}
 	// Rune-truncation to width.
-	wide := l.view(10)
+	wide := l.view(10, true)
 	for _, line := range strings.Split(wide, "\n") {
 		if n := len([]rune(line)); n > 10 {
 			t.Fatalf("line %q exceeds width 10", line)

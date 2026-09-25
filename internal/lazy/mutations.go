@@ -86,7 +86,7 @@ func (m *Model) showValidate() {
 	if m.g == nil {
 		return
 	}
-	m.detail.SetContent(m.ops.Validate(m.g))
+	m.setDetail(m.ops.Validate(m.g))
 	m.detail.GotoTop()
 	m.focus = focusDetail
 }

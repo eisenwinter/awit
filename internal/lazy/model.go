@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/eisenwinter/awit/pkg/item"
 )
@@ -68,6 +69,7 @@ type Model struct {
 	queue         queueState
 	config        configState
 	detail        viewport.Model
+	detailRaw     string // unwrapped detail source; wrapped to detail.Width on set/resize
 	input         textinput.Model
 	inputKind     inputKind
 	inputTarget   string
@@ -327,8 +329,24 @@ func (m *Model) refreshDetail() {
 			content = m.ops.Detail(m.g, id)
 		}
 	}
-	m.detail.SetContent(content)
+	m.setDetail(content)
 	m.detail.GotoTop()
+}
+
+// setDetail stores the unwrapped source and wraps it to the current detail
+// width; layout re-wraps the stored source on resize.
+func (m *Model) setDetail(content string) {
+	m.detailRaw = content
+	m.detail.SetContent(wrapDetail(content, m.detail.Width))
+}
+
+// wrapDetail word-wraps s to width cells without breaking words; long words
+// still exceed width and are ellipsis-cut by the pane renderer.
+func wrapDetail(s string, width int) string {
+	if width < 1 {
+		return s
+	}
+	return ansi.Wordwrap(s, width, " ")
 }
 
 // reload rebuilds the snapshot; on error the toast reports it and the old
@@ -412,17 +430,19 @@ func (m *Model) layout() {
 	_, detailW := m.columns()
 	m.detail.Width = detailW
 	m.detail.Height = body
+	m.detail.SetContent(wrapDetail(m.detailRaw, detailW))
 }
 
+// footerLines reserves fixed footer slots so the body height never moves
+// when the toast toggles: the hints/prompt line, the always-rendered toast
+// line (blank when empty), the quarantine line when items are quarantined,
+// and the why line on the Queue tab (always rendered there).
 func (m *Model) footerLines() int {
-	n := 1 // hints
+	n := 2 // hints + toast slot
 	if m.quarantined > 0 {
 		n++
 	}
 	if m.tab == tabQueue {
-		n++
-	}
-	if m.toast != "" {
 		n++
 	}
 	return n

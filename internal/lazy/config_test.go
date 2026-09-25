@@ -58,10 +58,14 @@ func TestConfigDetail(t *testing.T) {
 	}
 	m, _ = press(m, "j", "j", "j", "j", "j")
 	v = m.View()
-	for _, s := range []string{"whether awit next --claim git-commits", "default: true (unset)", "current: (unset)"} {
+	for _, s := range []string{"default: true (unset)", "current: (unset)"} {
 		if !contains(v, s) {
 			t.Fatalf("commit detail missing %q:\n%s", s, v)
 		}
+	}
+	// Long copy wraps in the pane; assert it on the unwrapped source.
+	if !contains(m.detailRaw, "whether awit next --claim git-commits") {
+		t.Fatalf("commit detail missing sentence:\n%s", m.detailRaw)
 	}
 	if m.selectedID() != "" {
 		t.Fatalf("selectedID on config tab = %q, want empty", m.selectedID())

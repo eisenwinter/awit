@@ -13,6 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/eisenwinter/awit/internal/lazy"
 	"github.com/eisenwinter/awit/internal/ops"
+	isatty "github.com/mattn/go-isatty"
 	"github.com/urfave/cli/v3"
 )
 
@@ -59,12 +60,16 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return 1
 }
 
-// tui is the root Action: refuses positional arguments (exit 2), opens the
-// store via ops.Open, prints ops.WalkedUpNote to stderr when non-empty,
-// and runs the alt-screen program; an Open error renders the fatal screen.
+// tui is the root Action: refuses positional arguments (exit 2), refuses
+// non-terminal stdio (exit 1), opens the store via ops.Open, prints
+// ops.WalkedUpNote to stderr when non-empty, and runs the alt-screen
+// program; an Open error renders the fatal screen.
 func tui(ctx context.Context, cmd *cli.Command) error {
 	if cmd.Args().Len() > 0 {
 		return cli.Exit(fmt.Sprintf("lazyawit takes no arguments, got %q (run \"lazyawit --help\")", cmd.Args().First()), 2)
+	}
+	if !isTerm(cmd.Root().Reader, cmd.Root().Writer) {
+		return cli.Exit("lazyawit requires an interactive terminal", 1)
 	}
 	repo := cmd.String("repo")
 	s, err := ops.Open(repo)
@@ -79,4 +84,19 @@ func tui(ctx context.Context, cmd *cli.Command) error {
 	}
 	_, err = tea.NewProgram(m, tea.WithAltScreen(), tea.WithInput(cmd.Root().Reader), tea.WithOutput(cmd.Root().Writer), tea.WithContext(ctx)).Run()
 	return err
+}
+
+// isTerm reports whether r and w are both character-device terminals.
+// Anything else (pipes, buffers, files) refuses the TUI: Bubble Tea needs a
+// real terminal for the alt screen and key input.
+func isTerm(r io.Reader, w io.Writer) bool {
+	rf, ok := r.(*os.File)
+	if !ok || !isatty.IsTerminal(rf.Fd()) {
+		return false
+	}
+	wf, ok := w.(*os.File)
+	if !ok || !isatty.IsTerminal(wf.Fd()) {
+		return false
+	}
+	return true
 }

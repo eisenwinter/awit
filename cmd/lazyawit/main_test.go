@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestMain(m *testing.M) { os.Setenv("NO_COLOR", "1"); os.Exit(m.Run()) }
@@ -66,31 +65,15 @@ func TestUsageErrors(t *testing.T) {
 	}
 }
 
-func TestQuitsHeadless(t *testing.T) {
+// Without an interactive terminal (pipes in tests), lazyawit refuses with
+// exit 1 instead of starting the TUI.
+func TestRequiresInteractiveTerminal(t *testing.T) {
 	dir := copyFixture(t, "clean")
-	done := make(chan int, 1)
-	go func() { code, _, _ := drive(t, "q", "--repo", dir, "--agent", "claude"); done <- code }()
-	select {
-	case code := <-done:
-		if code != 0 {
-			t.Fatalf("exit %d", code)
-		}
-	case <-time.After(10 * time.Second):
-		t.Fatal("lazyawit did not exit on q within 10s")
+	if code, _, stderr := drive(t, "", "--repo", dir, "--agent", "claude"); code != 1 || !strings.Contains(stderr, "lazyawit requires an interactive terminal") {
+		t.Fatalf("repo run: exit %d stderr %q, want 1 + refusal", code, stderr)
 	}
-}
-
-func TestFatalScreenQuitsZero(t *testing.T) {
 	t.Setenv("AWIT_REPO", "")
-	dir := t.TempDir()
-	done := make(chan int, 1)
-	go func() { code, _, _ := drive(t, "q", "--repo", dir); done <- code }()
-	select {
-	case code := <-done:
-		if code != 0 {
-			t.Fatalf("exit %d", code)
-		}
-	case <-time.After(10 * time.Second):
-		t.Fatal("fatal screen did not exit on q within 10s")
+	if code, _, stderr := drive(t, "", "--repo", t.TempDir()); code != 1 || !strings.Contains(stderr, "lazyawit requires an interactive terminal") {
+		t.Fatalf("fatal run: exit %d stderr %q, want 1 + refusal", code, stderr)
 	}
 }

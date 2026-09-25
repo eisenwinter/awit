@@ -95,21 +95,23 @@ func (l *cursorList) selected() (row, bool) {
 	return row{}, false
 }
 
-// view renders exactly l.height lines: "> "+text for the cursor row,
-// "  "+text otherwise, rune-truncated to width, padded with blank lines.
-func (l *cursorList) view(width int) string {
+// view renders exactly l.height lines. When focused, the cursor row carries
+// "> " plus reverse; unfocused (detail has focus) it renders plain like
+// every other row, so focus stays unambiguous without color. Text is
+// rune-truncated to width, short lists padded with blank lines.
+func (l *cursorList) view(width int, focused bool) string {
 	if width < 3 {
 		width = 3
 	}
 	lines := make([]string, 0, l.height)
-	for i := 0; i < l.height; i++ {
+	for i := range l.height {
 		idx := l.offset + i
 		if idx < 0 || idx >= len(l.rows) {
 			lines = append(lines, "")
 			continue
 		}
 		r := l.rows[idx]
-		if idx == l.cursor && r.selectable {
+		if focused && idx == l.cursor && r.selectable {
 			lines = append(lines, cursorStyle.Render("> "+truncateRunes(r.text, width-2)))
 			continue
 		}

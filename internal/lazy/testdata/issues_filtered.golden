@@ -25,6 +25,6 @@ open: 8  archive: (not loaded)   filters: [--ready]   source: open
                                               │                                                     
                                               │                                                     
                                               │                                                     
-                                              │                                                     
 warning: 1 item(s) quarantined, run awit validate
+
 j/k move  enter detail  / filter  o archive  c/b/u/m mutate  P check  ? help

@@ -24,7 +24,7 @@ ready: 3
                                               │                                                     
                                               │                                                     
                                               │                                                     
-                                              │                                                     
 warning: 1 item(s) quarantined, run awit validate
 why: AWIT-LAZY0001; unblocks=2; critical-path=yes; selection=max-unblocks; tie-break=none
+
 j/k move  space claim  r release  c/b/u/m mutate  P check  ? help

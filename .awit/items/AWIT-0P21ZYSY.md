@@ -2,13 +2,12 @@
 id: AWIT-0P21ZYSY
 title: lazyawit polish (behavioral 11-15)
 brief: Layout/focus/gate/wrap/isatty improvements; incremental, no rewrites.
-status: in_progress
+status: closed
 deps: [AWIT-0P21ZYSS]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P21ZYSY/20260925T191727Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T18:57:59Z"
 ---
 ## Summary
 Design-review polish, behavioral half (proposals 11-15). Incremental rendering/layout changes; no rewrites, architecture preserved.
