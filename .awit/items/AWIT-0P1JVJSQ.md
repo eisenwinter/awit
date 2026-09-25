@@ -3,13 +3,12 @@ id: AWIT-0P1JVJSQ
 title: 'lazyawit: cmd/lazyawit main with --repo/--agent, headless tests, Taskfile and goreleaser second binary'
 brief: >-
   Adds the human binary: a urfave root with only --repo/--agent that opens the store through internal/ops, shows the fatal screen on failure, and runs the alt-screen Bubble Tea program; Taskfile builds/installs/smokes both binaries and goreleaser ships lazyawit as its own archive per platform.
-status: in_progress
+status: closed
 deps: [AWIT-0P1JVJSR]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P1JVJSQ/20260925T151349Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T15:07:33Z"
 ---
 ## Summary
 
