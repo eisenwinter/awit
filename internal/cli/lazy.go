@@ -191,19 +191,5 @@ func (o *lazyOps) ExternalCheck(ctx context.Context, id string) string {
 	if err != nil {
 		return err.Error()
 	}
-	r := checkOne(ctx, it, "")
-	switch r.Result {
-	case "match":
-		return fmt.Sprintf("MATCH %s %s", r.ID, r.URL)
-	case "drift":
-		if r.Detail != "" {
-			return fmt.Sprintf("DRIFT %s %s: %s", r.ID, r.URL, r.Detail)
-		}
-		return fmt.Sprintf("DRIFT %s %s", r.ID, r.URL)
-	default:
-		if r.URL != "" {
-			return fmt.Sprintf("ERROR %s %s: %s", r.ID, r.URL, r.Detail)
-		}
-		return fmt.Sprintf("ERROR %s: %s", r.ID, r.Detail)
-	}
+	return ops.CheckOneLine(ctx, it, "")
 }

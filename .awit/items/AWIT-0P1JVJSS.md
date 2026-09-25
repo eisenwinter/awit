@@ -3,13 +3,12 @@ id: AWIT-0P1JVJSS
 title: 'ops: external — ExternalCheckRow, CheckOne, CheckOneLine, GetExternalIssue, ExternalIssue, ExternalBase'
 brief: >-
   Moves the read-only external check and the tracker dispatch helpers into internal/ops, and turns lazyOps.ExternalCheck's MATCH/DRIFT/ERROR formatting into CheckOneLine so the TUI's P key and the CLI's external check share one implementation.
-status: in_progress
+status: closed
 deps: [AWIT-0P1JVJSY]
 labels: [tui, p1]
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P1JVJSS/20260925T150106Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-25T14:53:13Z"
 ---
 ## Summary
 
