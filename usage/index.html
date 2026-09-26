@@ -421,6 +421,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#refreshing-skills" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refreshing skills
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#creating-work-items" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -690,6 +701,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#refreshing-skills" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refreshing skills
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#creating-work-items" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -877,24 +899,36 @@ or writes tracker configuration.</p>
 <code>init</code> also seeds the driving-awit skill into each detected agent directory
 (<code>.claude</code>, <code>.omp</code>, <code>.opencode</code>, <code>.agents</code>, <code>.pi</code>); <code>--no-skills</code> skips that
 step.</p>
+<h2 id="refreshing-skills">Refreshing skills<a class="headerlink" href="#refreshing-skills" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>awit<span class="w"> </span>skill<span class="w"> </span>sync
+</code></pre></div>
+<p>Refreshes the driving-awit skill in every detected agent directory
+(<code>.claude</code>, <code>.omp</code>, <code>.opencode</code>, <code>.agents</code>, <code>.pi</code>) whose directory
+already exists. One line per target: <code>current</code>, <code>updated</code>, or <code>created</code>
+plus the repo-relative slash path. Byte-identical files are not
+rewritten; hand-edits are overwritten; missing files and parent
+directories are created. Inherits <code>--repo</code>. Exit 0 on full success,
+including when nothing is detected. The first read or write error
+stops the run with a nonzero exit and no success line for that target.
+There is no dry-run and no JSON output.</p>
 <h2 id="creating-work-items">Creating work items<a class="headerlink" href="#creating-work-items" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>awit<span class="w"> </span>template<span class="w"> </span>&gt;<span class="w"> </span>body.md<span class="w">          </span><span class="c1"># body skeleton (or your config template)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>awit<span class="w"> </span>template<span class="w"> </span>&gt;<span class="w"> </span>body.md<span class="w">          </span><span class="c1"># body skeleton (or your config template)</span>
 </code></pre></div>
 <p>Fill in <code>body.md</code>, then:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>awit<span class="w"> </span>create<span class="w"> </span><span class="s2">"&lt;imperative title&gt;"</span><span class="w"> </span>--brief<span class="w"> </span><span class="s2">"&lt;1-3 sentences&gt;"</span><span class="w"> </span>--body-file<span class="w"> </span>body.md<span class="w"> </span>-l<span class="w"> </span>&lt;phase-or-area&gt;<span class="w"> </span>-l<span class="w"> </span>p1<span class="w"> </span>-d<span class="w"> </span>&lt;dep-id&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>awit<span class="w"> </span>create<span class="w"> </span><span class="s2">"&lt;imperative title&gt;"</span><span class="w"> </span>--brief<span class="w"> </span><span class="s2">"&lt;1-3 sentences&gt;"</span><span class="w"> </span>--body-file<span class="w"> </span>body.md<span class="w"> </span>-l<span class="w"> </span>&lt;phase-or-area&gt;<span class="w"> </span>-l<span class="w"> </span>p1<span class="w"> </span>-d<span class="w"> </span>&lt;dep-id&gt;
 </code></pre></div>
 <p><code>create</code> requires <code>--brief</code> (one to three sentences); correct a body later
 with <code>awit update &lt;id&gt; --body-file body.md</code>. A repo-level template via
 <code>.awit/config.yaml</code> <code>template:</code> replaces the default skeleton with that
 file's exact bytes.</p>
 <h2 id="the-agent-loop">The agent loop<a class="headerlink" href="#the-agent-loop" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>awit prime                 # token-light snapshot of the graph
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>awit next --claim          # claim the top unblocked item
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>awit show &lt;id&gt; --full      # item + resolved refs
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>awit comment &lt;id&gt; "..."    # research notes
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>awit block &lt;id&gt; --reason "waiting on X; unblock when Y"  # pause with a reason
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>awit unblock &lt;id&gt;          # resume once the condition is resolved
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>awit close &lt;id&gt;            # unblocks downstream
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>awit prime                 # token-light snapshot of the graph
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>awit next --claim          # claim the top unblocked item
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>awit show &lt;id&gt; --full      # item + resolved refs
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>awit comment &lt;id&gt; "..."    # research notes
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>awit block &lt;id&gt; --reason "waiting on X; unblock when Y"  # pause with a reason
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>awit unblock &lt;id&gt;          # resume once the condition is resolved
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>awit close &lt;id&gt;            # unblocks downstream
 </code></pre></div>
 <p>Then <code>prime</code> again. <code>--claim</code> writes <code>status: in_progress</code>, <code>assignee</code>,
 <code>claimed_at</code>, and commits <code>awit: claim &lt;id&gt;</code> following the commit policy:
@@ -947,8 +981,8 @@ warning, and still exits 0. Pass <code>--no-push</code> or <code>--push=false</c
 explicit silent offline path, or <code>--tea-login</code> to choose the Gitea login
 (ignored for GitLab).</p>
 <h2 id="archiving">Archiving<a class="headerlink" href="#archiving" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>awit<span class="w"> </span>archive<span class="w"> </span>--dry-run<span class="w">   </span><span class="c1"># preview the fixed-point set</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>awit<span class="w"> </span>archive<span class="w">             </span><span class="c1"># move it to .awit/archive/</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>awit<span class="w"> </span>archive<span class="w"> </span>--dry-run<span class="w">   </span><span class="c1"># preview the fixed-point set</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>awit<span class="w"> </span>archive<span class="w">             </span><span class="c1"># move it to .awit/archive/</span>
 </code></pre></div>
 <p>Only closed items with no dependant outside the set move; the rest stay
 closed and archivable later. Comments collapse into the archived file.
@@ -1063,6 +1097,10 @@ the file.</p>
 <td>Create <code>.awit/</code>, <code>config.yaml</code>, gitignore the lock; offer skills</td>
 </tr>
 <tr>
+<td><code>awit skill sync</code></td>
+<td>Refresh detected skills, overwriting hand edits</td>
+</tr>
+<tr>
 <td><code>awit create &lt;title&gt;</code></td>
 <td>Mint an ID, write a lean item</td>
 </tr>
@@ -1158,11 +1196,11 @@ true), <code>template</code> (body file for <code>create</code>). Full rules are
 <h2 id="pre-commit-hook">Pre-commit hook<a class="headerlink" href="#pre-commit-hook" title="Permanent link">&para;</a></h2>
 <p><code>awit validate</code> is the intended pre-commit hook. A copy lives at
 <a href="../hooks/pre-commit"><code>hooks/pre-commit</code></a>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="ch">#!/bin/sh</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nb">exec</span><span class="w"> </span>awit<span class="w"> </span>validate
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="ch">#!/bin/sh</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nb">exec</span><span class="w"> </span>awit<span class="w"> </span>validate
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>cp<span class="w"> </span>docs/hooks/pre-commit<span class="w"> </span>.git/hooks/pre-commit
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>chmod<span class="w"> </span>+x<span class="w"> </span>.git/hooks/pre-commit
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>cp<span class="w"> </span>docs/hooks/pre-commit<span class="w"> </span>.git/hooks/pre-commit
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>chmod<span class="w"> </span>+x<span class="w"> </span>.git/hooks/pre-commit
 </code></pre></div>
 
 
