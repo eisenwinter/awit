@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NJ69QDP
-title: 'glabx: wrap GitLab issues with verified byte-exact writes and quick-action refusal'
+title: "glabx: wrap GitLab issues with verified byte-exact writes and quick-action refusal"
 brief: >-
   Add a concrete pre-authenticated glab subprocess wrapper for issue reads, description writes, and state events. Refuse quick-action-shaped bodies before mutation and pin raw file transport with a real-glab compatibility canary.
 status: closed
@@ -9,6 +9,7 @@ labels: [phase5, p0]
 refs_base: repo
 refs: []
 ---
+
 ## Summary
 
 Add `internal/glabx`, mirroring teax’s concrete process boundary while keeping GitLab-specific authentication, endpoints, JSON, status framing, and file transport independent. Own the quick-action safety restriction, subgroup/prefix resolution, exact delivery verification, and portable subprocess fixture consumed by later CLI work.
@@ -116,9 +117,9 @@ Build the project parameter with `url.PathEscape(c.Repo)` **once for the full pr
 
 ## Steps
 
-- [ ] **RED — create portable `glabxtest.Install`/glabstub and tests `TestGlabOpen`, `TestGlabIssueURL`, `TestGlabGetIssue`.** Script config settings, stdout status framing, user/issue JSON, and nonzero exits. Exercise nested prefix+subgroup, both link shapes, conflicting host/subfolder/protocol overrides, missing glab, invalid auth response, cancellation, 401/403/404/422/500, `id != iid`, wrong project/base, malformed/missing fields, null description, labels containing commas/Unicode, and normalized states. The stub must exit nonzero for HTTP failure by default.
+- [ ] **RED - create portable `glabxtest.Install`/glabstub and tests `TestGlabOpen`, `TestGlabIssueURL`, `TestGlabGetIssue`.** Script config settings, stdout status framing, user/issue JSON, and nonzero exits. Exercise nested prefix+subgroup, both link shapes, conflicting host/subfolder/protocol overrides, missing glab, invalid auth response, cancellation, 401/403/404/422/500, `id != iid`, wrong project/base, malformed/missing fields, null description, labels containing commas/Unicode, and normalized states. The stub must exit nonzero for HTTP failure by default.
 - [ ] **Run RED:** `go test ./internal/glabx -run 'GlabOpen|GlabIssueURL|GlabGetIssue' -count=1 -v`; record the missing/unimplemented wrapper failures. Then implement only validated URL/config resolution, subprocess execution, auth, decoding, and GET; rerun to green.
-- [ ] **RED — add `TestGlabSetBody`, `TestGlabQuickActionRefusal`, and `TestGlabSetState`.** Assert observed request payload/remote state, not only argv. Cover exact byte edges, UTF-8 refusal, private-file cleanup after failure, fallback GET, wrong identity/body/state, body-only/state-only requests, same-state events, and zero PUTs for unsafe bodies. A representative body-safety assertion is:
+- [ ] **RED - add `TestGlabSetBody`, `TestGlabQuickActionRefusal`, and `TestGlabSetState`.** Assert observed request payload/remote state, not only argv. Cover exact byte edges, UTF-8 refusal, private-file cleanup after failure, fallback GET, wrong identity/body/state, body-only/state-only requests, same-state events, and zero PUTs for unsafe bodies. A representative body-safety assertion is:
 
   ```go
   if err := validateBody([]byte("intro\r\n/close\r\n")); err == nil {
@@ -127,8 +128,9 @@ Build the project parameter with `url.PathEscape(c.Repo)` **once for the full pr
   ```
 
   The subprocess test must additionally prove the scripted remote issue is unchanged and no PUT occurred.
+
 - [ ] **Run RED:** `go test ./internal/glabx -run 'GlabSetBody|GlabQuickActionRefusal|GlabSetState' -count=1 -v`; record failures before implementing mutations.
-- [ ] **GREEN — implement guarded raw-file body PUT and verified state events.** Preserve the input bytes exactly. Keep quick-action refusal independent of server response behavior. Rerun the preceding focused tests.
+- [ ] **GREEN - implement guarded raw-file body PUT and verified state events.** Preserve the input bytes exactly. Keep quick-action refusal independent of server response behavior. Rerun the preceding focused tests.
 - [ ] **Add `TestGlabBodyRoundTrip`, opt-in via `AWIT_TEST_REAL_GLAB=1`, using real glab against an isolated loopback HTTP server and isolated glab configuration.** Mirror `TestTeaBodyRoundTrip`, but require raw transport bytes. Include empty, leading blanks, no/one/multiple final LF, lone terminal CR, CRLF, trailing spaces, Unicode, quotes/backticks, comma, `@`, `null`, digits, JSON-looking text, and `:namespace`-looking text. Compare decoded request description and read-back bytes. Assert title/labels/state remain unchanged.
 - [ ] **Prove the no-adaptation canary RED/GREEN.** Within `TestGlabBodyRoundTrip`, directly run glab on a raw file to establish preservation; also send a deliberately LF-appended negative-control file and prove it changes the remote bytes. Temporarily apply tea’s extra-LF adaptation to `SetBody`, run the focused real test and record its failure, then remove that mutation and record green. Keep the negative control and raw-file canary, not the incorrect implementation.
 - [ ] **Qualify routing/status/safety with real glab.** Exercise root and nested-subfolder configurations, unrelated checkout/default-host settings, an encoded subgroup project, HTTP errors and include framing. A real-glab quick-action-refusal subtest must observe zero mutation requests and unchanged remote state; do not send `/close` directly to a live issue to re-prove §J. Use a separately authorized disposable issue only to qualify server round-trips and the documented safe fenced formatting.
@@ -142,7 +144,7 @@ AWIT_TEST_REAL_GLAB=1 go test ./internal/glabx -run '^TestGlabBodyRoundTrip$' -c
 go test ./internal/skill -run 'Render|DogfoodOmpCopyMatchesRenderer' -count=1
 ```
 
-- First command passes portable stub tests without glab/network prerequisites. Second command runs—not skips—with glab 1.118.0, reports the tested version, and proves decoded bytes, no-adaptation negative control, explicit status handling, prefix routing, and zero PUTs on quick-action refusal. If opt-in is explicitly enabled but glab is absent, fail rather than silently treating release qualification as complete.
+- First command passes portable stub tests without glab/network prerequisites. Second command runs-not skips-with glab 1.118.0, reports the tested version, and proves decoded bytes, no-adaptation negative control, explicit status handling, prefix routing, and zero PUTs on quick-action refusal. If opt-in is explicitly enabled but glab is absent, fail rather than silently treating release qualification as complete.
 - Temporary directories hold all stub/config/transport fixtures; tests never modify the user’s real glab configuration or keyring. No production HTTP client is introduced.
 - On a separately authorized disposable GitLab issue, safe payloads round-trip exactly and leave title/labels/state unchanged; quick-action input is refused without changing any remote field. Record the server version, glab version, and body-case results. This is distinct from the loopback proof.
 - Diagnostics guide missing glab/auth/config repair without login management or secrets. Every API request is host-scoped and uses a single encoded project parameter.
@@ -151,8 +153,6 @@ go test ./internal/skill -run 'Render|DogfoodOmpCopyMatchesRenderer' -count=1
 ## Out of scope
 
 Shared transport/provider framework, HTTP client, token/keyring access, login creation/selection, MRs or arbitrary work-item resources, body rewriting, retries, daemon, remote creation, or changing tea’s LF/status/auth behavior.
-
-
 
 ## Comments
 

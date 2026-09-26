@@ -1,6 +1,6 @@
 ---
 id: AWIT-0P1XYZSP
-title: 'config: expose Load''s rules — Normalize, ValidPrefix, Duration.String'
+title: "config: expose Load's rules - Normalize, ValidPrefix, Duration.String"
 brief: >-
   Refactors pkg/config so Load = Unmarshal + Normalize, exports the init prefix grammar as ValidPrefix (init.go cut over) and gives Duration a String method; no behaviour change, groundwork for the lazyawit Config tab's validation.
 status: closed
@@ -10,25 +10,26 @@ refs_base: repo
 refs: []
 assignee: agent/orchestrator
 ---
+
 ## Summary
 
-The Config tab must refuse exactly what `Load` refuses, plus the prefix grammar `awit init` enforces, before it writes `.awit/config.yaml`. Today those rules are the body of `Load` (unexported helpers `validateTemplatePath`, `normalizeLabels`) and `internal/cli/init.go`'s `prefixRE`. This item lifts them into three exported names on `pkg/config` — `(Config).Normalize`, `ValidPrefix`, `(Duration).String` — and makes `Load`, `MarshalYAML` and `initAction` call them. `Load` output and every error string stay byte-identical; `Load` still does not enforce the prefix grammar (existing repositories keep loading).
+The Config tab must refuse exactly what `Load` refuses, plus the prefix grammar `awit init` enforces, before it writes `.awit/config.yaml`. Today those rules are the body of `Load` (unexported helpers `validateTemplatePath`, `normalizeLabels`) and `internal/cli/init.go`'s `prefixRE`. This item lifts them into three exported names on `pkg/config` - `(Config).Normalize`, `ValidPrefix`, `(Duration).String` - and makes `Load`, `MarshalYAML` and `initAction` call them. `Load` output and every error string stay byte-identical; `Load` still does not enforce the prefix grammar (existing repositories keep loading).
 
 ## Context (read first)
 
 - `docs/superpowers/specs/2026-09-26-config-tab-plan.md` §C (`pkg/config` facts), §D.1 (this item), §E (why the grammar is not added to `Load`).
-- `pkg/config/config.go:40-67` — `Duration`, `MarshalYAML` (the `0s` / `Nh` / `Nm` / `String()` cases), `UnmarshalYAML`.
-- `pkg/config/config.go:76-100` — `Load`: prefix required → stale default → `validateTemplatePath` → `normalizeLabels`. Lines 85-98 become `Normalize`.
-- `pkg/config/config.go:143-196` — `validateTemplatePath`, `windowsAbs`, `normalizeLabels` (unchanged, still unexported).
+- `pkg/config/config.go:40-67` - `Duration`, `MarshalYAML` (the `0s` / `Nh` / `Nm` / `String()` cases), `UnmarshalYAML`.
+- `pkg/config/config.go:76-100` - `Load`: prefix required → stale default → `validateTemplatePath` → `normalizeLabels`. Lines 85-98 become `Normalize`.
+- `pkg/config/config.go:143-196` - `validateTemplatePath`, `windowsAbs`, `normalizeLabels` (unchanged, still unexported).
 - `internal/cli/init.go:20` (`prefixRE`) and `:48-51` (`initAction` check, message `prefix must be 2-8 uppercase alphanumerics starting with a letter`); `internal/cli/init_test.go:73` `TestInitBadPrefix` pins the message and the rejected inputs `A`, `ABCDEFGHI`, `awit`, `1AB`, `AB-C`, `Ab`, `""`.
-- `pkg/config/config_test.go` — `package config` tests; existing `TestLoad*`, `TestTemplateLoad*`, `TestDeclaredLabelsLoad`, `TestWrite*RoundTrip` must stay green unmodified.
-- `docs/schema.md:49-58` — the rule table these functions implement.
+- `pkg/config/config_test.go` - `package config` tests; existing `TestLoad*`, `TestTemplateLoad*`, `TestDeclaredLabelsLoad`, `TestWrite*RoundTrip` must stay green unmodified.
+- `docs/schema.md:49-58` - the rule table these functions implement.
 
 ## Files
 
-- `pkg/config/config.go` — `Duration.String`, `ValidPrefix` (+ `prefixRE` var, `regexp` import), `Normalize`; `Load` and `MarshalYAML` rewritten to call them.
-- `pkg/config/config_test.go` — `TestNormalize`, `TestValidPrefix`, `TestDurationString` added.
-- `internal/cli/init.go` — `prefixRE` deleted, `regexp` import dropped, `initAction` calls `config.ValidPrefix`.
+- `pkg/config/config.go` - `Duration.String`, `ValidPrefix` (+ `prefixRE` var, `regexp` import), `Normalize`; `Load` and `MarshalYAML` rewritten to call them.
+- `pkg/config/config_test.go` - `TestNormalize`, `TestValidPrefix`, `TestDurationString` added.
+- `internal/cli/init.go` - `prefixRE` deleted, `regexp` import dropped, `initAction` calls `config.ValidPrefix`.
 
 ## Interfaces
 
@@ -62,3 +63,4 @@ func Load(awitDir string) (Config, error)
 ### 2026-09-25T17:48:07Z jan
 
 implemented
+```

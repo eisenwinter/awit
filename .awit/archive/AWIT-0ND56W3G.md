@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND56W3G
-title: 'pkg/prime renderer + awit prime'
+title: "pkg/prime renderer + awit prime"
 brief: >-
   Implement the deterministic `pkg/prime` snapshot renderer (GRAPH WARNINGS, READY, BLOCKED, CRITICAL PATH) with label filtering and `--max-tokens` truncation, plus the `awit prime` command with `--max-tokens` and `-l`. READY lines reuse `format.Line`; prime never imports `internal/cli`.
 status: closed
@@ -31,21 +31,21 @@ goldens; output never contains CR bytes.
 
 ## Context (read first)
 
-- Guide §4.8 — exact `Options`, `Render`, `EstimateTokens` signatures.
+- Guide §4.8 - exact `Options`, `Render`, `EstimateTokens` signatures.
   `EstimateTokens = len(b)/4`, integer division.
-- Guide §2 decision 1 — label groups are AND across, OR within; reuse
+- Guide §2 decision 1 - label groups are AND across, OR within; reuse
   `graph.FilterLabels`, do not reimplement it.
-- Guide §2 decision 5 — the estimate is documented as approximate; the
+- Guide §2 decision 5 - the estimate is documented as approximate; the
   doc comment on `EstimateTokens` must say so.
-- Spec §`awit prime` — the four-section example, sort orders (ready by
+- Spec §`awit prime` - the four-section example, sort orders (ready by
   unblocks desc then ID asc; blocked by ID), and the truncation rule
   ("warnings and critical path always fit, then ready items drop from
   the bottom, then blocked, ending with `(+N more)`").
-- **AWIT-0ND56V3G** — `Graph.CriticalPath()` over non-closed,
+- **AWIT-0ND56V3G** - `Graph.CriticalPath()` over non-closed,
   non-quarantined nodes. Must be `status: closed` before you start.
-- **AWIT-0ND56S3G** — `awit validate`; sibling surface, only reused for
+- **AWIT-0ND56S3G** - `awit validate`; sibling surface, only reused for
   the warnings vocabulary (`[REASON] detail`). Do not modify it.
-- **AWIT-0ND56Q3G** — `Ready`, `Blocked`, `UnblockCount`, `OpenDepIDs`,
+- **AWIT-0ND56Q3G** - `Ready`, `Blocked`, `UnblockCount`, `OpenDepIDs`,
   `FilterLabels`. Consume all five; none change here.
 - Fixture facts from AWIT-0ND56N3G (copy titles verbatim, do not
   paraphrase). On `clean`: READY is 0001 (unblocks 2), 0002 (0), 0006
@@ -59,7 +59,7 @@ goldens; output never contains CR bytes.
   BLOCKED is empty; critical path is `[AWIT-TEST0005]`.
 - `format.Line(e)` renders
   `[ID] Title | label1,label2 | Unblocks: N` (`-` for empty labels).
-  The prime package builds its own `format.Entry` from the node — it
+  The prime package builds its own `format.Entry` from the node - it
   MUST NOT import `internal/cli` (import cycle). Mirror the `toEntry`
   state mapping (quarantined → `quarantined`, closed → `closed`,
   `Ready` → `ready`, else `blocked`); only ready nodes reach `Line`
@@ -137,7 +137,7 @@ goldens; output never contains CR bytes.
   Create `testdata/golden/prime-cyclic.golden` with exactly these bytes;
   if `scc.go` words `Fault.Detail` differently from the chains below,
   generate with `-update` in Step 6 and verify the shape by eye before
-  committing — but each warning line MUST still start with `[CYCLE] `
+  committing - but each warning line MUST still start with `[CYCLE] `
   and end with ` (excluded from next)` (the structural test enforces
   that independently of the golden bytes):
 
@@ -285,7 +285,7 @@ goldens; output never contains CR bytes.
   accounting to the fixture instead of trusting the suffix alone.)
 
   Create `internal/cli/prime_test.go` (reuses that package's `run`,
-  `copyFixture`, `golden` — do not redeclare them):
+  `copyFixture`, `golden` - do not redeclare them):
 
   ```go
   func TestPrimeCLI(t *testing.T) {
@@ -357,7 +357,7 @@ goldens; output never contains CR bytes.
 
 - [ ] **Step 4: Implement `pkg/prime/prime.go`.**
 
-  Write the file exactly as below (no more, no less — in particular no
+  Write the file exactly as below (no more, no less - in particular no
   probing scaffolding, no unused helpers):
 
   ```go
@@ -535,9 +535,9 @@ goldens; output never contains CR bytes.
 
   Why the probes are exact: the ready probe contains every byte that
   precedes the blocked section plus the minimal blocked suffix (header
-  + separator + tail); later blocked admissions only append bytes after
-  passing their own exact probe, so the finished output always fits.
-  Order is fixed, so the result is deterministic.
+  - separator + tail); later blocked admissions only append bytes after
+    passing their own exact probe, so the finished output always fits.
+    Order is fixed, so the result is deterministic.
 
 - [ ] **Step 5: Implement `internal/cli/prime.go`.**
 
@@ -627,7 +627,7 @@ goldens; output never contains CR bytes.
   the unfiltered CRITICAL (3).
 - No output byte is `\r` on either OS (`TestPrimeCLI` asserts it; this
   renderer only ever writes `\n`).
-- `pkg/prime` imports `format`, `graph`, `item` only — never
+- `pkg/prime` imports `format`, `graph`, `item` only - never
   `internal/cli`.
 - `gofmt -l pkg/prime internal/cli` prints nothing.
 

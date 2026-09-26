@@ -85,7 +85,7 @@ func TestShowFullMissingRef(t *testing.T) {
 func TestShowFullItemRefNoRecursion(t *testing.T) {
 	dir := copyFixture(t, "loop")
 	// 0003 refs 0002 (an item); 0002 refs nothing. A recursive
-	// renderer would also expand 0001's spec ref — assert it does not.
+	// renderer would also expand 0001's spec ref - assert it does not.
 	it := readItem(t, dir, "AWIT-TEST0003")
 	it.SetRefs([]string{"AWIT-TEST0002.md"})
 	saveItem(t, dir, it)

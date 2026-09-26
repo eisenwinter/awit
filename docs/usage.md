@@ -100,11 +100,11 @@ and `--no-commit` is the deprecated spelling of `--commit=false`.
 
 ## Finding work
 
-- `awit list` — index view; filter with `-s` status, `-l` label, `--ready`,
+- `awit list` - index view; filter with `-s` status, `-l` label, `--ready`,
   `--blocked`, `--quarantined`.
-- `awit next` — top unblocked item; `-l` filters first. `-l` is AND across
+- `awit next` - top unblocked item; `-l` filters first. `-l` is AND across
   repeated flags, OR inside one comma list (`-l p0 -l auth` vs `-l p0,p1`).
-- `awit prime` — deterministic whole-graph snapshot for prompt injection;
+- `awit prime` - deterministic whole-graph snapshot for prompt injection;
   `--max-tokens N` is a soft budget that never sheds warnings or the top
   ready row.
 
@@ -127,16 +127,16 @@ canonical IDs.
 recorded reason; `awit unblock <id>` removes only the hold; `awit release
 <id>` reopens to `open` (the hold stays); `awit close <id>` finishes the
 item (the hold clears, `--reason` becomes a comment). A `blocked` label
-alone never holds anything — the commands warn once on stderr when that
+alone never holds anything - the commands warn once on stderr when that
 label lands on a hold-less item.
 
 ## External trackers
 
-- `awit import <issue-url>` — one-time snapshot of a Gitea (`tea`) or
+- `awit import <issue-url>` - one-time snapshot of a Gitea (`tea`) or
   GitLab (`glab`) issue: number/iid, exact body, labels, open/closed state.
-- `awit external check [key]` — byte-exact local-vs-remote body comparison;
+- `awit external check [key]` - byte-exact local-vs-remote body comparison;
   exit 1 on any drift or error.
-- `awit external push-body <key>` — explicit local-canonical repair.
+- `awit external push-body <key>` - explicit local-canonical repair.
 
 For linked items `close` pushes `closed` (and `release` pushes `open`) to
 the linked issue after the local save; an explicit `update --status` pushes
@@ -175,54 +175,54 @@ one value, which is checked with the rules `awit` applies when loading the
 file (plus the `prefix` grammar) and then written atomically; `R` re-reads
 the file.
 
-| Key | Action |
-| --- | --- |
-| `1/2/3/4` | Switch tabs (Work items / Graph / Queue / Config) |
-| `j/k` | Move the cursor |
-| `h/l`/`tab` | Move focus between list and detail (Graph: `tab` toggles overview/focused) |
-| `enter` | Pin / open the selection in Work items |
-| `e` | Edit the selected config value (Config; `enter` also edits) |
-| `/` | Filter using `awit list` flags (`-s`, `-l`, `--ready`, `--blocked`, `--quarantined`) plus free words as search |
-| `o` | Toggle open/archive source |
-| `c` | Close the selected item (prompts for a reason) |
-| `b` | Block the selected item (prompts for a reason) |
-| `u` | Unblock the selected item |
-| `m` | Comment on the selected item |
-| `space` | Claim the selected queue item |
-| `r` | Release the selected queue item |
-| `R` | Reload items and config from disk |
-| `P` | Run `external check` on the selection |
-| `V` | Show the `validate` report |
-| `?` | Help |
-| `q` | Quit |
+| Key         | Action                                                                                                         |
+| ----------- | -------------------------------------------------------------------------------------------------------------- |
+| `1/2/3/4`   | Switch tabs (Work items / Graph / Queue / Config)                                                              |
+| `j/k`       | Move the cursor                                                                                                |
+| `h/l`/`tab` | Move focus between list and detail (Graph: `tab` toggles overview/focused)                                     |
+| `enter`     | Pin / open the selection in Work items                                                                         |
+| `e`         | Edit the selected config value (Config; `enter` also edits)                                                    |
+| `/`         | Filter using `awit list` flags (`-s`, `-l`, `--ready`, `--blocked`, `--quarantined`) plus free words as search |
+| `o`         | Toggle open/archive source                                                                                     |
+| `c`         | Close the selected item (prompts for a reason)                                                                 |
+| `b`         | Block the selected item (prompts for a reason)                                                                 |
+| `u`         | Unblock the selected item                                                                                      |
+| `m`         | Comment on the selected item                                                                                   |
+| `space`     | Claim the selected queue item                                                                                  |
+| `r`         | Release the selected queue item                                                                                |
+| `R`         | Reload items and config from disk                                                                              |
+| `P`         | Run `external check` on the selection                                                                          |
+| `V`         | Show the `validate` report                                                                                     |
+| `?`         | Help                                                                                                           |
+| `q`         | Quit                                                                                                           |
 
 ## Command reference
 
-| Command | Purpose |
-| --- | --- |
-| `awit init` | Create `.awit/`, `config.yaml`, gitignore the lock; offer skills |
-| `awit create <title>` | Mint an ID, write a lean item |
-| `awit template` | Print the body template `create` would use |
-| `awit import <issue-url>` | Snapshot a Gitea or GitLab issue |
-| `awit external check [key]` | Byte-exact body drift check |
-| `awit external push-body <key>` | Push local body to the linked issue |
-| `awit list [key]` | Index view |
-| `awit label` | Label vocabulary with usage counts |
-| `awit show <id>` | Core item, `--full` ref tree, `--refs-only`, `--unblocks` |
-| `awit comment <id> [text]` | Timestamped comment or `--file` attachment |
-| `awit update <id>` | Mutate frontmatter with a minimal diff |
-| `awit close <id>` | Set `closed`, clear claim and hold, comment the reason |
-| `awit release <id>` | Reopen to `open`, clear assignee and claim |
-| `awit block <id>` | Pause with a recorded reason |
-| `awit unblock <id>` | Remove only the manual block |
-| `awit dep add\|rm <id> <dep>` | Edit `deps` with cycle pre-check |
-| `awit ref add\|rm <id> <path>` | Repo-root-relative file references |
-| `awit validate` | Integrity report; non-zero exit on `FAIL` |
-| `awit archive` | Move finished work out of the hot path |
-| `awit prime` | Deterministic state graph for prompt injection |
-| `awit next` | Top unblocked item; optional `--claim` |
+| Command                         | Purpose                                                          |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `awit init`                     | Create `.awit/`, `config.yaml`, gitignore the lock; offer skills |
+| `awit create <title>`           | Mint an ID, write a lean item                                    |
+| `awit template`                 | Print the body template `create` would use                       |
+| `awit import <issue-url>`       | Snapshot a Gitea or GitLab issue                                 |
+| `awit external check [key]`     | Byte-exact body drift check                                      |
+| `awit external push-body <key>` | Push local body to the linked issue                              |
+| `awit list [key]`               | Index view                                                       |
+| `awit label`                    | Label vocabulary with usage counts                               |
+| `awit show <id>`                | Core item, `--full` ref tree, `--refs-only`, `--unblocks`        |
+| `awit comment <id> [text]`      | Timestamped comment or `--file` attachment                       |
+| `awit update <id>`              | Mutate frontmatter with a minimal diff                           |
+| `awit close <id>`               | Set `closed`, clear claim and hold, comment the reason           |
+| `awit release <id>`             | Reopen to `open`, clear assignee and claim                       |
+| `awit block <id>`               | Pause with a recorded reason                                     |
+| `awit unblock <id>`             | Remove only the manual block                                     |
+| `awit dep add\|rm <id> <dep>`   | Edit `deps` with cycle pre-check                                 |
+| `awit ref add\|rm <id> <path>`  | Repo-root-relative file references                               |
+| `awit validate`                 | Integrity report; non-zero exit on `FAIL`                        |
+| `awit archive`                  | Move finished work out of the hot path                           |
+| `awit prime`                    | Deterministic state graph for prompt injection                   |
+| `awit next`                     | Top unblocked item; optional `--claim`                           |
 
-`lazyawit` — the TUI, see [Browsing interactively](#browsing-interactively).
+`lazyawit` - the TUI, see [Browsing interactively](#browsing-interactively).
 
 Global flags: `--format compact|table|json`, `--repo <path>`, `--no-color`
 (accepted, no-op). Exit codes: `0` success, `1` expected non-success, `2`

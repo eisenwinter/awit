@@ -10,7 +10,7 @@ repo_url: https://github.com/eisenwinter/awit
 repo_name: eisenwinter/awit
 edit_uri: edit/main/docs/
 
-# Warnings are errors everywhere — local builds, PR checks and gh-deploy alike.
+# Warnings are errors everywhere - local builds, PR checks and gh-deploy alike.
 strict: true
 
 validation:
@@ -32,17 +32,17 @@ theme:
     - search.highlight
   palette:
     - media: "(prefers-color-scheme)"
-      toggle: {icon: material/brightness-auto, name: Follow system theme}
+      toggle: { icon: material/brightness-auto, name: Follow system theme }
     - media: "(prefers-color-scheme: light)"
       scheme: default
       primary: indigo
       accent: indigo
-      toggle: {icon: material/brightness-7, name: Switch to dark mode}
+      toggle: { icon: material/brightness-7, name: Switch to dark mode }
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: indigo
       accent: indigo
-      toggle: {icon: material/brightness-4, name: Switch to light mode}
+      toggle: { icon: material/brightness-4, name: Switch to light mode }
 
 plugins:
   - search

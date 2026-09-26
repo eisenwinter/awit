@@ -17,32 +17,32 @@ refs:
 After this ticket `awit create <title> --brief ...` mints a snowflake ID (or
 uses `--id`), writes one Markdown item via `item.New` + `Store.Save`, and
 prints it with `format.WriteOne`. State is always reported `ready` and
-Unblocks always `0` — that is a deliberate v1 lie; true ready/blocked comes
+Unblocks always `0` - that is a deliberate v1 lie; true ready/blocked comes
 from `awit list`. Tests drive `Main` against `initRepo` temp directories; no
 fixtures.
 
 ## Context (read first)
 
-- **guide §1** — `filepath`, `Error: ` via `report`, exit 0/1/2, `t.TempDir()`,
+- **guide §1** - `filepath`, `Error: ` via `report`, exit 0/1/2, `t.TempDir()`,
   urfave/cli v3, yaml.v3 only extra deps.
-- **guide §2 body template** — `item.New` already writes
+- **guide §2 body template** - `item.New` already writes
   `\n## Summary\n\n## Acceptance Criteria\n\n`. Do not rebuild the body here.
-- **guide §2 key order** — New omits empty `assignee` / `claimed_at`. `--assign`
+- **guide §2 key order** - New omits empty `assignee` / `claimed_at`. `--assign`
   sets Assignee only; status stays `open`; do **not** set `claimed_at`.
-- **guide §4.1** — `id.Valid(prefix, s)`, `id.Mint` is used inside `Store.Mint`.
-- **guide §4.2** — `Config.DefaultLabels`. Merge: config labels first, then
+- **guide §4.1** - `id.Valid(prefix, s)`, `id.Mint` is used inside `Store.Mint`.
+- **guide §4.2** - `Config.DefaultLabels`. Merge: config labels first, then
   flag labels, first-wins dedupe (skip a label already present).
-- **guide §4.3 / §4.4** — `item.New`, `Store.Mint`, `Exists`, `Save`, `ParseStatus`
+- **guide §4.3 / §4.4** - `item.New`, `Store.Mint`, `Exists`, `Save`, `ParseStatus`
   is not used here (status is always open).
-- **guide §4.7** — `format.Detect(flag, stdoutFile)`, `format.WriteOne`. Compact
+- **guide §4.7** - `format.Detect(flag, stdoutFile)`, `format.WriteOne`. Compact
   `Line` is `[ID] Title | labels-or- | Unblocks: N` plus newline.
   Detect takes `*os.File`: type-assert `cmd.Root().Writer`; tests use a
   `bytes.Buffer` so the assert fails and Detect sees a non-TTY (compact).
-- **guide §4.11** — `openStore`; create command shape (copy verbatim, then fill
+- **guide §4.11** - `openStore`; create command shape (copy verbatim, then fill
   Action). `--brief` is `Required: true` (missing flag = urfave usage error,
   exit 2). `-d/--dep` and `-l/--label` are `StringSliceFlag`. Also split each
   element on commas yourself so `-d A,B` works even if urfave does not.
-- **guide §5** — `run` / `initRepo` / `readItem` already exist in
+- **guide §5** - `run` / `initRepo` / `readItem` already exist in
   `helpers_test.go` (AWIT-0ND56G3G). Do not redeclare them.
 - **AWIT-0ND56F3G** provides `pkg/format`. It is not in this ticket's `deps`
   list; it must still be closed before this package compiles.
@@ -53,13 +53,13 @@ fixtures.
   `s.Exists` else `item %s already exists`. Mint when `--id` is empty:
   `s.Mint(time.Now())`.
 - Document in a comment on the WriteOne call: State is reported ready without
-  building the graph — deliberate v1; true state is `awit list`.
+  building the graph - deliberate v1; true state is `awit list`.
 
 ## Files
 
 - Create: `internal/cli/create.go`
 - Create: `internal/cli/create_test.go`
-- Modify: `internal/cli/app.go` — append `createCmd` to `newRoot`'s `Commands`
+- Modify: `internal/cli/app.go` - append `createCmd` to `newRoot`'s `Commands`
   (next to `initCmd`). Do not add `createCmd` via `init()`.
 
 ## Interfaces
@@ -90,7 +90,8 @@ func mergeLabels(defaults, flags []string) []string // defaults first, first-win
 
 `parseIDList` / `mergeLabels` / `detectFormat` are package-private. If a later
 file in `package cli` needs the same comma-split, it must call `parseIDList`
-— do not redeclare it. `toEntry` is **not** this ticket.
+
+- do not redeclare it. `toEntry` is **not** this ticket.
 
 ## Steps
 
@@ -472,7 +473,7 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	// State is reported ready without building the graph — deliberate v1;
+	// State is reported ready without building the graph - deliberate v1;
 	// true state is `awit list`.
 	return format.WriteOne(cmd.Writer, f, format.Entry{
 		ID:       it.ID,
@@ -488,7 +489,7 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 }
 ```
 
-  In `newRoot`, Commands becomes:
+In `newRoot`, Commands becomes:
 
 ```go
 		Commands: []*cli.Command{
@@ -527,8 +528,8 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 
 ## Acceptance Criteria
 
-- `go test ./internal/cli -run TestCreate -v` — all twelve tests named above PASS.
-- `go test ./internal/cli -count=1` — init and skeleton tests still PASS.
+- `go test ./internal/cli -run TestCreate -v` - all twelve tests named above PASS.
+- `go test ./internal/cli -count=1` - init and skeleton tests still PASS.
 - Creating with `--brief` missing exits 2; creating with no title args exits 1
   and stderr is exactly `Error: create needs a title`.
 - A successful create file body contains `## Acceptance Criteria`; compact

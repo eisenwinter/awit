@@ -248,7 +248,7 @@ func TestGlabBodyRoundTrip(t *testing.T) {
 		{"lone terminal CR", "trail\r"},
 		{"CRLF", "one\r\ntwo\r\n"},
 		{"trailing spaces", "padded   \n"},
-		{"unicode", "héllo wörld — 日本語\n"},
+		{"unicode", "héllo wörld - 日本語\n"},
 		{"quotes and backticks", "a `code` span, \"double\", 'single'\n"},
 		{"comma and at", "a, b @mention\n"},
 		{"literal null", "null"},

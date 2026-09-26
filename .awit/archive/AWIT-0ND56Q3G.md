@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND56Q3G
-title: 'pkg/graph ready/blocked, unblock counts, WouldCycle, FilterLabels'
+title: "pkg/graph ready/blocked, unblock counts, WouldCycle, FilterLabels"
 brief: >-
   Fill the classify and countUnblocks seams and add Ready, Blocked, Quarantined, Closed, WouldCycle, and FilterLabels. Ready is every non-closed non-quarantined node whose Item.Deps all resolve to closed non-quarantined nodes; unblock counts are BFS over Unblocks; WouldCycle DFS-prechecks dep add.
 status: closed
@@ -13,20 +13,22 @@ refs:
 ---
 
 ## Summary
+
 After this ticket `pkg/graph/rank.go` holds `classify`, `countUnblocks`, `Graph.Ready` / `Blocked` / `Quarantined` / `Closed`, `WouldCycle`, and `FilterLabels`. `classify` sets `Node.Ready` / `Node.Blocked` and never both; closed and quarantined nodes get both flags false. `countUnblocks` writes the number of unique non-closed non-quarantined nodes reachable via `Unblocks` (BFS, including through closed nodes); quarantined nodes get `-1`. `Ready()` sorts by UnblockCount descending then ID ascending; the other three lists are ID ascending. `WouldCycle(from, to)` DFS-walks `to`'s `Deps` looking for `from`. `FilterLabels` is AND across groups and OR within a group. `CriticalPath` is not implemented.
 
 ## Context (read first)
-- Guide §4.6 — exact signatures for `Ready`, `Blocked`, `Quarantined`, `Closed`, `WouldCycle`, `FilterLabels`. Copy them. Do not add `CriticalPath` here.
+
+- Guide §4.6 - exact signatures for `Ready`, `Blocked`, `Quarantined`, `Closed`, `WouldCycle`, `FilterLabels`. Copy them. Do not add `CriticalPath` here.
 - Guide §2 Unblock count: "Number of **unique, non-closed, non-quarantined** nodes reachable via `Unblocks` edges (transitive). Quarantined nodes have `UnblockCount == -1`." Computed once per build, cached on the node, never inside a sort comparator.
 - Guide §2 decision 1 (labels): AND across groups, OR within a group. Empty `groups` (nil or `len==0`) leaves the input slice unchanged (same backing array).
 - Spec §Graph engine Ready / Blocked: Ready = not closed and every dep closed. Blocked = not closed and any dep open, dangling, or quarantined. A quarantined dep makes the depender Blocked (if the depender itself is not quarantined). Dangling deps already quarantined the **depender** in `Build`, so that node is neither Ready nor Blocked.
 - Guide §8 `clean` fixture (already on disk):
-  - `0001` open, no deps, labels `auth,p1` — unblocks `0003` and `0004` → UnblockCount 2, Ready.
-  - `0002` open, labels `db` — UnblockCount 0, Ready.
-  - `0003` open, deps `0001` — Blocked, UnblockCount 1 (`0004`).
-  - `0004` open, deps `0001,0003`, labels `p0` — Blocked, UnblockCount 0.
-  - `0005` closed — Closed list, not Ready/Blocked.
-  - `0006` in_progress, deps `0005` (closed) — Ready, UnblockCount 0.
+  - `0001` open, no deps, labels `auth,p1` - unblocks `0003` and `0004` → UnblockCount 2, Ready.
+  - `0002` open, labels `db` - UnblockCount 0, Ready.
+  - `0003` open, deps `0001` - Blocked, UnblockCount 1 (`0004`).
+  - `0004` open, deps `0001,0003`, labels `p0` - Blocked, UnblockCount 0.
+  - `0005` closed - Closed list, not Ready/Blocked.
+  - `0006` in_progress, deps `0005` (closed) - Ready, UnblockCount 0.
   - Ready order: `0001` then `0002` then `0006` (count 2, then 0/0 by ID).
   - Blocked order: `0003`, `0004`.
 - Guide §8 `dangling` fixture: `0001` deps unknown `AWIT-TEST9999` (quarantined); `0002` deps `0001` (Blocked, `OpenDepIDs` = `[AWIT-TEST0001]`).
@@ -37,11 +39,13 @@ After this ticket `pkg/graph/rank.go` holds `classify`, `countUnblocks`, `Graph.
 - Partition: every node is in exactly one of Ready / Blocked / Quarantined / Closed, except a closed+quarantined node which is Quarantined only (`Closed()` skips quarantined). `in_progress` is not closed.
 
 ## Files
+
 - Create: `pkg/graph/rank.go`
 - Create: `pkg/graph/rank_test.go`
-- Modify: `pkg/graph/graph.go` — delete the empty `func (g *Graph) classify() {}` and `func (g *Graph) countUnblocks() {}` methods. Leave the two calls in `Build`.
+- Modify: `pkg/graph/graph.go` - delete the empty `func (g *Graph) classify() {}` and `func (g *Graph) countUnblocks() {}` methods. Leave the two calls in `Build`.
 
 ## Interfaces
+
 - Consumes (already in the package):
   ```go
   type Node struct {
@@ -191,19 +195,19 @@ After this ticket `pkg/graph/rank.go` holds `classify`, `countUnblocks`, `Graph.
   		t.Fatalf("filter p1 = %v, want [0001]", nodeIDs(p1))
   	}
 
-  	// AND across groups: auth AND p0 — 0001 has auth, 0004 has p0, nobody has both.
+  	// AND across groups: auth AND p0 - 0001 has auth, 0004 has p0, nobody has both.
   	both := FilterLabels(g.Order, [][]string{{"auth"}, {"p0"}})
   	if len(both) != 0 {
   		t.Fatalf("filter auth AND p0 = %v, want empty", nodeIDs(both))
   	}
 
-  	// OR within a group: auth OR db — 0001 (auth) and 0002 (db).
+  	// OR within a group: auth OR db - 0001 (auth) and 0002 (db).
   	or := FilterLabels(g.Order, [][]string{{"auth", "db"}})
   	if !slices.Equal(nodeIDs(or), []string{"AWIT-TEST0001", "AWIT-TEST0002"}) {
   		t.Fatalf("filter auth OR db = %v, want [0001 0002]", nodeIDs(or))
   	}
 
-  	// AND auth AND p1 — 0001 has both.
+  	// AND auth AND p1 - 0001 has both.
   	and := FilterLabels(g.Order, [][]string{{"auth"}, {"p1"}})
   	if !slices.Equal(nodeIDs(and), []string{"AWIT-TEST0001"}) {
   		t.Fatalf("filter auth AND p1 = %v, want [0001]", nodeIDs(and))
@@ -481,7 +485,7 @@ After this ticket `pkg/graph/rank.go` holds `classify`, `countUnblocks`, `Graph.
   - `Ready()` sorts after filtering; do not sort inside `classify`. `Blocked` / `Quarantined` / `Closed` walk `g.Order` so they are already ID-ascending.
   - `WouldCycle` walks `Node.Deps` (resolved). Check `cur == from` before `seen`, so the target can be found even if it was queued. Mark `to` when the walk starts at `to`.
   - `FilterLabels`: `len(groups)==0` returns the **same** slice header, not a copy. An empty inner group matches nothing (AND with an empty OR-set fails). Preserve input order.
-  - Two definitions of `classify` or `countUnblocks` will not compile — they must exist only in `rank.go`.
+  - Two definitions of `classify` or `countUnblocks` will not compile - they must exist only in `rank.go`.
 
 - [ ] **Step 4: Run the tests, see them pass, commit.**
 
@@ -520,6 +524,7 @@ After this ticket `pkg/graph/rank.go` holds `classify`, `countUnblocks`, `Graph.
   `gofmt -l pkg/graph` must print nothing.
 
 ## Acceptance Criteria
+
 - `go test ./pkg/graph -count=1` passes.
 - Clean fixture: `Ready()` is `0001`, `0002`, `0006` in that order; `Blocked()` is `0003`, `0004`; `Closed()` is `0005`; `Quarantined()` is empty.
 - Clean fixture unblock counts: `0001→2`, `0003→1`, `0004→0`.
@@ -530,7 +535,8 @@ After this ticket `pkg/graph/rank.go` holds `classify`, `countUnblocks`, `Graph.
 - `classify` and `countUnblocks` are defined once, in `rank.go`. `Build` still calls `g.detectCycles(); g.classify(); g.countUnblocks()` in that order.
 
 ## Out of scope
-- `CriticalPath` — `AWIT-0ND56V3G`.
+
+- `CriticalPath` - `AWIT-0ND56V3G`.
 - CLI `dep add` / `dep rm` / `validate` / `prime` / `next` / `list`.
 - Changing Tarjan or fixture files.
 - Re-implementing `Build`, dangling detection, or Broken carry-through.

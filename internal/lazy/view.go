@@ -112,7 +112,7 @@ func (m Model) tabHeaderView() string {
 	case tabGraph:
 		if m.graphTab.focused {
 			if m.graphTab.rootID == "" {
-				s = "Focused (no root — select an item on Work items)"
+				s = "Focused (no root - select an item on Work items)"
 				break
 			}
 			s = "Focused on " + m.graphTab.rootID

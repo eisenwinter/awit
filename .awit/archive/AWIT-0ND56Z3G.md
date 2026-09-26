@@ -13,24 +13,29 @@ refs:
 ---
 
 ## Summary
+
 After this ticket `pkg/resolver/resolver.go` exists with the `Resolved` struct, `Resolve(itemsDir, refs)` and `IsItemRef(itemsDir, path)`. `Resolve` turns each forward-slash ref from an item's frontmatter into an absolute OS path anchored at `.awit/items/`, reads the file, and returns one `Resolved` per ref **in input order**; a missing or unreadable file is recorded in `Resolved.Err` (with `Content == nil`) and never aborts the whole call. `IsItemRef` reports whether an absolute path is a `.md` file directly inside `itemsDir` and returns its stem (the item ID) so `awit show --full` can render another item's default view instead of dumping its raw bytes and can stop recursion after one level. No command is changed here; `AWIT-0ND5703G` wires the package into `show`.
 
 ## Context (read first)
-- Guide §4.9 — the exact exported surface. Copy the `Resolved` struct and `Resolve` signature verbatim. `IsItemRef` is an addition made by this ticket; its signature is fixed below.
-- Guide §1: module `github.com/eisenwinter/awit`; stdlib only in this package (no `pkg/item` import — the resolver must not know about frontmatter). Never hardcode `/` in filesystem paths: refs in frontmatter are forward slashes, so every ref goes through `filepath.FromSlash` before it touches `filepath.Join`. Tests build expected paths with `filepath.Join` so they pass on Windows.
+
+- Guide §4.9 - the exact exported surface. Copy the `Resolved` struct and `Resolve` signature verbatim. `IsItemRef` is an addition made by this ticket; its signature is fixed below.
+- Guide §1: module `github.com/eisenwinter/awit`; stdlib only in this package (no `pkg/item` import - the resolver must not know about frontmatter). Never hardcode `/` in filesystem paths: refs in frontmatter are forward slashes, so every ref goes through `filepath.FromSlash` before it touches `filepath.Join`. Tests build expected paths with `filepath.Join` so they pass on Windows.
 - Spec `plan/awit-implementation-plan.md` §Paths and platforms + §Phase 4: "relative-path resolution from `.awit/items/`, slash normalisation, missing-file reporting". A ref like `../../docs/spec.md` in `.awit/items/AWIT-X.md` means `<repo>/docs/spec.md`; a ref like `../comments/AWIT-X/2026...-jan.md` means `<repo>/.awit/comments/AWIT-X/2026...-jan.md`.
 - Order of operations inside `Resolve` for each ref (keep exactly this order so error paths are predictable): `p := filepath.Clean(filepath.Join(itemsDir, filepath.FromSlash(ref)))` → `abs, err := filepath.Abs(p)` → `os.ReadFile(abs)`. `Path` is always set to the best path known at the point of failure (`p` if `Abs` failed, `abs` otherwise) so `show --refs-only` can print `[missing]` next to a real path.
-- `IsItemRef` semantics: both arguments are made absolute with `filepath.Abs`; `filepath.Rel(absItemsDir, absPath)` must succeed, must not start with `..`, must not contain a path separator (items live flat in `items/`, no subdirectories), and must end in `.md` with a non-empty stem. Returns `("", false)` in every other case. Do not check whether the file exists — the caller already has `Resolved.Err` for that.
+- `IsItemRef` semantics: both arguments are made absolute with `filepath.Abs`; `filepath.Rel(absItemsDir, absPath)` must succeed, must not start with `..`, must not contain a path separator (items live flat in `items/`, no subdirectories), and must end in `.md` with a non-empty stem. Returns `("", false)` in every other case. Do not check whether the file exists - the caller already has `Resolved.Err` for that.
 - Guide §5: tests are `testing` stdlib, table-driven where sensible, `t.TempDir()` for the filesystem. This package has no fixtures; each test writes the files it needs.
 - `t.TempDir()` on macOS returns a path under a symlinked `/var`. `filepath.Abs` does not resolve symlinks, and neither does the test, so comparing `Resolved.Path` against `filepath.Join(tmp, ...)` is stable on all three OSes.
 
 ## Files
+
 - Create: `pkg/resolver/resolver.go`
 - Create: `pkg/resolver/resolver_test.go`
 
 ## Interfaces
+
 - Consumes: stdlib only (`os`, `path/filepath`, `strings`).
 - Produces (verbatim from guide §4.9 plus `IsItemRef`, this ticket):
+
   ```go
   package resolver
 
@@ -47,6 +52,7 @@ After this ticket `pkg/resolver/resolver.go` exists with the `Resolved` struct, 
   // IsItemRef reports whether path names a ".md" file directly inside itemsDir and returns its stem (the item ID).
   func IsItemRef(itemsDir, path string) (id string, ok bool)
   ```
+
 - Not produced: any CLI command, any rendering, any recursion over refs of refs. Those are `AWIT-0ND5703G`.
 
 ## Steps
@@ -368,7 +374,6 @@ After this ticket `pkg/resolver/resolver.go` exists with the `Resolved` struct, 
   `gofmt -l pkg/resolver` must print nothing.
 
 - [ ] **Step 5: Close ticket.**
-
   1. Run `go build ./... && go vet ./pkg/resolver && go test ./pkg/resolver -count=1` and copy the output.
   2. Create `.awit/comments/AWIT-0ND56Z3G/<YYYYMMDDTHHMMSSZ>-<author>.md` (UTC stamp, author sanitised to `[a-z0-9._-]`, e.g. `20260918T101500Z-claude.md`) with this shape:
 
@@ -392,6 +397,7 @@ After this ticket `pkg/resolver/resolver.go` exists with the `Resolved` struct, 
      ```
 
 ## Acceptance Criteria
+
 - `go test ./pkg/resolver -count=1` passes; `go vet ./pkg/resolver` and `gofmt -l pkg/resolver` are silent.
 - `Resolve(itemsDir, []string{"../../docs/spec.md"})` where `itemsDir = <tmp>/.awit/items` returns one element with `Path == filepath.Join(tmp, "docs", "spec.md")`, `Err == nil`, `Content` equal to the file bytes.
 - A missing ref yields `errors.Is(r.Err, os.ErrNotExist) == true`, `Content == nil`, and `Path` set to the absolute path that was tried.
@@ -401,7 +407,8 @@ After this ticket `pkg/resolver/resolver.go` exists with the `Resolved` struct, 
 - `pkg/resolver` imports only `os`, `path/filepath`, `strings`.
 
 ## Out of scope
-- Wiring into `awit show` (`--full`, `--refs-only`), delimiter rendering, one-level item-ref expansion — `AWIT-0ND5703G`.
+
+- Wiring into `awit show` (`--full`, `--refs-only`), delimiter rendering, one-level item-ref expansion - `AWIT-0ND5703G`.
 - Following refs of refs, cycle detection between items' refs, caching, or size limits.
 - Validating that refs stay inside the repository root (a ref may legitimately point anywhere on disk).
 - Changing `pkg/item` or how refs are written (`Store.AddComment` / `AttachFile` already produce forward-slash refs).

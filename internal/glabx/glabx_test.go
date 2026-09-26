@@ -666,7 +666,7 @@ func TestGlabSetBodyByteEdges(t *testing.T) {
 		{"CRLF", "one\r\ntwo\r\n"},
 		{"leading blank lines", "\n\nfirst\n"},
 		{"trailing spaces", "padded   \n"},
-		{"unicode", "héllo wörld — 日本語\n"},
+		{"unicode", "héllo wörld - 日本語\n"},
 		{"backticks and quotes", "a `code` span, \"double\", 'single'\n"},
 		{"comma and at", "a, b @mention\n"},
 		{"literal null", "null"},

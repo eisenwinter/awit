@@ -27,7 +27,7 @@ flowchart LR
 
 Each step is one process invocation; state between steps lives only in the
 files and in Git. `--claim` writes `status: in_progress`, `assignee`,
-`claimed_at`, then commits `awit: claim <id>` touching only that file — the
+`claimed_at`, then commits `awit: claim <id>` touching only that file - the
 commit turns a double-claim across worktrees into a merge conflict instead
 of silent duplication.
 
@@ -50,7 +50,7 @@ flowchart TD
   H --> I[next · prime · critical path]
 ```
 
-Every command rebuilds this graph from scratch — O(V+E); hundreds of items
+Every command rebuilds this graph from scratch - O(V+E); hundreds of items
 resolve in well under 10 ms. `status` (`open`/`in_progress`/`closed`) is
 stored; ready/blocked eligibility is derived: ready means not closed, no
 manual hold, every dep closed. A stored `blocked_reason` holds an item
@@ -60,7 +60,7 @@ regardless of deps.
 
 ## Ranking: what to do next
 
-Each ready item scores its transitive unblock count — unique non-closed
+Each ready item scores its transitive unblock count - unique non-closed
 downstream nodes. `prime` sorts by unblocks desc, ID asc (deterministic,
 prompt-cacheable); `next` ranks the same way but breaks ties randomly so two
 agents racing a claim diverge. The critical path is the longest path over
@@ -74,7 +74,7 @@ priority check.
 Cycles, dangling deps, unparseable frontmatter, Git conflict markers, ID
 mismatches and duplicate IDs all become quarantine through one path.
 Quarantined items are excluded from `next`, listed under `GRAPH WARNINGS` in
-`prime`, and reported as `FAIL` by `validate` — each with the `fix:` command
+`prime`, and reported as `FAIL` by `validate` - each with the `fix:` command
 that repairs it. The CLI never panics on a bad file. `validate` is the
 intended pre-commit hook.
 
@@ -82,7 +82,7 @@ intended pre-commit hook.
 
 ## Holding work: blocks vs labels
 
-A `blocked_reason` holds; the `blocked` label does not — `create`, `update`
+A `blocked_reason` holds; the `blocked` label does not - `create`, `update`
 and `import` print one stderr warning when a hold-less non-closed item newly
 receives that exact label. `awit block <id> --reason "<obstacle and release
 condition>"` stores the hold (open + claim cleared, one save); `awit

@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND5753G
-title: 'Reserve `external:` key and document the schema'
+title: "Reserve `external:` key and document the schema"
 brief: >-
   Keep external: off the Item struct, prove Parse then SetStatus then Bytes preserves external: gitlab#42, confirm validate ignores unknown keys, and land docs/schema.md covering config.yaml, item frontmatter, comments, filenames, and the reserved external: <provider>#<number> key.
 status: closed
@@ -13,27 +13,31 @@ refs:
 ---
 
 ## Summary
-After this ticket `external:` is a documented reserved frontmatter key that v1 never reads. `Item` gains no `External` field. `TestParsePreservesExternalKey` shows `external: gitlab#42` survives `Parse` → `SetStatus` → `Bytes`. `TestValidateIgnoresUnknownKeys` PASSes without changing `validate.go` — unknown keys are already kept on the YAML node and are not quarantine reasons. `docs/schema.md` is the on-disk contract (config.yaml, item frontmatter, comment format, filenames, reserved `external: <provider>#<number>`). README Layout links that file.
+
+After this ticket `external:` is a documented reserved frontmatter key that v1 never reads. `Item` gains no `External` field. `TestParsePreservesExternalKey` shows `external: gitlab#42` survives `Parse` → `SetStatus` → `Bytes`. `TestValidateIgnoresUnknownKeys` PASSes without changing `validate.go` - unknown keys are already kept on the YAML node and are not quarantine reasons. `docs/schema.md` is the on-disk contract (config.yaml, item frontmatter, comment format, filenames, reserved `external: <provider>#<number>`). README Layout links that file.
 
 ## Context (read first)
-- Guide §4.3 `Item` — exported fields are `ID, Title, Brief, Status, Deps, Labels, Assignee, ClaimedAt, Refs, Path` plus unexported `doc *yaml.Node` and `body []byte`. Comment already says "extra keys preserved inside doc". **Do not add `External string` or any other field.** Setters never delete keys they do not own; `SetStatus` only updates `status`.
+
+- Guide §4.3 `Item` - exported fields are `ID, Title, Brief, Status, Deps, Labels, Assignee, ClaimedAt, Refs, Path` plus unexported `doc *yaml.Node` and `body []byte`. Comment already says "extra keys preserved inside doc". **Do not add `External string` or any other field.** Setters never delete keys they do not own; `SetStatus` only updates `status`.
 - Guide §2 key order for **new** items: `id, title, brief, status, deps, labels, assignee, claimed_at, refs`. `New` does not write `external`. Imports that already have the key keep it because Parse stores the mapping node.
-- Guide §1 — unknown keys preserved; round-trip of a parsed file is byte-identical when no setter ran (`AWIT-0ND56D3G` `TestParseUnknownKeyKept` already uses `external: gitlab#42` without a setter). This ticket adds the setter case.
-- Spec Phase 5 — "Reserve `external:` frontmatter key (unused) for a future GitLab/GitHub mirror". Format: `external: <provider>#<number>` (example `gitlab#42`, `github#99`). v1 never reads it, never validates the provider, never fetches.
-- Spec Data model — required keys `id`, `title`, `status`; unknown keys preserved on write. `config.yaml` holds `prefix`, optional `default_labels`, `stale_claim` (default `2h`), `agent_id`.
-- Guide §2 comment format — frontmatter `author`, `created` (RFC3339 UTC), blank line, text. `--file` copies bytes verbatim, no frontmatter. Filename `<YYYYMMDDTHHMMSSZ>-<sanitised author><ext>`; collision `-2`, `-3` before the extension.
+- Guide §1 - unknown keys preserved; round-trip of a parsed file is byte-identical when no setter ran (`AWIT-0ND56D3G` `TestParseUnknownKeyKept` already uses `external: gitlab#42` without a setter). This ticket adds the setter case.
+- Spec Phase 5 - "Reserve `external:` frontmatter key (unused) for a future GitLab/GitHub mirror". Format: `external: <provider>#<number>` (example `gitlab#42`, `github#99`). v1 never reads it, never validates the provider, never fetches.
+- Spec Data model - required keys `id`, `title`, `status`; unknown keys preserved on write. `config.yaml` holds `prefix`, optional `default_labels`, `stale_claim` (default `2h`), `agent_id`.
+- Guide §2 comment format - frontmatter `author`, `created` (RFC3339 UTC), blank line, text. `--file` copies bytes verbatim, no frontmatter. Filename `<YYYYMMDDTHHMMSSZ>-<sanitised author><ext>`; collision `-2`, `-3` before the extension.
 - Dep `AWIT-0ND56D3G` must be `status: closed`. Phase 5 means `validate` (`AWIT-0ND56S3G`) already exists; this ticket does not change `validate.go`. `TestValidateIgnoresUnknownKeys` is expected to **PASS on the first run** after you add it.
 - `AWIT-0ND5743G` writes the full README and already links `docs/schema.md`. If that ticket has landed, do **not** rewrite README; only insert the Layout sentence if the link is missing. If README has no Layout section yet, append the Layout block from Step 7 and nothing else.
 - Helpers (`AWIT-0ND56G3G`): `run`, `initRepo`. Do not redeclare them. `loadGraph` / `toEntry` are `AWIT-0ND56J3G`; this ticket does not need them.
 
 ## Files
-- Modify: `pkg/item/item.go` — doc comment on `type Item` only. No new fields, no new methods.
-- Modify: `pkg/item/item_test.go` — append `TestParsePreservesExternalKey` and `TestItemHasNoExternalField`.
-- Modify: `internal/cli/validate_test.go` — append `TestValidateIgnoresUnknownKeys`. If that file is absent (S3G not on disk yet — it will be by phase 5), create it with **only** this test; do not redeclare `run` / `initRepo`.
-- Create: `docs/schema.md` — the document in Step 5.
-- Modify: `README.md` — Layout link only, and only if missing (Step 7).
+
+- Modify: `pkg/item/item.go` - doc comment on `type Item` only. No new fields, no new methods.
+- Modify: `pkg/item/item_test.go` - append `TestParsePreservesExternalKey` and `TestItemHasNoExternalField`.
+- Modify: `internal/cli/validate_test.go` - append `TestValidateIgnoresUnknownKeys`. If that file is absent (S3G not on disk yet - it will be by phase 5), create it with **only** this test; do not redeclare `run` / `initRepo`.
+- Create: `docs/schema.md` - the document in Step 5.
+- Modify: `README.md` - Layout link only, and only if missing (Step 7).
 
 ## Interfaces
+
 - Consumes (verbatim; do not change signatures):
   ```go
   func Parse(path string, data []byte) (*Item, error)
@@ -92,7 +96,7 @@ After this ticket `external:` is a documented reserved frontmatter key that v1 n
   go test ./pkg/item -run 'TestParsePreservesExternalKey|TestItemHasNoExternalField' -v
   ```
 
-  Expected: `TestItemHasNoExternalField` PASS (there is no field). `TestParsePreservesExternalKey` PASS if `SetStatus` already edits the node in place (it does, after `AWIT-0ND56D3G`). If `TestParsePreservesExternalKey` FAILs because `external:` was dropped, the bug is in `SetStatus` / `Bytes` rebuilding YAML from struct fields — fix that in `item.go` by encoding `it.doc` (the mapping node), not a fresh struct marshal. Do **not** add a field to make the test pass.
+  Expected: `TestItemHasNoExternalField` PASS (there is no field). `TestParsePreservesExternalKey` PASS if `SetStatus` already edits the node in place (it does, after `AWIT-0ND56D3G`). If `TestParsePreservesExternalKey` FAILs because `external:` was dropped, the bug is in `SetStatus` / `Bytes` rebuilding YAML from struct fields - fix that in `item.go` by encoding `it.doc` (the mapping node), not a fresh struct marshal. Do **not** add a field to make the test pass.
 
   Either a FAIL you then fix, or an immediate PASS, is acceptable for this step; do not skip running it. Record the output.
 
@@ -107,7 +111,7 @@ After this ticket `external:` is a documented reserved frontmatter key that v1 n
   // kept on the unexported YAML mapping node and survive Bytes() after any
   // setter. The key "external" is reserved for a future GitLab/GitHub mirror
   // (value form "external: <provider>#<number>", e.g. gitlab#42) and is never
-  // read in v1 — do not add an External field.
+  // read in v1 - do not add an External field.
   type Item struct {
   ```
 
@@ -125,9 +129,9 @@ After this ticket `external:` is a documented reserved frontmatter key that v1 n
   git commit -m "item: reserve external key on the yaml node"
   ```
 
-- [ ] **Step 4: `TestValidateIgnoresUnknownKeys` — write it, see it PASS.**
+- [ ] **Step 4: `TestValidateIgnoresUnknownKeys` - write it, see it PASS.**
 
-  Append to `internal/cli/validate_test.go` (create the file with `package cli` and the imports below if it does not exist; if it exists, only append the test and add missing imports). Helpers `run` and `initRepo` already live in `helpers_test.go` — do not redeclare them.
+  Append to `internal/cli/validate_test.go` (create the file with `package cli` and the imports below if it does not exist; if it exists, only append the test and add missing imports). Helpers `run` and `initRepo` already live in `helpers_test.go` - do not redeclare them.
 
   ```go
   package cli
@@ -243,12 +247,12 @@ After this ticket `external:` is a documented reserved frontmatter key that v1 n
   agent_id: claude
   ```
 
-  | Key | Required | Rules |
-  | --- | --- | --- |
-  | `prefix` | yes | `[A-Z][A-Z0-9]{1,7}`; missing → load error `config: prefix is required` |
-  | `default_labels` | no | strings; merged first-wins into `awit create -l` |
-  | `stale_claim` | no | Go duration (`2h`, `90m`). Missing/zero → `2h` |
-  | `agent_id` | no | raw identity; `AWIT_AGENT` overrides; `--author` overrides both |
+  | Key              | Required | Rules                                                                   |
+  | ---------------- | -------- | ----------------------------------------------------------------------- |
+  | `prefix`         | yes      | `[A-Z][A-Z0-9]{1,7}`; missing → load error `config: prefix is required` |
+  | `default_labels` | no       | strings; merged first-wins into `awit create -l`                        |
+  | `stale_claim`    | no       | Go duration (`2h`, `90m`). Missing/zero → `2h`                          |
+  | `agent_id`       | no       | raw identity; `AWIT_AGENT` overrides; `--author` overrides both         |
 
   Unknown keys in `config.yaml` are not part of v1; `Load` decodes into a
   struct and extra keys are dropped on the next `Write`. Do not put
@@ -281,25 +285,25 @@ After this ticket `external:` is a documented reserved frontmatter key that v1 n
 
   ### Required keys
 
-  | Key | Type | Rules |
-  | --- | --- | --- |
-  | `id` | string | `PREFIX-` plus 8 Crockford chars. Must equal the filename stem |
-  | `title` | string | Non-empty |
-  | `status` | enum | `open`, `in_progress`, `closed`. Blocked is derived, never stored |
+  | Key      | Type   | Rules                                                             |
+  | -------- | ------ | ----------------------------------------------------------------- |
+  | `id`     | string | `PREFIX-` plus 8 Crockford chars. Must equal the filename stem    |
+  | `title`  | string | Non-empty                                                         |
+  | `status` | enum   | `open`, `in_progress`, `closed`. Blocked is derived, never stored |
 
   Missing required keys or an unknown status → parse error → quarantine
   `PARSE ERROR`.
 
   ### Optional known keys
 
-  | Key | Type | Rules |
-  | --- | --- | --- |
-  | `brief` | string | One to three sentences. `create` requires `--brief`. `validate` warns when missing or longer |
-  | `deps` | list of ids | Unknown id → `DANGLING DEP` on this item. Written flow style `[a, b]` |
-  | `labels` | list of strings | Free-form. `p0`–`p4` recommended for priority. Flow style |
-  | `assignee` | string | `human/<name>` or `agent/<id>`. Omitted when empty; `SetAssignee("")` deletes the key |
-  | `claimed_at` | RFC3339 UTC | Seconds precision. Set by `--claim`; deleted by `release` and `close` |
-  | `refs` | list of paths | Relative to `.awit/items/`, forward slashes. Block style. Always present, `[]` when empty |
+  | Key          | Type            | Rules                                                                                        |
+  | ------------ | --------------- | -------------------------------------------------------------------------------------------- |
+  | `brief`      | string          | One to three sentences. `create` requires `--brief`. `validate` warns when missing or longer |
+  | `deps`       | list of ids     | Unknown id → `DANGLING DEP` on this item. Written flow style `[a, b]`                        |
+  | `labels`     | list of strings | Free-form. `p0`–`p4` recommended for priority. Flow style                                    |
+  | `assignee`   | string          | `human/<name>` or `agent/<id>`. Omitted when empty; `SetAssignee("")` deletes the key        |
+  | `claimed_at` | RFC3339 UTC     | Seconds precision. Set by `--claim`; deleted by `release` and `close`                        |
+  | `refs`       | list of paths   | Relative to `.awit/items/`, forward slashes. Block style. Always present, `[]` when empty    |
 
   New items written by `awit create` use key order
   `id, title, brief, status, deps, labels, refs` and omit empty
@@ -356,24 +360,24 @@ After this ticket `external:` is a documented reserved frontmatter key that v1 n
   Research notes go here.
   ```
 
-  | Key | Rules |
-  | --- | --- |
-  | `author` | As resolved: `--author` verbatim, or `AWIT_AGENT` / `agent_id` with `agent/` prefix, or git `user.name` |
-  | `created` | RFC3339 UTC, seconds |
+  | Key       | Rules                                                                                                   |
+  | --------- | ------------------------------------------------------------------------------------------------------- |
+  | `author`  | As resolved: `--author` verbatim, or `AWIT_AGENT` / `agent_id` with `agent/` prefix, or git `user.name` |
+  | `created` | RFC3339 UTC, seconds                                                                                    |
 
-  `--file` copies the source bytes verbatim — no frontmatter is added.
+  `--file` copies the source bytes verbatim - no frontmatter is added.
 
   After a comment or attachment is written, the item's `refs` gains a
   forward-slash entry `../comments/<id>/<filename>` and the item is saved.
 
   ## Filenames
 
-  | Kind | Pattern |
-  | --- | --- |
-  | Item | `<id>.md` in `items/` |
-  | Comment | `<YYYYMMDDTHHMMSSZ>-<sanitised-author>.md` |
+  | Kind       | Pattern                                                                     |
+  | ---------- | --------------------------------------------------------------------------- |
+  | Item       | `<id>.md` in `items/`                                                       |
+  | Comment    | `<YYYYMMDDTHHMMSSZ>-<sanitised-author>.md`                                  |
   | Attachment | `<YYYYMMDDTHHMMSSZ>-<sanitised-author><ext>` keeping the original extension |
-  | Collision | `-2`, `-3`, … immediately before the extension |
+  | Collision  | `-2`, `-3`, … immediately before the extension                              |
 
   Author sanitising: strip one leading `agent/`, lowercase, map runes
   outside `[a-z0-9._-]` to `-`, collapse `--`, trim `-`, empty → `anon`.
@@ -415,7 +419,7 @@ After this ticket `external:` is a documented reserved frontmatter key that v1 n
 
   If there is no `## Layout` section, append it:
 
-  ```markdown
+  ````markdown
   ## Layout
 
   ```text
@@ -424,10 +428,12 @@ After this ticket `external:` is a documented reserved frontmatter key that v1 n
   ├── items/PREFIX-XXXXXXXX.md
   └── comments/PREFIX-XXXXXXXX/<UTC seconds>-<author>.md
   ```
+  ````
 
   The on-disk schema, including the reserved `external:` key, is
   documented in [docs/schema.md](docs/schema.md).
-  ```
+
+  ````
 
   Confirm:
 
@@ -442,7 +448,7 @@ After this ticket `external:` is a documented reserved frontmatter key that v1 n
   assert 'YYYYMMDDTHHMMSSZ' in s
   print('schema docs ok')
   PY
-  ```
+  ````
 
   Expected: `schema docs ok`.
 
@@ -471,6 +477,7 @@ After this ticket `external:` is a documented reserved frontmatter key that v1 n
     ```
 
 ## Acceptance Criteria
+
 - `go test ./pkg/item -run TestParsePreservesExternalKey -v` PASS: after `Parse` → `SetStatus(in_progress)` → `Bytes()`, the bytes contain `external: gitlab#42` and `status: in_progress`.
 - `go test ./pkg/item -run TestItemHasNoExternalField -v` PASS. `Item` has no exported or unexported field named `External`.
 - The doc comment on `type Item` states that `external` is reserved, never read in v1, and must not become a struct field.
@@ -480,9 +487,10 @@ After this ticket `external:` is a documented reserved frontmatter key that v1 n
 - `gofmt -l pkg/item internal/cli/validate_test.go` prints nothing. No new Go package.
 
 ## Out of scope
+
 - Implementing a GitLab/GitHub mirror, fetching issues, writing `external:` from any command.
 - Adding `external` to `item.New` key order or to `awit create` flags.
 - Changing `validate` rules, quarantine reasons, or `SetStatus` beyond keeping unknown keys.
-- goreleaser, pre-commit hook file, version ldflags — `AWIT-0ND5743G`.
-- `pkg/lock` — `AWIT-0ND5723G`.
-- Rewriting the rest of README (Install, Commands table, Agent loop) — `AWIT-0ND5743G`.
+- goreleaser, pre-commit hook file, version ldflags - `AWIT-0ND5743G`.
+- `pkg/lock` - `AWIT-0ND5723G`.
+- Rewriting the rest of README (Install, Commands table, Agent loop) - `AWIT-0ND5743G`.

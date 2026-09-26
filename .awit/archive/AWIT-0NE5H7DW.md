@@ -12,8 +12,11 @@ assignee: agent/orchestrator
 ---
 
 ## Summary
-No tags exist, so `Taskfile.dev` stamps the git SHA and the `v*` release workflow never fired. Create annotated tag `v0.1.0` locally, prove `task --taskfile Taskfile.dev build && ./bin/awit --version` prints `awit v0.1.0`, `go test ./...` green. Do NOT push — `git push --tags` is the human's call.
+
+No tags exist, so `Taskfile.dev` stamps the git SHA and the `v*` release workflow never fired. Create annotated tag `v0.1.0` locally, prove `task --taskfile Taskfile.dev build && ./bin/awit --version` prints `awit v0.1.0`, `go test ./...` green. Do NOT push - `git push --tags` is the human's call.
+
 ## Acceptance Criteria
+
 - [ ] Tag `v0.1.0` exists locally, tree was clean at tag time
 - [ ] Stamped binary prints `awit v0.1.0`
 

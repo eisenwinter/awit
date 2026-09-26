@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NMVQ7DV
-title: 'rollout: verify the manual block end to end in a scratch checkout'
+title: "rollout: verify the manual block end to end in a scratch checkout"
 brief: >-
   Run the full block lifecycle smoke in a disposable checkout and confirm docs and skill parity, without touching real queue state or tracker labels.
 status: closed
@@ -10,13 +10,14 @@ refs_base: repo
 refs: []
 assignee: agent/orchestrator
 ---
+
 ## Summary
 
 Operator/orchestrator rollout verification for the manual-block feature (MB1-MB3): prove the whole lifecycle in a disposable checkout with the real binary, confirm read-surface truthfulness and skill parity, and retire the TICKETS.md/CLAUDE.md per-ticket suppression workaround pattern where it appears in consuming checkouts. No live tracker-label changes; stale tracker labels are never trusted or silently modified.
 
 ## Context (read first)
 
-- `AGENTS.md`; MB1-MB3 (`AWIT-0NMVMSDQ`, `AWIT-0NMVNPDQ`, `AWIT-0NMVPMDJ`) — read all three via `awit show`.
+- `AGENTS.md`; MB1-MB3 (`AWIT-0NMVMSDQ`, `AWIT-0NMVNPDQ`, `AWIT-0NMVPMDJ`) - read all three via `awit show`.
 - Plan smoke scenario §G and acceptance list; reviewed strings `agent://ProseBlockStrings`.
 - The original "live EEEEE-F1c" reference is origin-checkout noise: do not hunt it in this repo. The general case is: any consuming checkout that suppresses a zero-dep item via out-of-band notes gets a real `blocked_reason` instead.
 

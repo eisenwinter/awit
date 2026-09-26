@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND5693G
-title: 'pkg/id: Crockford snowflake IDs'
+title: "pkg/id: Crockford snowflake IDs"
 brief: >-
   Implement pkg/id: 40-bit Crockford snowflake encode/decode, Format/Split/Valid/Time, FNV-1a worker hashing with AWIT_WORKER override, and Mint with a 4-bit crypto/rand nibble and 16 collision retries.
 status: closed
@@ -13,15 +13,17 @@ refs:
 ---
 
 ## Summary
+
 After this ticket `pkg/id/id.go` exists with every signature in guide §4.1 copied verbatim. IDs are 8 uppercase Crockford chars packing 30-bit seconds-since-epoch, 6-bit worker and 4-bit random, MSB first. `Encode(22451400, 7, 0)` is `0ND5683G` and `Time` of that body is `2026-09-17T20:30:00Z`. `Mint` retries 16 times then returns `ErrExhausted`. No CLI, no store, no YAML.
 
 ## Context (read first)
-- Guide §4.1 `pkg/id` — copy the signatures; do not rename. `Alphabet`, `Epoch`, bit-width constants, `ErrExhausted` and every func listed there are the whole public surface.
+
+- Guide §4.1 `pkg/id` - copy the signatures; do not rename. `Alphabet`, `Epoch`, bit-width constants, `ErrExhausted` and every func listed there are the whole public surface.
 - Guide §1: stdlib only (`errors`, `fmt`, `os`, `strconv`, `strings`, `time`, `hash/fnv`, `crypto/rand`). Module `github.com/eisenwinter/awit`. Tabs, `gofmt`. Tests: `testing` only, table-driven, no golden files.
 - Guide §2 decision 2: worker hash input is **hostname + worktree absolute path + branch name**, FNV-1a 32-bit, `% 64`. `AWIT_WORKER` (0–63) overrides. Branch missing → empty string, still hashed. Join the three strings with a NUL byte between them: `hostname+"\x00"+worktree+"\x00"+branch`. Do **not** concatenate without NULs.
 - Guide §2 decision 6: epoch `2026-01-01T00:00:00Z`, 30-bit seconds, 6-bit worker, 4-bit random, 8 Crockford chars. `Encode` errors if any field exceeds its width (timestamp included).
 - Spec `plan/awit-implementation-plan.md` §Decisions → ID scheme and §ID layout: snowflake-like, `PREFIX-` + 8 Crockford chars, time-sortable; random nibble re-rolls on local collision; `crypto/rand`; a per-process sequence counter is meaningless for a one-shot CLI.
-- Spec Phase 0: `pkg/id`: base32 encode/decode, worker hash, minting; property test that IDs sort by creation time — that is `TestIDsSortByTime`.
+- Spec Phase 0: `pkg/id`: base32 encode/decode, worker hash, minting; property test that IDs sort by creation time - that is `TestIDsSortByTime`.
 - Crockford alphabet is **exactly** `0123456789ABCDEFGHJKMNPQRSTVWXYZ` (no I, L, O, U). Decode must **reject** those letters, not map them. Accept lowercase via `strings.ToUpper` before lookup.
 - Packing: `v := uint64(secs)<<10 | uint64(worker)<<4 | uint64(rnd)`. Emit `Alphabet[(v>>(5*i))&31]` for `i := 7; i >= 0; i--` (MSB first, 8 chars).
 - `Time(body)` is `Epoch.Add(time.Duration(secs)*time.Second)` after `Decode`. UTC.
@@ -29,12 +31,14 @@ After this ticket `pkg/id/id.go` exists with every signature in guide §4.1 copi
 - `Worker`: if `AWIT_WORKER` is set and `strconv.Atoi` yields 0..63 inclusive, use that; otherwise `WorkerFor(os.Hostname(), worktree, branch)`. Hostname error → empty hostname, still hashed. Values 99 and `abc` are **not** overrides.
 
 ## Files
+
 - Create: `pkg/id/id.go`
 - Create: `pkg/id/id_test.go`
 - Modify: none. Do not touch `go.mod`. This package is stdlib-only.
 - Fixtures/golden: none.
 
 ## Interfaces
+
 - Consumes: nothing. No other awit package.
 - Produces (verbatim from guide §4.1):
 
@@ -68,7 +72,7 @@ var ErrExhausted = errors.New("id: could not mint unique id after 16 attempts")
 ## Steps
 
 - [ ] **Step 1: Write the failing tests for Encode, Decode, Format, Split, Valid, Time, sort, Worker and Mint.**
-  Create `pkg/id/id_test.go` with every test named in Acceptance. Do not create `id.go` yet.
+      Create `pkg/id/id_test.go` with every test named in Acceptance. Do not create `id.go` yet.
 
 ```go
 package id
@@ -288,19 +292,23 @@ func TestMintExhausted(t *testing.T) {
 ```
 
 - [ ] **Step 2: Run it, see it fail to compile.**
+
   ```bash
   go test ./pkg/id -run TestEncode -v
   ```
+
   Expected failure (`id.go` does not exist, so `Encode`/`Decode`/`Chars` are undefined):
+
   ```text
   # github.com/eisenwinter/awit/pkg/id [github.com/eisenwinter/awit/pkg/id.test]
   pkg/id/id_test.go: undefined: Encode
   FAIL	github.com/eisenwinter/awit/pkg/id [build failed]
   ```
+
   The compiler will list several undefined names (`Encode`, `Decode`, `Chars`, `TimestampBits`, …). That is the red step. Do not skip it.
 
 - [ ] **Step 3: Implement `pkg/id/id.go`.**
-  Create `pkg/id/id.go` with the complete package. Keep the packing formula, the `i := 7; i >= 0; i--` emit loop, NUL-separated FNV input, 16-attempt Mint, and the exact `ErrExhausted` string.
+      Create `pkg/id/id.go` with the complete package. Keep the packing formula, the `i := 7; i >= 0; i--` emit loop, NUL-separated FNV input, 16-attempt Mint, and the exact `ErrExhausted` string.
 
 ```go
 package id
@@ -433,20 +441,24 @@ func Mint(prefix string, now time.Time, worker uint8, exists func(string) bool) 
 }
 ```
 
-  Notes that must survive `gofmt`:
-  - `v := uint64(secs)<<10 | uint64(worker)<<4 | uint64(rnd)` is the only packing. Do not shift by `TimestampBits`/`WorkerBits` names in a different order.
-  - Emit loop is `for i := 7; i >= 0; i--` writing `b[7-i]`. Reversing the index produces a different string and fails the worked example.
-  - `Decode` uppercases **before** the alphabet lookup so `0nd5683g` works and `i`/`l`/`o`/`u` become `I`/`L`/`O`/`U` which are **not** in `Alphabet`.
-  - Do not implement Crockford's traditional I/L→1, O→0 folding. Reject.
-  - `Split` uses the **first** dash (`strings.Cut`). Body length must be exactly 8; Crockford validity is `Valid`/`Decode`, not `Split`.
-  - `Mint` calls `exists` with `Format(prefix, body)`, not the bare body. Truncate `now` to seconds **after** `UTC()`. `for range 16` is 16 attempts (Go 1.22+). A 4-bit nibble is `buf[0]&0x0F`, not a decimal 0–9.
-  - `WorkerFor` MUST use `hash/fnv` `New32a` (FNV-1a, not FNV-1). `% 64` after `Sum32`.
+Notes that must survive `gofmt`:
+
+- `v := uint64(secs)<<10 | uint64(worker)<<4 | uint64(rnd)` is the only packing. Do not shift by `TimestampBits`/`WorkerBits` names in a different order.
+- Emit loop is `for i := 7; i >= 0; i--` writing `b[7-i]`. Reversing the index produces a different string and fails the worked example.
+- `Decode` uppercases **before** the alphabet lookup so `0nd5683g` works and `i`/`l`/`o`/`u` become `I`/`L`/`O`/`U` which are **not** in `Alphabet`.
+- Do not implement Crockford's traditional I/L→1, O→0 folding. Reject.
+- `Split` uses the **first** dash (`strings.Cut`). Body length must be exactly 8; Crockford validity is `Valid`/`Decode`, not `Split`.
+- `Mint` calls `exists` with `Format(prefix, body)`, not the bare body. Truncate `now` to seconds **after** `UTC()`. `for range 16` is 16 attempts (Go 1.22+). A 4-bit nibble is `buf[0]&0x0F`, not a decimal 0–9.
+- `WorkerFor` MUST use `hash/fnv` `New32a` (FNV-1a, not FNV-1). `% 64` after `Sum32`.
 
 - [ ] **Step 4: Run the Encode tests, see them pass.**
+
   ```bash
   go test ./pkg/id -run 'TestEncode|TestDecode' -v
   ```
+
   Expected:
+
   ```text
   === RUN   TestEncodeDecodeRoundTrip
   --- PASS: TestEncodeDecodeRoundTrip (0.00s)
@@ -461,19 +473,25 @@ func Mint(prefix string, now time.Time, worker uint8, exists func(string) bool) 
   PASS
   ok  	github.com/eisenwinter/awit/pkg/id	0.00s
   ```
+
   Commit:
+
   ```bash
   gofmt -l pkg/id
   git add pkg/id
   git commit -m "id: add base32 codec"
   ```
+
   (`gofmt -l` must print nothing.)
 
 - [ ] **Step 5: Run Format/Split/Valid/Time/sort, see them pass.**
+
   ```bash
   go test ./pkg/id -run 'TestSplitAndValid|TestTime|TestIDsSortByTime' -v
   ```
+
   Expected:
+
   ```text
   === RUN   TestIDsSortByTime
   --- PASS: TestIDsSortByTime (0.00s)
@@ -484,18 +502,23 @@ func Mint(prefix string, now time.Time, worker uint8, exists func(string) bool) 
   PASS
   ok  	github.com/eisenwinter/awit/pkg/id	0.00s
   ```
+
   `TestTime` must print `2026-09-17T20:30:00Z` (UTC, seconds precision). If it is off by the local zone you forgot `Epoch` is UTC and `Time` must return a UTC `time.Time`.
   Commit:
+
   ```bash
   git add pkg/id
   git commit -m "id: Format Split Valid Time"
   ```
 
 - [ ] **Step 6: Run Worker and Mint tests, see them pass.**
+
   ```bash
   go test ./pkg/id -run 'TestWorker|TestMint' -v
   ```
+
   Expected:
+
   ```text
   === RUN   TestWorkerForStable
   --- PASS: TestWorkerForStable (0.00s)
@@ -508,25 +531,30 @@ func Mint(prefix string, now time.Time, worker uint8, exists func(string) bool) 
   PASS
   ok  	github.com/eisenwinter/awit/pkg/id	0.00s
   ```
+
   If `TestWorkerForStable` gets a value other than 22, the NUL separators are missing or FNV-1 (not FNV-1a) was used. If `TestMintExhausted` sees `n != 16`, the retry loop is wrong. If `TestMintRetriesOnCollision` sees `n != 4`, `exists` is not being called per attempt.
   Commit:
+
   ```bash
   git add pkg/id
   git commit -m "id: worker hash and mint retries"
   ```
 
 - [ ] **Step 7: Run the whole package, build and vet.**
+
   ```bash
   go test ./pkg/id -v
   go build ./...
   go vet ./pkg/id
   gofmt -l pkg/id
   ```
+
   Expected: twelve tests PASS (`TestEncodeDecodeRoundTrip`, `TestEncodeWorkedExample`, `TestEncodeRangeErrors`, `TestDecodeRejectsAmbiguous`, `TestDecodeAcceptsLowercase`, `TestIDsSortByTime`, `TestSplitAndValid`, `TestTime`, `TestWorkerForStable`, `TestWorkerEnvOverride`, `TestMintRetriesOnCollision`, `TestMintExhausted`), then `ok  	github.com/eisenwinter/awit/pkg/id`; `go build` and `go vet` print nothing and exit `0`; `gofmt -l` prints nothing.
 
 - [ ] **Step 8: Close ticket.**
   - Set `status: closed` in the frontmatter of `.awit/items/AWIT-0ND5693G.md`.
   - Create `.awit/comments/AWIT-0ND5693G/<YYYYMMDDTHHMMSSZ>-<author>.md` (UTC stamp):
+
     ```markdown
     ---
     author: agent/claude
@@ -547,6 +575,7 @@ func Mint(prefix string, now time.Time, worker uint8, exists func(string) bool) 
     $ gofmt -l pkg/id
     (no output)
     ```
+
   - Append the ref `../comments/AWIT-0ND5693G/<file>.md` to this ticket's `refs` list (forward slashes, block style, after the two plan refs).
   - Commit:
     ```bash
@@ -555,6 +584,7 @@ func Mint(prefix string, now time.Time, worker uint8, exists func(string) bool) 
     ```
 
 ## Acceptance Criteria
+
 - `go test ./pkg/id -v` → all twelve tests `PASS`, final line `ok  	github.com/eisenwinter/awit/pkg/id`, exit code `0`.
 - `go test ./pkg/id -run TestEncodeWorkedExample -v` → `PASS`; `Encode(22451400, 7, 0) == "0ND5683G"`.
 - `go test ./pkg/id -run TestTime -v` → `PASS`; `Time("0ND5683G")` is `2026-09-17T20:30:00Z`.
@@ -568,10 +598,11 @@ func Mint(prefix string, now time.Time, worker uint8, exists func(string) bool) 
 - `pkg/id/id.go` imports no third-party module: `grep -c 'urfave\|yaml' pkg/id/id.go` → `0` with exit code `1`.
 
 ## Out of scope
-- `pkg/item.Store.Mint` / `Store.Exists` / filename allocation — `AWIT-0ND56E3G`. This ticket only provides `id.Mint` and `id.Worker`.
-- `gitx.Branch` — `AWIT-0ND56C3G`. `Worker` takes `worktree` and `branch` as plain strings; it does not call git.
-- `awit create`, `--id` override, CLI wiring — `AWIT-0ND56H3G`.
-- Prefix configuration (`config.yaml` `prefix`) — `AWIT-0ND56A3G`. `Format`/`Mint` take `prefix` as an argument.
+
+- `pkg/item.Store.Mint` / `Store.Exists` / filename allocation - `AWIT-0ND56E3G`. This ticket only provides `id.Mint` and `id.Worker`.
+- `gitx.Branch` - `AWIT-0ND56C3G`. `Worker` takes `worktree` and `branch` as plain strings; it does not call git.
+- `awit create`, `--id` override, CLI wiring - `AWIT-0ND56H3G`.
+- Prefix configuration (`config.yaml` `prefix`) - `AWIT-0ND56A3G`. `Format`/`Mint` take `prefix` as an argument.
 - Crockford checksum chars, hyphens inside the body, or fuzzy I/L/O/U mapping.
 - A package-level `rand` seam or injectable clock. Tests inject `exists` and pass `now`; `crypto/rand` stays real.
 - Sequential counters, UUID, ULID, or any ID width other than 8 chars / 40 bits.

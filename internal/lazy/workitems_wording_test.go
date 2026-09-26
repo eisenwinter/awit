@@ -41,7 +41,7 @@ func TestRedWorkItemsWordingAndSpacing(t *testing.T) {
 	}
 	m.graphTab.focused = true
 	m.graphTab.rootID = ""
-	if got := m.tabHeaderView(); got != "Focused (no root — select an item on Work items)" {
+	if got := m.tabHeaderView(); got != "Focused (no root - select an item on Work items)" {
 		t.Fatalf("no-root header = %q, want Work items hint", got)
 	}
 	rows := focusedRows(m.g, "")

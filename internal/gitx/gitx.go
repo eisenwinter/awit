@@ -67,7 +67,7 @@ var errNoPaths = errors.New("gitx: commit needs at least one path")
 //
 // Paths normally arrive as item.Path, which is absolute. Git
 // accepts absolute pathspecs inside the worktree and resolves them against the
-// worktree root, so no filepath.Rel conversion is needed — and none should be
+// worktree root, so no filepath.Rel conversion is needed - and none should be
 // attempted, because hand-built relative paths break on Windows drive letters.
 //
 // The explicit pathspec on `git commit` is what makes the commit minimal: the

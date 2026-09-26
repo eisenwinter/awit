@@ -38,7 +38,7 @@ func TestValidateStaleClaimsWarn(t *testing.T) {
 
 func TestValidateStaleWithinLimit(t *testing.T) {
 	dir := copyFixture(t, "clean")
-	// claimed 14:32:05Z; now is 1h59m later — inside the 2h limit.
+	// claimed 14:32:05Z; now is 1h59m later - inside the 2h limit.
 	pinNow(t, "2026-09-17T16:31:05Z")
 	code, stdout, _ := run(t, "--repo", dir, "validate", "--stale-claims")
 	if code != 0 {

@@ -13,20 +13,23 @@ refs:
 ---
 
 ## Summary
+
 After this ticket `pkg/format` exists and renders `format.Entry` rows and `format.LabelCount` rows in three formats (`compact`, `table`, `json`), plus `Detect` for choosing a format from a flag or a TTY check. Five golden files under `pkg/format/testdata/golden/` pin the byte-exact output, and `pkg/format/golden_test.go` provides the `-update` helper used by the rest of the repo. This package has **no** dependency on `pkg/item`, `pkg/graph` or `internal/cli`: it only knows the flat `Entry` struct. Conversion from graph nodes to `Entry` does **not** exist after this ticket (it lands in `internal/cli` with `awit list`), and no command wires this package up yet.
 
 ## Context (read first)
-- **guide §4.7 `pkg/format`** — the exact signatures to implement. Copy them; do not rename anything.
-- **guide §1 global constraints** — stdlib only (`encoding/json`, `text/tabwriter`, `os`, `strings`, `fmt`, `io`); deterministic output (no map iteration in rendering); no colour anywhere; tests use `testing` only, table-driven; golden files live in `pkg/format/testdata/golden/` with `var update = flag.Bool("update", false, "rewrite golden files")`.
-- **guide §5 testing conventions** — golden comparison is `bytes.Equal`; on mismatch print got and want and hint `go test ./... -update`.
+
+- **guide §4.7 `pkg/format`** - the exact signatures to implement. Copy them; do not rename anything.
+- **guide §1 global constraints** - stdlib only (`encoding/json`, `text/tabwriter`, `os`, `strings`, `fmt`, `io`); deterministic output (no map iteration in rendering); no colour anywhere; tests use `testing` only, table-driven; golden files live in `pkg/format/testdata/golden/` with `var update = flag.Bool("update", false, "rewrite golden files")`.
+- **guide §5 testing conventions** - golden comparison is `bytes.Equal`; on mismatch print got and want and hint `go test ./... -update`.
 - **guide §2 decisions that matter here** (one line each):
   - Unblock count is `-1` for quarantined nodes, so `Unblocks: -1` is a legal rendered value.
   - No colour in v1 output; `--no-color` is a no-op elsewhere, so this package never emits escape sequences.
   - Output compared in tests is deterministic: rendering order is the caller's slice order, never sorted or shuffled here.
-- **spec `plan/awit-implementation-plan.md` §CLI command matrix** — "every list-shaped output honours `--format compact|table|json` (compact when stdout is not a TTY)".
-- **spec §Agent surface → `awit next`** — the compact line shape this package produces.
+- **spec `plan/awit-implementation-plan.md` §CLI command matrix** - "every list-shaped output honours `--format compact|table|json` (compact when stdout is not a TTY)".
+- **spec §Agent surface → `awit next`** - the compact line shape this package produces.
 
 ## Files
+
 - Create: `pkg/format/format.go`
 - Create: `pkg/format/format_test.go`
 - Create: `pkg/format/golden_test.go`
@@ -37,6 +40,7 @@ After this ticket `pkg/format` exists and renders `format.Entry` rows and `forma
 - Create (via `-update`): `pkg/format/testdata/golden/format_labels_table.golden`
 
 ## Interfaces
+
 - Consumes: nothing. `pkg/format` imports only the standard library.
 - Produces (verbatim from guide §4.7):
 
@@ -87,7 +91,7 @@ func normalise(e Entry) Entry             // copy with nil Labels/Deps replaced 
 func unknownFormat(f Format) error        // fmt.Errorf("format: unknown format %q (compact|table|json)", string(f))
 ```
 
-- Produces (test-only, `pkg/format/golden_test.go`) — ticket `AWIT-0ND56G3G` copies this helper into `internal/cli/helpers_test.go` with a different relative root (`repoRoot()` via `runtime.Caller`), so keep the behaviour identical and the path logic local:
+- Produces (test-only, `pkg/format/golden_test.go`) - ticket `AWIT-0ND56G3G` copies this helper into `internal/cli/helpers_test.go` with a different relative root (`repoRoot()` via `runtime.Caller`), so keep the behaviour identical and the path logic local:
 
 ```go
 var update = flag.Bool("update", false, "rewrite golden files")
@@ -190,8 +194,8 @@ func TestIsTerminalFalseForFile(t *testing.T) {
 go test ./pkg/format -run 'TestDetect|TestIsTerminal' -v
 ```
 
-  Expected: the package does not compile —
-  `pkg/format/format_test.go:29:15: undefined: Detect` and `undefined: Compact`, `undefined: Format`, `undefined: IsTerminal`, ending in `FAIL github.com/eisenwinter/awit/pkg/format [build failed]`.
+Expected: the package does not compile -
+`pkg/format/format_test.go:29:15: undefined: Detect` and `undefined: Compact`, `undefined: Format`, `undefined: IsTerminal`, ending in `FAIL github.com/eisenwinter/awit/pkg/format [build failed]`.
 
 - [ ] **Step 3: Implement `Format`, `Detect`, `IsTerminal`**
 
@@ -262,7 +266,7 @@ func IsTerminal(f *os.File) bool {
 go test ./pkg/format -run 'TestDetect|TestIsTerminal' -v
 ```
 
-  Expected: `--- PASS: TestDetect` with five subtests, `--- PASS: TestIsTerminalFalseForFile`, `ok  	github.com/eisenwinter/awit/pkg/format`.
+Expected: `--- PASS: TestDetect` with five subtests, `--- PASS: TestIsTerminalFalseForFile`, `ok  	github.com/eisenwinter/awit/pkg/format`.
 
 ```sh
 gofmt -w pkg/format/format.go pkg/format/format_test.go
@@ -349,7 +353,7 @@ func TestLine(t *testing.T) {
 go test ./pkg/format -run TestLine -v
 ```
 
-  Expected: build failure `undefined: Entry` and `undefined: Line`.
+Expected: build failure `undefined: Entry` and `undefined: Line`.
 
 - [ ] **Step 7: Implement `Entry` and `Line`, run, see it pass, commit**
 
@@ -395,7 +399,7 @@ func Line(e Entry) string {
 go test ./pkg/format -run TestLine -v
 ```
 
-  Expected: `--- PASS: TestLine` with its three subtests.
+Expected: `--- PASS: TestLine` with its three subtests.
 
 ```sh
 gofmt -w pkg/format/format.go pkg/format/format_test.go
@@ -527,7 +531,7 @@ func TestWriteJSONDoesNotMutateInput(t *testing.T) {
 }
 ```
 
-  Add `"bytes"` and `"encoding/json"` to the imports of `format_test.go`.
+Add `"bytes"` and `"encoding/json"` to the imports of `format_test.go`.
 
 - [ ] **Step 10: Run them, see them fail**
 
@@ -535,7 +539,7 @@ func TestWriteJSONDoesNotMutateInput(t *testing.T) {
 go test ./pkg/format -run TestWrite -v
 ```
 
-  Expected: build failure `undefined: Write`.
+Expected: build failure `undefined: Write`.
 
 - [ ] **Step 11: Implement `Write`**
 
@@ -607,9 +611,9 @@ go test ./pkg/format -run TestWrite -update
 go test ./pkg/format -run TestWrite -v
 ```
 
-  Expected: first run writes the files, second run passes without `-update`. Now check each file byte for byte against the content below; if a file differs, the implementation is wrong — fix the code, not the golden.
+Expected: first run writes the files, second run passes without `-update`. Now check each file byte for byte against the content below; if a file differs, the implementation is wrong - fix the code, not the golden.
 
-  `pkg/format/testdata/golden/format_compact.golden`:
+`pkg/format/testdata/golden/format_compact.golden`:
 
 ```text
 [AWIT-TEST0001] Implement OAuth2 token extraction | auth,p1 | Unblocks: 2
@@ -617,7 +621,7 @@ go test ./pkg/format -run TestWrite -v
 [AWIT-TEST0009] Rotate tokens | p0 | Unblocks: -1 | QUARANTINED
 ```
 
-  `pkg/format/testdata/golden/format_table.golden` (column widths: ID 15, STATE 13, TITLE 35, LABELS 9, UNBLOCKS unpadded because it is the last cell on the line):
+`pkg/format/testdata/golden/format_table.golden` (column widths: ID 15, STATE 13, TITLE 35, LABELS 9, UNBLOCKS unpadded because it is the last cell on the line):
 
 ```text
 ID             STATE        TITLE                              LABELS   UNBLOCKS
@@ -626,7 +630,7 @@ AWIT-TEST0003  blocked      Add E2E auth tests                 -        0
 AWIT-TEST0009  quarantined  Rotate tokens                      p0       -1
 ```
 
-  `pkg/format/testdata/golden/format_json.golden`:
+`pkg/format/testdata/golden/format_json.golden`:
 
 ```json
 [
@@ -636,10 +640,7 @@ AWIT-TEST0009  quarantined  Rotate tokens                      p0       -1
     "brief": "Fix header parsing.",
     "status": "open",
     "state": "ready",
-    "labels": [
-      "auth",
-      "p1"
-    ],
+    "labels": ["auth", "p1"],
     "deps": [],
     "unblocks": 2
   },
@@ -649,9 +650,7 @@ AWIT-TEST0009  quarantined  Rotate tokens                      p0       -1
     "status": "open",
     "state": "blocked",
     "labels": [],
-    "deps": [
-      "AWIT-TEST0001"
-    ],
+    "deps": ["AWIT-TEST0001"],
     "unblocks": 0
   },
   {
@@ -659,21 +658,15 @@ AWIT-TEST0009  quarantined  Rotate tokens                      p0       -1
     "title": "Rotate tokens",
     "status": "open",
     "state": "quarantined",
-    "labels": [
-      "p0"
-    ],
-    "deps": [
-      "AWIT-TEST0009"
-    ],
+    "labels": ["p0"],
+    "deps": ["AWIT-TEST0009"],
     "unblocks": -1,
-    "faults": [
-      "[CYCLE] AWIT-TEST0009 -> AWIT-TEST0009"
-    ]
+    "faults": ["[CYCLE] AWIT-TEST0009 -> AWIT-TEST0009"]
   }
 ]
 ```
 
-  (The file ends with a newline after the closing `]`.)
+(The file ends with a newline after the closing `]`.)
 
 ```sh
 gofmt -w pkg/format
@@ -757,7 +750,7 @@ func TestWriteOneJSON(t *testing.T) {
 go test ./pkg/format -run TestWriteOne -v
 ```
 
-  Expected: build failure `undefined: WriteOne`. Then append to `pkg/format/format.go`:
+Expected: build failure `undefined: WriteOne`. Then append to `pkg/format/format.go`:
 
 ```go
 // WriteOne renders a single entry: compact → Line; table → a "key: value"
@@ -813,7 +806,7 @@ go test ./pkg/format -run TestWriteOne -update
 go test ./pkg/format -run TestWriteOne -v
 ```
 
-  `pkg/format/testdata/golden/format_one_table.golden` must be exactly:
+`pkg/format/testdata/golden/format_one_table.golden` must be exactly:
 
 ```text
 ID: AWIT-TEST0001
@@ -903,7 +896,7 @@ func TestWriteUnknownFormat(t *testing.T) {
 go test ./pkg/format -run 'TestWriteLabels|TestWriteUnknownFormat' -v
 ```
 
-  Expected: build failure `undefined: LabelCount` and `undefined: WriteLabels`. Then append to `pkg/format/format.go`:
+Expected: build failure `undefined: LabelCount` and `undefined: WriteLabels`. Then append to `pkg/format/format.go`:
 
 ```go
 // LabelCount is one row of the label vocabulary.
@@ -951,7 +944,7 @@ go test ./pkg/format -run 'TestWriteLabels|TestWriteUnknownFormat' -update
 go test ./pkg/format -v
 ```
 
-  `pkg/format/testdata/golden/format_labels_table.golden` must be exactly:
+`pkg/format/testdata/golden/format_labels_table.golden` must be exactly:
 
 ```text
 LABEL  COUNT
@@ -973,10 +966,9 @@ go build ./... && go vet ./... && go test ./pkg/format -v
 git status --porcelain pkg/format/testdata/golden
 ```
 
-  Expected: build and vet silent, every test `PASS`, and `git status --porcelain pkg/format/testdata/golden` prints nothing (a plain test run must not rewrite goldens).
+Expected: build and vet silent, every test `PASS`, and `git status --porcelain pkg/format/testdata/golden` prints nothing (a plain test run must not rewrite goldens).
 
 - [ ] **Step 18: Close ticket**
-
   1. Set `status: closed` in the frontmatter of `.awit/items/AWIT-0ND56F3G.md`.
   2. Write `.awit/comments/AWIT-0ND56F3G/<YYYYMMDDTHHMMSSZ>-<author>.md` (UTC stamp, e.g. `20260917T181500Z-claude.md`) containing:
 
@@ -987,15 +979,13 @@ created: 2026-09-17T18:15:00Z
 ---
 
 go build ./... && go vet ./... && go test ./pkg/format -v
-ok  	github.com/eisenwinter/awit/pkg/format
+ok github.com/eisenwinter/awit/pkg/format
 
 Golden files created: format_compact.golden, format_table.golden,
 format_json.golden, format_one_table.golden, format_labels_table.golden
 ```
 
-  (Replace the pasted output with the real output of the acceptance commands.)
-  3. Append the ref `../comments/AWIT-0ND56F3G/<file>.md` to this ticket's `refs` list.
-  4. Commit:
+(Replace the pasted output with the real output of the acceptance commands.) 3. Append the ref `../comments/AWIT-0ND56F3G/<file>.md` to this ticket's `refs` list. 4. Commit:
 
 ```sh
 git add .awit/items/AWIT-0ND56F3G.md .awit/comments/AWIT-0ND56F3G
@@ -1003,6 +993,7 @@ git commit -m "tickets: close AWIT-0ND56F3G"
 ```
 
 ## Acceptance Criteria
+
 - `go build ./...` exits 0 with no output.
 - `go vet ./...` exits 0 with no output.
 - `go test ./pkg/format -v` exits 0; output contains `--- PASS: TestDetect`, `--- PASS: TestIsTerminalFalseForFile`, `--- PASS: TestLine`, `--- PASS: TestWriteCompactGolden`, `--- PASS: TestWriteTableGolden`, `--- PASS: TestWriteJSONGolden`, `--- PASS: TestWriteJSONEmpty`, `--- PASS: TestWriteOneTableGolden`, `--- PASS: TestWriteLabelsGolden`, `--- PASS: TestWriteLabelsEmptyJSON`, `--- PASS: TestWriteUnknownFormat`.
@@ -1013,9 +1004,10 @@ git commit -m "tickets: close AWIT-0ND56F3G"
 - `gofmt -l pkg/format` prints nothing.
 
 ## Out of scope
-- Converting `*graph.Node` into `format.Entry` (`toEntry`) — that is `AWIT-0ND56J3G` (`awit list`), which also owns state naming from the graph.
-- Wiring `--format` into any command or calling `Detect` from `internal/cli` — `AWIT-0ND5683G` owns the global flag, individual commands call `Detect` themselves.
-- The `internal/cli` copy of the golden helper — `AWIT-0ND56G3G` creates `internal/cli/helpers_test.go`; do not add a shared testing package.
-- Counting labels out of a store or graph — `AWIT-0ND5763G` (`awit label`) computes the `LabelCount` rows; this ticket only renders them.
+
+- Converting `*graph.Node` into `format.Entry` (`toEntry`) - that is `AWIT-0ND56J3G` (`awit list`), which also owns state naming from the graph.
+- Wiring `--format` into any command or calling `Detect` from `internal/cli` - `AWIT-0ND5683G` owns the global flag, individual commands call `Detect` themselves.
+- The `internal/cli` copy of the golden helper - `AWIT-0ND56G3G` creates `internal/cli/helpers_test.go`; do not add a shared testing package.
+- Counting labels out of a store or graph - `AWIT-0ND5763G` (`awit label`) computes the `LabelCount` rows; this ticket only renders them.
 - Terminal colour, width detection, or paging: no colour in v1 (guide §1), no `--no-color` handling here.
-- Creating `testdata/fixtures/*` — fixtures belong to `AWIT-0ND56N3G`; this package needs no fixtures, its input is the inline `sampleEntries()`.
+- Creating `testdata/fixtures/*` - fixtures belong to `AWIT-0ND56N3G`; this package needs no fixtures, its input is the inline `sampleEntries()`.

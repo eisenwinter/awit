@@ -5,7 +5,7 @@
 Build **browserfetch**: neofetch, but for browsers.
 
 A web page that inspects the browser it is running in and prints what it
-finds the way `neofetch` prints a system summary — a big ASCII logo on the
+finds the way `neofetch` prints a system summary - a big ASCII logo on the
 left, a column of key/value facts on the right, styled like a terminal.
 
 ## Requirements

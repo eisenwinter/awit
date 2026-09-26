@@ -74,9 +74,9 @@ func blockedLine(n *graph.Node) string {
 //
 // MaxTokens is a soft budget in EstimateTokens units (0 or negative
 // means unlimited). When the full snapshot does not fit, Render sheds
-// material richest-first — blocked rows from the end, then ready rows
+// material richest-first - blocked rows from the end, then ready rows
 // from the end (never the first), then the critical-path section, then
-// scaffolding — and emits the richest form that fits. Warning detail
+// scaffolding - and emits the richest form that fits. Warning detail
 // lines and the top ready row are never shed: when even they exceed the
 // budget, Render emits them anyway, so over-budget output is always
 // exactly that documented floor, never forgotten accounting.

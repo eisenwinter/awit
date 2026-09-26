@@ -21,31 +21,31 @@ working directory, `openStore` is the lookup every later command uses, and
 
 ## Context (read first)
 
-- **guide §1** — module `github.com/eisenwinter/awit`, urfave/cli v3, yaml.v3,
+- **guide §1** - module `github.com/eisenwinter/awit`, urfave/cli v3, yaml.v3,
   `filepath` not `/`, errors to stderr as `Error: ` via `report` (do not print
   the prefix yourself), exit 0/1/2, `t.TempDir()`, commit per green step.
-- **guide §2 `--repo`** — directory that *contains* `.awit/`. Without it, walk
+- **guide §2 `--repo`** - directory that _contains_ `.awit/`. Without it, walk
   up from cwd; stop at the filesystem root with `item.ErrNotFound`
   (`no .awit directory found (run awit init)`).
-- **guide §4.4** — `item.Init(repoRoot, prefix)`, `Open`, `Find`, `ErrExists`
+- **guide §4.4** - `item.Init(repoRoot, prefix)`, `Open`, `Find`, `ErrExists`
   (`.awit already exists`), `ErrNotFound`, `DirName = ".awit"`. Init creates
   `.awit/`, `items/`, `comments/`, `config.yaml`, and appends `.awit/.lock` to
   `repoRoot/.gitignore` (create the file if missing; skip if the line exists).
-- **guide §4.2** — `config.Default(prefix)` has `StaleClaim = 2h`; Init writes
+- **guide §4.2** - `config.Default(prefix)` has `StaleClaim = 2h`; Init writes
   that config. Exact file bytes after default init:
   `prefix: AWIT\nstale_claim: 2h\n`.
-- **guide §4.11** — `openStore(cmd *cli.Command) (*item.Store, error)` honours
+- **guide §4.11** - `openStore(cmd *cli.Command) (*item.Store, error)` honours
   `--repo` (Open of the absolute path) else `Find(cwd)`. Used by every command
   **except** init.
-- **guide §5** — command tests call `Main`; helpers live in
+- **guide §5** - command tests call `Main`; helpers live in
   `internal/cli/helpers_test.go`. Fixtures land in AWIT-0ND56N3G; this ticket
   still adds `copyFixture` (`os.CopyFS` from `testdata/fixtures/<name>`) but
   its own tests only use `t.TempDir()`.
 - **AWIT-0ND5683G** already created `helpers_test.go` with `runMain`. Do **not**
   redeclare `runMain`; rewrite its body to call `run`. `newRoot` currently has
-  `Commands: []*cli.Command{}` — put `initCmd` in that slice; do not invent a
+  `Commands: []*cli.Command{}` - put `initCmd` in that slice; do not invent a
   register/`init()` side channel.
-- **spec CLI matrix** — `awit init` flag `--prefix`. Print exactly
+- **spec CLI matrix** - `awit init` flag `--prefix`. Print exactly
   `Initialized .awit in <root> (prefix <PREFIX>)` plus a newline.
 - Prefix flag default `AWIT`. Reject unless the whole value matches
   `^[A-Z][A-Z0-9]{1,7}$` (2–8 uppercase alphanumerics, first a letter). Error
@@ -54,11 +54,11 @@ working directory, `openStore` is the lookup every later command uses, and
 
 ## Files
 
-- Create: `internal/cli/init.go` — `prefixRE`, `initCmd`, `initAction`.
+- Create: `internal/cli/init.go` - `prefixRE`, `initCmd`, `initAction`.
 - Create: `internal/cli/init_test.go`.
-- Modify: `internal/cli/app.go` — add `openStore`; put `initCmd` in
+- Modify: `internal/cli/app.go` - add `openStore`; put `initCmd` in
   `newRoot`'s `Commands` slice.
-- Modify: `internal/cli/helpers_test.go` — keep `runMain`; add `run`,
+- Modify: `internal/cli/helpers_test.go` - keep `runMain`; add `run`,
   `runStdin`, `copyFixture`, `repoRoot`, `golden`, `readItem`, `initRepo`,
   `var update`.
 
@@ -217,9 +217,9 @@ func initRepo(t *testing.T) string {
 }
 ```
 
-  `copyFixture` is unused in this ticket on purpose (no fixtures yet). Do not
-  delete it. `go test ./internal/cli -count=0` must still compile after this
-  step; existing `runMain` callers keep working.
+`copyFixture` is unused in this ticket on purpose (no fixtures yet). Do not
+delete it. `go test ./internal/cli -count=0` must still compile after this
+step; existing `runMain` callers keep working.
 
 - [ ] **Step 2: Failing tests for `init` and `openStore`.**
 
@@ -358,7 +358,7 @@ func TestOpenStoreWithoutRepo(t *testing.T) {
   ```
 
   Expected: `TestInitCreatesRepo` (and the other `TestInit*` tests) fail because
-  `init` is not a command — exit `2`, stderr
+  `init` is not a command - exit `2`, stderr
   `unknown command "init" (run "awit --help")`. `TestOpenStoreWithoutRepo`
   fails to compile: `undefined: openStore`. Overall
   `FAIL github.com/eisenwinter/awit/internal/cli [build failed]` **or** the
@@ -422,9 +422,9 @@ func initAction(_ context.Context, cmd *cli.Command) error {
 }
 ```
 
-  Add `openStore` to `internal/cli/app.go` (same file that already has
-  `newRoot` / `Main`). Imports to add: `"os"`, `"path/filepath"`,
-  `"github.com/eisenwinter/awit/pkg/item"`.
+Add `openStore` to `internal/cli/app.go` (same file that already has
+`newRoot` / `Main`). Imports to add: `"os"`, `"path/filepath"`,
+`"github.com/eisenwinter/awit/pkg/item"`.
 
 ```go
 // openStore honours --repo (Open of the absolute path) else Find(cwd).
@@ -445,7 +445,7 @@ func openStore(cmd *cli.Command) (*item.Store, error) {
 }
 ```
 
-  In `newRoot`, change the empty Commands slice to:
+In `newRoot`, change the empty Commands slice to:
 
 ```go
 		Commands: []*cli.Command{
@@ -453,8 +453,8 @@ func openStore(cmd *cli.Command) (*item.Store, error) {
 		},
 ```
 
-  Read `--repo` with `cmd.Root().String("repo")` because the flag is declared
-  on the root (AWIT-0ND5683G). Init must not call `openStore`.
+Read `--repo` with `cmd.Root().String("repo")` because the flag is declared
+on the root (AWIT-0ND5683G). Init must not call `openStore`.
 
 - [ ] **Step 5: Run it, see it pass, commit.**
 
@@ -485,9 +485,9 @@ func openStore(cmd *cli.Command) (*item.Store, error) {
 
 ## Acceptance Criteria
 
-- `go test ./internal/cli -run 'TestInit|TestOpenStoreWithoutRepo' -v` — all
+- `go test ./internal/cli -run 'TestInit|TestOpenStoreWithoutRepo' -v` - all
   five tests PASS, including every `TestInitBadPrefix` subtest.
-- `go test ./internal/cli -count=1` — existing skeleton tests still PASS.
+- `go test ./internal/cli -count=1` - existing skeleton tests still PASS.
 - `go build -o /tmp/awit ./cmd/awit && /tmp/awit init --repo "$TMP"` in an
   empty temp dir prints `Initialized .awit in <abs> (prefix AWIT)` and writes
   `config.yaml` whose bytes are exactly `prefix: AWIT\nstale_claim: 2h\n`,
@@ -505,5 +505,5 @@ func openStore(cmd *cli.Command) (*item.Store, error) {
 - `create`, `update`, `close`, `release`, `list`, `loadGraph`, `toEntry`.
 - Calling `copyFixture` or writing anything under `testdata/`.
 - Git commits, locking, colour, wrapping `item.Init` errors with extra text.
-- Changing `item.Init` itself — if config bytes differ, the bug is in
+- Changing `item.Init` itself - if config bytes differ, the bug is in
   AWIT-0ND56E3G / AWIT-0ND56A3G, not here.

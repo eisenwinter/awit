@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND56D3G
-title: 'pkg/item: frontmatter split, parse, setters, byte-identical round-trip'
+title: "pkg/item: frontmatter split, parse, setters, byte-identical round-trip"
 brief: >-
   Implement pkg/item frontmatter splitting, yaml.v3 Node parse, field setters and Bytes so a parsed file round-trips byte-identically when no setter ran.
 status: closed
@@ -13,17 +13,20 @@ refs:
 ---
 
 ## Summary
+
 After this ticket `pkg/item` can split a Markdown file into YAML frontmatter and a raw body, parse the YAML into an `Item` that keeps the original `yaml.Node` mapping (unknown keys included), mutate individual fields through setters that edit that node, and render `Bytes()` so that parse-then-write with no setter is `bytes.Equal` to the input. Store, comments, minting and CLI are not part of this ticket.
 
 ## Context (read first)
-- **guide §4.3 `pkg/item`** — exact exported signatures. Copy them; do not rename. Store (`§4.4`) is the next ticket; do not add it here.
-- **guide §1** — module `github.com/eisenwinter/awit`, only `gopkg.in/yaml.v3` plus stdlib in this package, Linux+Windows, tests are stdlib `testing` only. `refs` in frontmatter stay forward-slash. `Bytes()` always writes `\n`; `Split` must also accept `\r\n`.
-- **guide §2 additional decisions** — new-item key order `id, title, brief, status, deps, labels, refs` (omit empty `assignee`/`claimed_at`); `deps`/`labels` flow style; `refs` block style; existing node `Style` preserved on edit; `brief` is `yaml.FoldedStyle` (`>-`) when it contains a newline or `len > 80`; `claimed_at` is `time.RFC3339` UTC seconds; body template `\n## Summary\n\n## Acceptance Criteria\n\n`.
-- **guide §5** — `Split` accepts CRLF; `Bytes()` writes LF. Round-trip fixtures in this ticket are LF only.
-- **spec Data model** (`plan/awit-implementation-plan.md`) — required keys `id`, `title`, `status`; unknown keys preserved; `status` is `open|in_progress|closed`.
-- **yaml.v3 facts** (do not re-derive): `yaml.Unmarshal(front, &root)` yields `root.Kind == yaml.DocumentNode` and the mapping is `root.Content[0]`. Mapping `.Content` is `[k1, v1, k2, v2, ...]`. `Encoder.SetIndent(2)`; do **not** call `SetDocStartExplicit` / `SetDocEndExplicit`. Encode the **mapping node**, not the DocumentNode (encoding the document would emit a second `---`). `Encode` writes a trailing `\n`. Flow sequences render `[a, b]` (space after comma). Empty sequences render `[]`. Preserve `Style` on existing value nodes; `Node.SetString` may change quoting — never call it on a node you are only updating.
+
+- **guide §4.3 `pkg/item`** - exact exported signatures. Copy them; do not rename. Store (`§4.4`) is the next ticket; do not add it here.
+- **guide §1** - module `github.com/eisenwinter/awit`, only `gopkg.in/yaml.v3` plus stdlib in this package, Linux+Windows, tests are stdlib `testing` only. `refs` in frontmatter stay forward-slash. `Bytes()` always writes `\n`; `Split` must also accept `\r\n`.
+- **guide §2 additional decisions** - new-item key order `id, title, brief, status, deps, labels, refs` (omit empty `assignee`/`claimed_at`); `deps`/`labels` flow style; `refs` block style; existing node `Style` preserved on edit; `brief` is `yaml.FoldedStyle` (`>-`) when it contains a newline or `len > 80`; `claimed_at` is `time.RFC3339` UTC seconds; body template `\n## Summary\n\n## Acceptance Criteria\n\n`.
+- **guide §5** - `Split` accepts CRLF; `Bytes()` writes LF. Round-trip fixtures in this ticket are LF only.
+- **spec Data model** (`plan/awit-implementation-plan.md`) - required keys `id`, `title`, `status`; unknown keys preserved; `status` is `open|in_progress|closed`.
+- **yaml.v3 facts** (do not re-derive): `yaml.Unmarshal(front, &root)` yields `root.Kind == yaml.DocumentNode` and the mapping is `root.Content[0]`. Mapping `.Content` is `[k1, v1, k2, v2, ...]`. `Encoder.SetIndent(2)`; do **not** call `SetDocStartExplicit` / `SetDocEndExplicit`. Encode the **mapping node**, not the DocumentNode (encoding the document would emit a second `---`). `Encode` writes a trailing `\n`. Flow sequences render `[a, b]` (space after comma). Empty sequences render `[]`. Preserve `Style` on existing value nodes; `Node.SetString` may change quoting - never call it on a node you are only updating.
 
 ## Files
+
 - Create: `pkg/item/frontmatter.go`
 - Create: `pkg/item/frontmatter_test.go`
 - Create: `pkg/item/reason.go`
@@ -32,6 +35,7 @@ After this ticket `pkg/item` can split a Markdown file into YAML frontmatter and
 - Modify: `go.mod` / `go.sum` via `go get gopkg.in/yaml.v3@v3.0.1` only.
 
 ## Interfaces
+
 - Consumes: `gopkg.in/yaml.v3` and stdlib. No awit package.
 - Produces (verbatim from guide §4.3):
 
@@ -110,7 +114,7 @@ func (it *Item) setSeq(key string, values []string, defaultStyle yaml.Style)
 ## Steps
 
 - [ ] **Step 1: Failing tests for `Split`, `HasConflictMarkers`, `FuzzSplit`.**
-  Create `pkg/item/frontmatter_test.go`:
+      Create `pkg/item/frontmatter_test.go`:
 
 ```go
 package item
@@ -259,10 +263,10 @@ func TestSplitBodyMayContainFence(t *testing.T) {
 go test ./pkg/item -run 'TestSplit|TestHasConflictMarkers|FuzzSplit' -v
 ```
 
-  Expected: `undefined: Split`, `undefined: HasConflictMarkers`, `undefined: ErrNoFrontmatter`, `undefined: ErrUnterminatedFrontmatter`, ending `FAIL	github.com/eisenwinter/awit/pkg/item [build failed]`.
+Expected: `undefined: Split`, `undefined: HasConflictMarkers`, `undefined: ErrNoFrontmatter`, `undefined: ErrUnterminatedFrontmatter`, ending `FAIL	github.com/eisenwinter/awit/pkg/item [build failed]`.
 
 - [ ] **Step 3: Implement `frontmatter.go`.**
-  Create `pkg/item/frontmatter.go`:
+      Create `pkg/item/frontmatter.go`:
 
 ```go
 package item
@@ -351,7 +355,7 @@ func HasConflictMarkers(data []byte) bool {
 go test ./pkg/item -run 'TestSplit|TestHasConflictMarkers|FuzzSplit' -v
 ```
 
-  Expected: `--- PASS: TestSplit` with subtests `LF`, `CRLF`, `no fence`, `unterminated`; `--- PASS: TestHasConflictMarkers`; `--- PASS: FuzzSplit` (seed corpus only). `ok  	github.com/eisenwinter/awit/pkg/item`.
+Expected: `--- PASS: TestSplit` with subtests `LF`, `CRLF`, `no fence`, `unterminated`; `--- PASS: TestHasConflictMarkers`; `--- PASS: FuzzSplit` (seed corpus only). `ok  	github.com/eisenwinter/awit/pkg/item`.
 
 ```sh
 gofmt -w pkg/item/frontmatter.go pkg/item/frontmatter_test.go
@@ -360,7 +364,7 @@ git commit -m "item: split frontmatter and detect conflict markers"
 ```
 
 - [ ] **Step 5: Failing tests for `ParseStatus`, `Parse`, `HasLabel`, `BodyRaw`.**
-  Create `pkg/item/item_test.go` with the block below (setters and round-trip are Step 9).
+      Create `pkg/item/item_test.go` with the block below (setters and round-trip are Step 9).
 
 ```go
 package item
@@ -506,10 +510,10 @@ go get gopkg.in/yaml.v3@v3.0.1
 go test ./pkg/item -run 'TestParseStatus|TestParseFull|TestParseMissingTitle|TestParseBadClaimedAt|TestParseUnknownKeyKept|TestHasLabel|TestBodyRaw' -v
 ```
 
-  Expected: `undefined: ParseStatus`, `undefined: Parse`, `undefined: StatusInProgress`, ending `[build failed]`.
+Expected: `undefined: ParseStatus`, `undefined: Parse`, `undefined: StatusInProgress`, ending `[build failed]`.
 
-- [ ] **Step 7: Implement `reason.go` and `item.go` (types, Parse, Body, HasLabel). Leave New/setters/Bytes as stubs that compile if you must — or implement Bytes now as encoding `it.doc` so `TestParseUnknownKeyKept` can call it. Implement Bytes in this step; New/setters still wait.**
-  Create `pkg/item/reason.go`:
+- [ ] **Step 7: Implement `reason.go` and `item.go` (types, Parse, Body, HasLabel). Leave New/setters/Bytes as stubs that compile if you must - or implement Bytes now as encoding `it.doc` so `TestParseUnknownKeyKept` can call it. Implement Bytes in this step; New/setters still wait.**
+      Create `pkg/item/reason.go`:
 
 ```go
 package item
@@ -552,16 +556,16 @@ type Broken struct {
 }
 ```
 
-  Create `pkg/item/item.go` with `Item`, `Parse`, `Bytes`, `Body`, `HasLabel`. `Parse` **must**:
+Create `pkg/item/item.go` with `Item`, `Parse`, `Bytes`, `Body`, `HasLabel`. `Parse` **must**:
 
-  1. `Split(data)` then `yaml.Unmarshal(front, &root)` into a `yaml.Node`.
-  2. Mapping = `root.Content[0]` (DocumentNode). Error if missing or not a mapping.
-  3. Walk `i += 2` key/value pairs. Switch on `key.Value`. Unknown keys are left in `doc`.
-  4. Missing `id`, `title`, or `status` → `fmt.Errorf("item: missing required key %q", key)` (the error string must contain the key name).
-  5. `status` goes through `ParseStatus`. `claimed_at` through `time.Parse(time.RFC3339, …)` wrapped as `item: claimed_at: %w`. Sequences collected from child scalar `.Value`.
-  6. Store `path` on `Item.Path`, mapping on unexported `doc`, body on unexported `body`.
+1. `Split(data)` then `yaml.Unmarshal(front, &root)` into a `yaml.Node`.
+2. Mapping = `root.Content[0]` (DocumentNode). Error if missing or not a mapping.
+3. Walk `i += 2` key/value pairs. Switch on `key.Value`. Unknown keys are left in `doc`.
+4. Missing `id`, `title`, or `status` → `fmt.Errorf("item: missing required key %q", key)` (the error string must contain the key name).
+5. `status` goes through `ParseStatus`. `claimed_at` through `time.Parse(time.RFC3339, …)` wrapped as `item: claimed_at: %w`. Sequences collected from child scalar `.Value`.
+6. Store `path` on `Item.Path`, mapping on unexported `doc`, body on unexported `body`.
 
-  `Bytes`:
+`Bytes`:
 
 ```go
 func (it *Item) Bytes() ([]byte, error) {
@@ -583,7 +587,7 @@ func (it *Item) Bytes() ([]byte, error) {
 }
 ```
 
-  `HasLabel` is exact string match over `it.Labels`. `Body` returns `it.body`.
+`HasLabel` is exact string match over `it.Labels`. `Body` returns `it.body`.
 
 - [ ] **Step 8: Run parse tests, see them pass, commit.**
 
@@ -591,7 +595,7 @@ func (it *Item) Bytes() ([]byte, error) {
 go test ./pkg/item -run 'TestParseStatus|TestParseFull|TestParseMissingTitle|TestParseBadClaimedAt|TestParseUnknownKeyKept|TestHasLabel|TestBodyRaw' -v
 ```
 
-  Expected: every listed test `PASS`. `ok  	github.com/eisenwinter/awit/pkg/item`.
+Expected: every listed test `PASS`. `ok  	github.com/eisenwinter/awit/pkg/item`.
 
 ```sh
 gofmt -w pkg/item/reason.go pkg/item/item.go pkg/item/item_test.go
@@ -600,7 +604,7 @@ git commit -m "item: parse yaml.Node mapping and render Bytes"
 ```
 
 - [ ] **Step 9: Failing round-trip and setter tests.**
-  Append to `pkg/item/item_test.go`:
+      Append to `pkg/item/item_test.go`:
 
 ```go
 func TestRoundTripByteIdentical(t *testing.T) {
@@ -749,7 +753,7 @@ func TestSetBriefFolded(t *testing.T) {
 }
 ```
 
-  Do **not** loosen `bytes.Equal` in `TestRoundTripByteIdentical`. If a document fails, the encoder is wrapping the DocumentNode, changing indent, or rebuilding YAML from struct fields — fix `Bytes`/`Parse`, not the assertion.
+Do **not** loosen `bytes.Equal` in `TestRoundTripByteIdentical`. If a document fails, the encoder is wrapping the DocumentNode, changing indent, or rebuilding YAML from struct fields - fix `Bytes`/`Parse`, not the assertion.
 
 - [ ] **Step 10: Run it, see New/setters fail.**
 
@@ -757,10 +761,10 @@ func TestSetBriefFolded(t *testing.T) {
 go test ./pkg/item -run 'TestRoundTripByteIdentical|TestNewBytesGolden|TestSetStatusOneLineDiff|TestSetAssigneeEmptyDeletesKey|TestSetClaimedAtNilDeletesKey|TestSetLabelsPreservesFlowStyle|TestSetRefsBlockStyle|TestSetBriefFolded' -v
 ```
 
-  Expected: `undefined: New` (and/or `undefined: SetStatus` …) `[build failed]`, **or** if you declared empty stubs, `TestNewBytesGolden` / `TestSetStatusOneLineDiff` FAIL with a bytes mismatch.
+Expected: `undefined: New` (and/or `undefined: SetStatus` …) `[build failed]`, **or** if you declared empty stubs, `TestNewBytesGolden` / `TestSetStatusOneLineDiff` FAIL with a bytes mismatch.
 
 - [ ] **Step 11: Implement `New` and setters on `item.go`.**
-  Canonical `New` key order: `id, title, brief, status, deps, labels, refs`. Omit `assignee` and `claimed_at`. `deps`/`labels` use `yaml.FlowStyle`. `refs` uses default (block) style, empty Content. `Status` is `StatusOpen`. Copy `deps`/`labels` so the caller cannot mutate the item. `body` is exactly `\n## Summary\n\n## Acceptance Criteria\n\n`. Brief node: `yaml.FoldedStyle` when `strings.Contains(s, "\n") || len(s) > 80`, otherwise plain.
+      Canonical `New` key order: `id, title, brief, status, deps, labels, refs`. Omit `assignee` and `claimed_at`. `deps`/`labels` use `yaml.FlowStyle`. `refs` uses default (block) style, empty Content. `Status` is `StatusOpen`. Copy `deps`/`labels` so the caller cannot mutate the item. `body` is exactly `\n## Summary\n\n## Acceptance Criteria\n\n`. Brief node: `yaml.FoldedStyle` when `strings.Contains(s, "\n") || len(s) > 80`, otherwise plain.
 
   Helpers (keep unexported):
 
@@ -819,7 +823,7 @@ func (it *Item) setSeq(key string, values []string, defaultStyle yaml.Style) {
 }
 ```
 
-  `setSeq` **must not** overwrite `val.Style` when the key already exists. `SetStatus` updates `it.Status` and `setScalar("status", string(s))` only — no other keys. `SetAssignee("")` and `SetClaimedAt(nil)` call `deleteKey`. Non-nil `SetClaimedAt` writes `t.UTC().Truncate(time.Second).Format(time.RFC3339)`. `SetBrief` sets `FoldedStyle` when newline or `len > 80`, else `Style = 0`. `SetDeps` defaultStyle `yaml.FlowStyle`; `SetLabels` same; `SetRefs` defaultStyle `0`.
+`setSeq` **must not** overwrite `val.Style` when the key already exists. `SetStatus` updates `it.Status` and `setScalar("status", string(s))` only - no other keys. `SetAssignee("")` and `SetClaimedAt(nil)` call `deleteKey`. Non-nil `SetClaimedAt` writes `t.UTC().Truncate(time.Second).Format(time.RFC3339)`. `SetBrief` sets `FoldedStyle` when newline or `len > 80`, else `Style = 0`. `SetDeps` defaultStyle `yaml.FlowStyle`; `SetLabels` same; `SetRefs` defaultStyle `0`.
 
 - [ ] **Step 12: Run the whole package, see it pass, commit.**
 
@@ -828,7 +832,7 @@ go test ./pkg/item -count=1
 go test ./pkg/item -fuzz=FuzzSplit -fuzztime=3s
 ```
 
-  Expected: `PASS` / `ok  	github.com/eisenwinter/awit/pkg/item` and the fuzz run prints `PASS` with no panic. `gofmt -l pkg/item` prints nothing.
+Expected: `PASS` / `ok  	github.com/eisenwinter/awit/pkg/item` and the fuzz run prints `PASS` with no panic. `gofmt -l pkg/item` prints nothing.
 
 ```sh
 gofmt -w pkg/item/*.go
@@ -837,14 +841,16 @@ git commit -m "item: New, setters, byte-identical round-trip"
 ```
 
 ## Acceptance Criteria
+
 - `go test ./pkg/item -count=1` passes.
 - `go test ./pkg/item -run TestRoundTripByteIdentical` uses `bytes.Equal` on four documents (minimal; full with folded brief + flow deps + block refs + assignee + claimed_at; `external: gitlab#42` plus `# comment`; `deps: []`).
-- `go test ./pkg/item -run TestSetStatusOneLineDiff` — exactly one line changes, that line is `status: closed`.
-- `go test ./pkg/item -run TestNewBytesGolden` — exact bytes for `New("AWIT-TEST0001", "Title", "Brief.", []string{"AWIT-TEST0002"}, []string{"auth", "p1"})`.
-- `go test ./pkg/item -run TestHasConflictMarkers` — `===== REF 1/1 =====` is false; `=======` is true.
+- `go test ./pkg/item -run TestSetStatusOneLineDiff` - exactly one line changes, that line is `status: closed`.
+- `go test ./pkg/item -run TestNewBytesGolden` - exact bytes for `New("AWIT-TEST0001", "Title", "Brief.", []string{"AWIT-TEST0002"}, []string{"auth", "p1"})`.
+- `go test ./pkg/item -run TestHasConflictMarkers` - `===== REF 1/1 =====` is false; `=======` is true.
 - `gofmt -l pkg/item` is empty. No `pkg/item/store.go`.
 
 ## Out of scope
+
 - `Store`, `Find`, `Init`, `LoadAll`, `Save`, `Mint`, comments, `BrokenError`.
 - CLI, graph, fixtures under `testdata/`.
 - Changing `Bytes()` to rebuild YAML from struct fields, or loosening `bytes.Equal`.

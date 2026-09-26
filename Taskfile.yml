@@ -1,6 +1,6 @@
-# Taskfile.dev — local dev builds for awit + lazyawit.
+# Taskfile.dev - local dev builds for awit + lazyawit.
 # Run with: task --taskfile Taskfile.dev <task>
-version: '3'
+version: "3"
 
 vars:
   BINARY: bin/awit

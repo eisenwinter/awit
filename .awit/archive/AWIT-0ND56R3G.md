@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND56R3G
-title: 'awit dep add / dep rm with cycle pre-check'
+title: "awit dep add / dep rm with cycle pre-check"
 brief: >-
   Add the `dep` parent command with `add` and `rm` subcommands over `internal/cli/dep.go`. Add refuses cycles via `WouldCycle` before any write, prints the exact two-line error, and leaves the file byte-identical.
 status: closed
@@ -25,20 +25,20 @@ the `clean` fixture.
 
 ## Context (read first)
 
-- Guide §4.6 — `WouldCycle(from, to) []string`: DFS from `to` over `Deps`
+- Guide §4.6 - `WouldCycle(from, to) []string`: DFS from `to` over `Deps`
   looking for `from`; `[from, from]` for self-edges; nil for unknown IDs.
   The caller validates existence first, so a non-nil result always prints.
-- Guide §4.11 — `Main`, `openStore`, error contract (`Error: ` prefix on
+- Guide §4.11 - `Main`, `openStore`, error contract (`Error: ` prefix on
   stderr, exit 1 for expected non-success, exit 2 for usage). Errors
   returned from `Action` are printed by `Main` as `Error: <msg>`; use
   `cli.Exit` only to change the code.
 - Spec §Graph engine "Cycle pre-check on `dep add A B`" and §Error contract
   for the exact refusal text. Note the argument order in the message:
-  `cannot add dependency <dep> to <id>` — the dependency first.
-- **AWIT-0ND56Q3G** — `pkg/graph` `Ready`, `WouldCycle`, `DepIDs`.
+  `cannot add dependency <dep> to <id>` - the dependency first.
+- **AWIT-0ND56Q3G** - `pkg/graph` `Ready`, `WouldCycle`, `DepIDs`.
   Must be `status: closed` before you start.
-- **AWIT-0ND56H3G** — `internal/cli/create.go`; sibling command, do not
-  modify it. Reuse its `detectFormat` only if you need it (you do not —
+- **AWIT-0ND56H3G** - `internal/cli/create.go`; sibling command, do not
+  modify it. Reuse its `detectFormat` only if you need it (you do not -
   both subcommands always print the compact line).
 - **AWIT-0ND56J3G** owns `loadGraph` + `toEntry` in `internal/cli`
   (list ticket). If that ticket has not landed, define both in `dep.go`
@@ -86,7 +86,7 @@ the `clean` fixture.
   (AWIT-0ND56G3G), `run`, `copyFixture`, `readItem` (helpers_test.go),
   `item.Store.Load` / `Save`, `item.Item.SetDeps`.
 - On the `clean` fixture: `AWIT-TEST0004` deps `[AWIT-TEST0001,
-  AWIT-TEST0003]`, so `WouldCycle(AWIT-TEST0001, AWIT-TEST0004)` is
+AWIT-TEST0003]`, so `WouldCycle(AWIT-TEST0001, AWIT-TEST0004)` is
   `[AWIT-TEST0001, AWIT-TEST0004, AWIT-TEST0001]` (0004 depends directly
   on 0001). `WouldCycle(AWIT-TEST0002, AWIT-TEST0001)` is nil.
 
@@ -94,7 +94,7 @@ the `clean` fixture.
 
 - Create: `internal/cli/dep.go`
 - Create: `internal/cli/dep_test.go`
-- Modify: `internal/cli/app.go` — register `depCmd` in the root command's
+- Modify: `internal/cli/app.go` - register `depCmd` in the root command's
   `Commands` list (one line).
 
 ## Interfaces
@@ -297,7 +297,7 @@ the `clean` fixture.
   ```
 
   (or, if helpers already exist, `undefined: depCmd` from the
-  registration — either form is a valid red; do not skip it.)
+  registration - either form is a valid red; do not skip it.)
 
 - [ ] **Step 3: Implement `dep.go`.**
 
@@ -429,14 +429,13 @@ the `clean` fixture.
   add `depCmd` to the root `Commands` slice.
 
   Details that matter:
-
   - `cli.Exit("", 1)` after writing both refusal lines to
     `cmd.ErrWriter`: `Main` (AWIT-0ND5683G) maps an `ExitCoder` to its
     code and prints `Message` only when non-empty, so nothing is printed
-    twice. Do not return a plain error here — it would add a third line.
+    twice. Do not return a plain error here - it would add a third line.
   - The already-present check runs before `WouldCycle`: re-adding an
     edge that is part of no cycle must still say `dependency already
-    present`, and re-adding must never report a cycle.
+present`, and re-adding must never report a cycle.
   - `append(slices.Clone(it.Deps), dep)` keeps existing order and appends
     at the end; never sort.
   - `rm` keeps the remaining deps in their original order.
@@ -496,7 +495,7 @@ the `clean` fixture.
 
 ## Acceptance Criteria
 
-- `go test ./internal/cli -run 'TestDepAdd|TestDepRm' -count=1 -v` — all
+- `go test ./internal/cli -run 'TestDepAdd|TestDepRm' -count=1 -v` - all
   seven tests PASS; `go test ./internal/cli -count=1` stays green.
 - On a copy of the `clean` fixture,
   `awit dep add AWIT-TEST0002 AWIT-TEST0001` exits 0, prints one compact
@@ -504,7 +503,7 @@ the `clean` fixture.
   (`deps: []` → `deps: [AWIT-TEST0001]`).
 - `awit dep add AWIT-TEST0001 AWIT-TEST0004` exits 1, stderr is exactly
   `Error: cannot add dependency AWIT-TEST0004 to AWIT-TEST0001.\nCycle:
-  AWIT-TEST0001 -> AWIT-TEST0004 -> AWIT-TEST0001\n`, and the file is
+AWIT-TEST0001 -> AWIT-TEST0004 -> AWIT-TEST0001\n`, and the file is
   byte-identical afterwards.
 - `awit dep add AWIT-TEST0003 AWIT-TEST0001` exits 0 with
   `dependency already present` and no write.

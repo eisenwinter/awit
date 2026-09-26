@@ -79,7 +79,7 @@ func TestPolishGraphEmptyRootHeader(t *testing.T) {
 	m.tab = tabGraph
 	m.graphTab.focused = true
 	m.graphTab.rootID = ""
-	if got := m.tabHeaderView(); got != "Focused (no root — select an item on Work items)" {
+	if got := m.tabHeaderView(); got != "Focused (no root - select an item on Work items)" {
 		t.Fatalf("header = %q, want no-root hint", got)
 	}
 }

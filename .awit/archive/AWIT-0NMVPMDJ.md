@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NMVPMDJ
-title: 'skill/docs: teach the manual block mechanic at the failure point'
+title: "skill/docs: teach the manual block mechanic at the failure point"
 brief: >-
   Warn when the blocked label is introduced without a manual block, correct help text, and update the driving-awit skill plus agent docs to the block workflow.
 status: closed
@@ -10,6 +10,7 @@ refs_base: repo
 refs: []
 assignee: agent/orchestrator
 ---
+
 ## Summary
 
 Make the mechanic discoverable where agents actually fail: a stderr warning when the exact label `blocked` is newly introduced on a non-closed item without a manual block, prose-reviewed help strings everywhere the old behavior is taught, and a corrected `driving-awit` skill (source asset + regenerated copy) plus orchestrator/dev/AGENTS guidance. Labels stay metadata; the warning teaches without assigning scheduling semantics.
@@ -19,7 +20,7 @@ Make the mechanic discoverable where agents actually fail: a stderr warning when
 - `AGENTS.md`; guide `internal/skill` section; `.omp/agents/orchestrator.md`; `.omp/agents/dev.md`.
 - MB2 (`AWIT-0NMVNPDQ`): block/unblock commands. Read it via `awit show AWIT-0NMVNPDQ`.
 - `internal/cli/create.go` (label diagnostics), `update.go` (introduced-label calculation), `import.go:129-140,153-164` (one-time label snapshot), `app.go` (root help, `typicalSessionBlock` col 39), `list.go`, `next.go`, `prime.go`, `release.go`, `close.go`.
-- `internal/skill/assets/driving-awit.body.md` — Escalation ladder tells agents facing a contradiction to comment BLOCKED then `release`, which requeues zero-dep items; must change with this feature. `TestDogfoodOmpCopyMatchesRenderer` pins the generated copy.
+- `internal/skill/assets/driving-awit.body.md` - Escalation ladder tells agents facing a contradiction to comment BLOCKED then `release`, which requeues zero-dep items; must change with this feature. `TestDogfoodOmpCopyMatchesRenderer` pins the generated copy.
 - Warning conventions: one lowercase `warning: ` line, clauses joined by `;`, remedy last, no full stops (`create.go:122`, `external_state.go:42,49`, `quarantine_warn.go:25`).
 - Full design: `agent://PlanBlockedState` sections D5, F. Reviewed strings: `agent://ProseBlockStrings` (finals verbatim).
 
@@ -38,7 +39,7 @@ Warning (exact, prose-reviewed #28): stderr only, stdout/exit unchanged:
 warning: %s has label "blocked", which does not pause work; use awit block %s --reason "..."
 ```
 
-Trigger: after successful save in create, update, import — only when a non-closed item without a manual block newly receives the exact case-sensitive label `blocked` (reuse update's introduced-label calculation; include create defaults and import snapshots). No recurring query-time warnings, no reserved-label subsystem. Keep unknown-vocabulary warnings independent.
+Trigger: after successful save in create, update, import - only when a non-closed item without a manual block newly receives the exact case-sensitive label `blocked` (reuse update's introduced-label calculation; include create defaults and import snapshots). No recurring query-time warnings, no reserved-label subsystem. Keep unknown-vocabulary warnings independent.
 
 Import help (prose-reviewed #16):
 
@@ -65,7 +66,7 @@ Existing tracker scope statements hold: import copies labels once without auto-h
 - [ ] Run scoped tests; record intended failures.
 - [ ] Implement `warnBlockedLabel` using existing introduction detection; wire create/update/import; apply reviewed help strings; update source skill asset; regenerate the committed skill copy; update AGENTS.md, orchestrator.md, dev.md.
 - [ ] Rerun scoped tests to green: `go test ./internal/skill -run 'TestDogfoodOmpCopyMatchesRenderer|TestRenderIsDeterministic' -count=1` plus label/import suites. Smoke actual `--help`, create/update/import warning paths in a temp checkout.
-- [ ] If an affected existing assertion only pins old wording, remove or replace it with a behavior check — never re-pin new prose. No whole-help snapshots, no prose-wording tests.
+- [ ] If an affected existing assertion only pins old wording, remove or replace it with a behavior check - never re-pin new prose. No whole-help snapshots, no prose-wording tests.
 
 ## Acceptance Criteria
 
@@ -87,4 +88,4 @@ implemented
 
 ### 2026-09-20T19:19:49Z agent/orchestrator
 
-MB3 DONE: blocked-label warning + skill/docs teaching; go test ./internal/cli/ ./internal/skill/ pass; review SPEC+QUALITY PASS. Parked non-blocking note: prime Description #15 from MB2 never landed in prime.go; same teaching covered by skill prose — left as future follow-up, not in chain scope.
+MB3 DONE: blocked-label warning + skill/docs teaching; go test ./internal/cli/ ./internal/skill/ pass; review SPEC+QUALITY PASS. Parked non-blocking note: prime Description #15 from MB2 never landed in prime.go; same teaching covered by skill prose - left as future follow-up, not in chain scope.

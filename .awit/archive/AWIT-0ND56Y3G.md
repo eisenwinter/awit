@@ -13,10 +13,12 @@ refs:
 ---
 
 ## Summary
+
 After this ticket `internal/cli/comment.go` registers `awit comment <id> [text...]`. The comment text is the positional args after the id joined by single spaces; when there is no text and no `--file` and stdin is not a terminal, the whole of stdin is the text. `--file <path>` copies a file verbatim into `.awit/comments/<id>/` (extension kept) instead of writing a Markdown comment; passing both text and `--file` is the error `pass either text or --file`. Whitespace-only text is the error `empty comment`. The author comes from `resolveAuthor` (flag → `AWIT_AGENT` → `config.agent_id` → git `user.name` → error). On success the command prints the ref that was appended to the item's `refs` (e.g. `../comments/AWIT-TEST0001/20260918T101500Z-jan.md`) followed by a newline; with `--format json` it prints `{"id": "...", "ref": "..."}`. All writing is done by `Store.AddComment` / `Store.AttachFile`, which already save the item.
 
 ## Context (read first)
-- Guide §2 decision 4 (author precedence) and the "Comment file format" / "Comment filename" rows: frontmatter `author`, `created` (RFC3339 UTC) then a blank line then the text; attached files are copied verbatim with no frontmatter; filename `<YYYYMMDDTHHMMSSZ>-<sanitised author><ext>` with `-2`, `-3` on collision. All of that lives in `pkg/item` already — this ticket does **not** build filenames or frontmatter.
+
+- Guide §2 decision 4 (author precedence) and the "Comment file format" / "Comment filename" rows: frontmatter `author`, `created` (RFC3339 UTC) then a blank line then the text; attached files are copied verbatim with no frontmatter; filename `<YYYYMMDDTHHMMSSZ>-<sanitised author><ext>` with `-2`, `-3` on collision. All of that lives in `pkg/item` already - this ticket does **not** build filenames or frontmatter.
 - Guide §4.4: `Store.AddComment(it, author, now, text) (ref, err)` and `Store.AttachFile(it, author, now, src) (ref, err)`. Both write the comment file, append the forward-slash ref to `it.Refs`, **save the item**, and return the ref. Do not call `s.Save` after them. `AttachFile` keeps `filepath.Ext(src)` (case included) and reads `src` as given, so relative `--file` paths are relative to the process cwd, not the repo.
 - Guide §4.11: `openStore(cmd)`; global `--format` read via `detectFormat(cmd)`; errors returned from `Action` become `Error: <msg>` on stderr with exit 1. Stdin is `cmd.Root().Reader` (the root command sets `Reader: stdin`; subcommands inherit it). Tests inject stdin through `runStdin`.
 - `AWIT-0ND56M3G` (`internal/cli/author.go`) defines the helpers this ticket calls. Their **actual** signatures (use these, not a `cmd`-taking variant):
@@ -39,14 +41,16 @@ After this ticket `internal/cli/comment.go` registers `awit comment <id> [text..
 - Argument order in tests: put flags **before** the positional args (`comment --author jan AWIT-TEST0001 some text`). urfave/cli v3 stops flag parsing at the first positional argument, so `comment AWIT-TEST0001 text --author jan` would make `--author` part of the text.
 - Error ordering (tests depend on it): `comment needs an item id` → `pass either text or --file` → store open errors → `loadItem` errors → author errors → stdin read → `empty comment` → write errors. The text/file exclusivity check runs before touching the store so the user gets the usage mistake first.
 - Test harness (`internal/cli/helpers_test.go`, from `AWIT-0ND56G3G`): `run(t, args...)`, `runStdin(t, stdin, args...)`, `copyFixture(t, "clean") string` (temp repo root, always pass `--repo`), `readItem(t, repo, id) *item.Item`. The `clean` fixture item `AWIT-TEST0001` has `refs: []`; `parse-error` fixture's `AWIT-TEST0001.md` is unparseable.
-- Guide §1: refs are forward slashes even on Windows; the ref printed and stored must never contain `\`. `AddComment` uses `path.Join`, so this holds automatically — the test asserts it anyway.
+- Guide §1: refs are forward slashes even on Windows; the ref printed and stored must never contain `\`. `AddComment` uses `path.Join`, so this holds automatically - the test asserts it anyway.
 
 ## Files
+
 - Create: `internal/cli/comment.go`
 - Create: `internal/cli/comment_test.go`
-- Modify: `internal/cli/app.go` — append `commentCmd` to the `Commands` slice in `newRoot`.
+- Modify: `internal/cli/app.go` - append `commentCmd` to the `Commands` slice in `newRoot`.
 
 ## Interfaces
+
 - Consumes:
   ```go
   func openStore(cmd *cli.Command) (*item.Store, error)
@@ -451,7 +455,7 @@ After this ticket `internal/cli/comment.go` registers `awit comment <id> [text..
   In `internal/cli/app.go`, inside `newRoot`, append `commentCmd` to the `Commands` slice (after whatever is already there; order of the slice only affects `--help` output).
 
   Implementation rules:
-  - `AddComment` and `AttachFile` save the item themselves. Do not call `s.Save(it)` afterwards — a second save is harmless but doubles the temp-then-rename work and hides bugs in those two methods.
+  - `AddComment` and `AttachFile` save the item themselves. Do not call `s.Save(it)` afterwards - a second save is harmless but doubles the temp-then-rename work and hides bugs in those two methods.
   - The `--file` path is passed to `AttachFile` unchanged. A relative path is resolved against the process cwd by `os.ReadFile`; do not join it with `s.Root`.
   - `text` keeps its internal newlines; `AddComment` trims leading/trailing whitespace and appends exactly one `\n`. The `empty comment` check therefore uses `strings.TrimSpace`.
   - Missing-file errors from `AttachFile` are returned unwrapped (`*os.PathError` already includes the path), which is what the `missing attachment` test asserts.
@@ -502,7 +506,6 @@ After this ticket `internal/cli/comment.go` registers `awit comment <id> [text..
   `gofmt -l internal/cli` must print nothing.
 
 - [ ] **Step 5: Close ticket.**
-
   1. Run `go build ./... && go vet ./internal/cli && go test ./internal/cli -count=1 -run TestComment -v` and copy the output.
   2. With the new command, write the closing comment through awit itself (dogfooding) from the repo root:
 
@@ -511,6 +514,7 @@ After this ticket `internal/cli/comment.go` registers `awit comment <id> [text..
      ```
 
      This creates `.awit/comments/AWIT-0ND56Y3G/<YYYYMMDDTHHMMSSZ>-<author>.md` and appends its ref to the ticket's `refs:` block. If `go run` is not possible in your environment, create the same file by hand with the frontmatter `author:` / `created:` (RFC3339 UTC), a blank line, and the text, then append `  - ../comments/AWIT-0ND56Y3G/<file>` to `refs:`.
+
   3. Change `status: open` to `status: closed` in `.awit/items/AWIT-0ND56Y3G.md`. Touch nothing else in the frontmatter.
   4. Commit:
 
@@ -520,7 +524,8 @@ After this ticket `internal/cli/comment.go` registers `awit comment <id> [text..
      ```
 
 ## Acceptance Criteria
-- `go test ./internal/cli -run TestComment -count=1 -v` — all eight tests (and every `TestCommentErrors` subtest) PASS; `go test ./internal/cli -count=1` stays green.
+
+- `go test ./internal/cli -run TestComment -count=1 -v` - all eight tests (and every `TestCommentErrors` subtest) PASS; `go test ./internal/cli -count=1` stays green.
 - `awit comment --author jan AWIT-TEST0001 first note` on a copy of the `clean` fixture prints `../comments/AWIT-TEST0001/<stamp>-jan.md`, the item's `refs` gains exactly that entry, and the comment file is `---\nauthor: jan\ncreated: <RFC3339 UTC>\n---\n\nfirst note\n`.
 - `awit comment --author jan --file notes.txt AWIT-TEST0001` copies the bytes verbatim to `<stamp>-jan.txt` and prints that ref.
 - `printf 'from stdin\n' | awit comment --author jan AWIT-TEST0001` uses stdin as the text; empty or whitespace-only stdin → `Error: empty comment`, exit 1, nothing written.
@@ -532,9 +537,10 @@ After this ticket `internal/cli/comment.go` registers `awit comment <id> [text..
 - `gofmt -l internal/cli` prints nothing; `comment.go` does not import `internal/gitx` (author resolution is entirely inside `resolveAuthor`).
 
 ## Out of scope
-- Comment filename/frontmatter generation, collision suffixes, ref formatting — all inside `pkg/item` (`AWIT-0ND56E3G`).
-- `resolveAuthor` / `loadItem` bodies — `AWIT-0ND56M3G`.
-- Rendering comments when showing an item (`show --full` resolves refs — `AWIT-0ND5703G`).
+
+- Comment filename/frontmatter generation, collision suffixes, ref formatting - all inside `pkg/item` (`AWIT-0ND56E3G`).
+- `resolveAuthor` / `loadItem` bodies - `AWIT-0ND56M3G`.
+- Rendering comments when showing an item (`show --full` resolves refs - `AWIT-0ND5703G`).
 - Editing or deleting existing comments, `--reply`, threading, Markdown validation of the text.
 - Git commits after commenting (only `next --claim` commits; guide §2 decision 3).
 - Reading `--file` from stdin (`--file -`) or URLs.

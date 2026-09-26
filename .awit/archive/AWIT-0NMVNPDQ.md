@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NMVNPDQ
-title: 'cli: add block and unblock commands with truthful read surfaces'
+title: "cli: add block and unblock commands with truthful read surfaces"
 brief: >-
   Add awit block and unblock commands with the specified transition table, refuse or skip held items in every claim path, and render reasons in next, prime, list and show.
 status: closed
@@ -10,6 +10,7 @@ refs_base: repo
 refs: []
 assignee: agent/orchestrator
 ---
+
 ## Summary
 
 Expose the MB1 manual block to agents and operators: `awit block <id> --reason` and `awit unblock <id>` in a new `internal/cli/block.go`, the full lifecycle transition table, claim refusal in `next`, and reason rendering in `format.Entry`, `prime`, `list`, and `show`. No tracker or git invocations from these commands.
@@ -18,12 +19,12 @@ Expose the MB1 manual block to agents and operators: `awit block <id> --reason` 
 
 - `AGENTS.md`; guide §§1, 2, 4.7, 4.8, 4.11 and 5.
 - MB1 (`AWIT-0NMVMSDQ`): `Item.BlockedReason`, `SetBlockedReason`, Ready/Blocked classification. Read it via `awit show AWIT-0NMVMSDQ`.
-- `internal/cli/next.go:139-175,258-280` — `nextAction` ranked vs exact lookup; `refuseClaim` rejects quarantined/closed/dep-blocked/claimed.
-- `internal/cli/release.go:45-56` — `releaseAction` sets open, clears assignee/claim, optional remote-open push.
-- `internal/cli/app.go:127-145` — `newRoot` command registration; `toEntry` conversion.
-- `pkg/format/format.go` — `Entry`, compact/table/JSON rendering.
-- `pkg/prime/prime.go:59-120` — `blockedLine`, `Render`, `entryOf`.
-- `internal/cli/list.go:43-114`, `internal/cli/close.go`, `internal/cli/update.go` — presentation and status transitions.
+- `internal/cli/next.go:139-175,258-280` - `nextAction` ranked vs exact lookup; `refuseClaim` rejects quarantined/closed/dep-blocked/claimed.
+- `internal/cli/release.go:45-56` - `releaseAction` sets open, clears assignee/claim, optional remote-open push.
+- `internal/cli/app.go:127-145` - `newRoot` command registration; `toEntry` conversion.
+- `pkg/format/format.go` - `Entry`, compact/table/JSON rendering.
+- `pkg/prime/prime.go:59-120` - `blockedLine`, `Render`, `entryOf`.
+- `internal/cli/list.go:43-114`, `internal/cli/close.go`, `internal/cli/update.go` - presentation and status transitions.
 - Full design: `agent://PlanBlockedState` sections D3-D4, G. Reviewed strings: `agent://ProseBlockStrings` (use the reviewed finals verbatim).
 
 ## Files
@@ -59,23 +60,23 @@ Commands (prose-reviewed help; wrappings ≤75 cols):
 
 Transition table:
 
-| Action | Result |
-| --- | --- |
-| `block` on open/in-progress | store/replace reason, status open, clear assignee + `claimed_at`, preserve deps/labels/body/refs/external link — one save, no intermediate selectable state |
-| repeated `block` | replaces reason, same logical state |
-| `block` on closed | refuse exit 1: `%s is closed; awit release %s to reopen it before blocking` |
-| `unblock` | remove only `blocked_reason`; preserve status, deps, claim fields; never claims/reopens; idempotent |
-| `release` | preserves the manual block (existing open/claim-clear + optional remote-open push) |
-| `update --status open\|in_progress` | preserves the manual block |
-| `close` / `update --status closed` | removes the manual block (alongside existing claim handling) |
-| dep add/remove/close | recompute dep readiness normally; never clears the manual block |
-| label add/remove | never sets or clears the manual block |
+| Action                              | Result                                                                                                                                                      |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `block` on open/in-progress         | store/replace reason, status open, clear assignee + `claimed_at`, preserve deps/labels/body/refs/external link - one save, no intermediate selectable state |
+| repeated `block`                    | replaces reason, same logical state                                                                                                                         |
+| `block` on closed                   | refuse exit 1: `%s is closed; awit release %s to reopen it before blocking`                                                                                 |
+| `unblock`                           | remove only `blocked_reason`; preserve status, deps, claim fields; never claims/reopens; idempotent                                                         |
+| `release`                           | preserves the manual block (existing open/claim-clear + optional remote-open push)                                                                          |
+| `update --status open\|in_progress` | preserves the manual block                                                                                                                                  |
+| `close` / `update --status closed`  | removes the manual block (alongside existing claim handling)                                                                                                |
+| dep add/remove/close                | recompute dep readiness normally; never clears the manual block                                                                                             |
+| label add/remove                    | never sets or clears the manual block                                                                                                                       |
 
 Changed help (prose-reviewed):
 
 - `release`: `Return an item to open and clear its claim; any manual block stays`
 - `close`: `Mark an item closed, clearing the claim timestamp and any manual block`
-- `update --status`: ``set status: `open`, in_progress or closed; closed clears any manual block`` (backticks required — urfave placeholder)
+- `update --status`: ``set status: `open`, in_progress or closed; closed clears any manual block`` (backticks required - urfave placeholder)
 - `list --blocked`: `include blocked items (open deps or a manual block)`
 - `next` Description:
   ```text

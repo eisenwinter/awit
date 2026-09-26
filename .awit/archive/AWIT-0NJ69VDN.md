@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NJ69VDN
-title: 'import: snapshot GitLab issues and preserve tracker-aware identity'
+title: "import: snapshot GitLab issues and preserve tracker-aware identity"
 brief: >-
   Extend issue import to GitLab issue and work_items URLs through glab, retaining iid, exact description, labels, and initial state. Make duplicate identity tracker-aware while preserving aliases, subgroup lookup, atomic saving, and Gitea import behavior.
 status: closed
@@ -9,6 +9,7 @@ labels: [phase5, p0]
 refs_base: repo
 refs: []
 ---
+
 ## Summary
 
 Reuse the existing import workflow for GitLab with tracker dispatch and correct installation/project/iid identity. Extend active/archive duplicate detection and shared duplicate-link checks without introducing a new lookup syntax or an inbound synchronization path.
@@ -72,17 +73,26 @@ Import flow:
 
 ## Steps
 
-- [ ] **RED — add `TestImportGitLabFaithful`, `TestImportGitLabURLs`, `TestImportGitLabDuplicateIdentity`, and `TestExternalLookupGitLab`.** Use `glabxtest.Install` and existing `initRepo`/`run` helpers. A fetched fixture must deliberately separate iid from global id:
+- [ ] **RED - add `TestImportGitLabFaithful`, `TestImportGitLabURLs`, `TestImportGitLabDuplicateIdentity`, and `TestExternalLookupGitLab`.** Use `glabxtest.Install` and existing `initRepo`/`run` helpers. A fetched fixture must deliberately separate iid from global id:
 
   ```json
-  {"id":987654,"iid":127,"title":"Imported issue","description":"Intro\r\nlast  ","labels":["area::api","comma,label","area::api"],"state":"opened","web_url":"https://forge.example/group/sub/project/-/work_items/127"}
+  {
+    "id": 987654,
+    "iid": 127,
+    "title": "Imported issue",
+    "description": "Intro\r\nlast  ",
+    "labels": ["area::api", "comma,label", "area::api"],
+    "state": "opened",
+    "web_url": "https://forge.example/group/sub/project/-/work_items/127"
+  }
   ```
 
   Assert stored ID 127, exact description, exact first-seen labels, no defaults, input URL preservation, and local open. Add closed/null cases, both URL forms, installation prefixes, issue-only rejection, invalid auth/schema/identity, candidate conflict markers, missing brief on repeated Main calls, and no remote PUT.
+
 - [ ] **Run RED:** `go test ./internal/cli -run 'ImportGitLab|ExternalLookupGitLab' -count=1 -v`; record the current GitLab URL/import rejection before dispatch changes.
-- [ ] **RED — prove identity boundaries.** Exercise active and archived same-link refusal—including alternate URL spelling—and successful imports for same repo/iid on another tracker/host/prefix. For `duplicateExternalLinks`, assert only exact tracker/base/repo/iid matches are returned. Test uninspectable archives and ambiguous lookup without local writes.
+- [ ] **RED - prove identity boundaries.** Exercise active and archived same-link refusal-including alternate URL spelling-and successful imports for same repo/iid on another tracker/host/prefix. For `duplicateExternalLinks`, assert only exact tracker/base/repo/iid matches are returned. Test uninspectable archives and ambiguous lookup without local writes.
 - [ ] **Run RED:** `go test ./internal/cli -run 'ImportGitLabDuplicateIdentity|ExternalDuplicateTrackerIdentity' -count=1 -v`.
-- [ ] **GREEN — add the small read/base dispatch helpers and migrate import/identity callers.** Keep network-before-lock, uniqueness-under-lock, candidate validation, and atomic save. Preserve all Gitea branches and the existing subgroup key parser. Update helper signatures in guide §4.11.
+- [ ] **GREEN - add the small read/base dispatch helpers and migrate import/identity callers.** Keep network-before-lock, uniqueness-under-lock, candidate validation, and atomic save. Preserve all Gitea branches and the existing subgroup key parser. Update helper signatures in guide §4.11.
 - [ ] **Run GREEN:** `go test ./internal/cli ./pkg/item -run 'Import|Alias|ExternalLookup|ExternalDuplicate' -count=1 -v`. Perform the temporary-directory CLI sequence, update paired docs and rendered skill, and hand evidence to the orchestrator for commit.
 
 ## Acceptance Criteria
@@ -101,6 +111,7 @@ Import flow:
   ```
 
   Use the actual repo/iid in the qualified lookup. Expect a minted canonical ID, exact snapshot fields, alias/qualified lookup selecting that item, duplicate exit 1 naming it, and successful local validation. Compare `Item.Body()` to decoded API `description`, not `show --full` text.
+
 - Subprocess-backed temporary-repo tests cover archive duplicates, equal numbers across trackers/hosts, sorted ambiguity, both URL spellings, and a prefixed subgroup installation. Same GitLab issue under either URL shape is one identity.
 - Every refusal leaves item/archive bytes unchanged. No import performs PUT, creates remote issues, or commits.
 - `go test ./internal/skill -run 'Render|DogfoodOmpCopyMatchesRenderer' -count=1` passes after regeneration.
@@ -108,8 +119,6 @@ Import flow:
 ## Out of scope
 
 Re-import-as-update, body/state command routing, new alias grammar, new external-key syntax, arbitrary work-item/MR import, remote creation, default-label changes, persistent indexes, and inbound synchronization.
-
-
 
 ## Comments
 

@@ -1,14 +1,16 @@
 ---
 id: AWIT-0NHDBJDR
-title: 'import: mint local items from Gitea issues and resolve human aliases'
+title: "import: mint local items from Gitea issues and resolve human aliases"
 brief: >-
   Import an existing Gitea issue through tea, retaining its number, URL, body, labels, and initial state. Add a separate alias field and deterministic lookup without weakening AWIT ID or dependency rules.
 status: closed
-deps: [AWIT-0ND56E3G, AWIT-0NFAW5DT, AWIT-0ND56K3G, AWIT-0ND56J3G, AWIT-0NHDBCDN]
+deps:
+  [AWIT-0ND56E3G, AWIT-0NFAW5DT, AWIT-0ND56K3G, AWIT-0ND56J3G, AWIT-0NHDBCDN]
 labels: [phase5, p0]
 refs_base: repo
 refs: []
 ---
+
 ## Summary
 
 Add `awit import <issue-url> --brief <summary> [--alias DTRM-F21] [--tea-login name]`. This is the single import spelling; do not also add `create --from-external`.
@@ -67,6 +69,7 @@ tea api --login <login> --repo <owner/repo> --include -X GET repos/<escaped-owne
 Run subprocesses with `exec.CommandContext`, an explicit argument vector, no shell, disconnected stdin, separate stdout/stderr capture, and a bounded 30-second operation deadline. Validate subprocess success **and** the `--include` HTTP status; do not pass successful error JSON through as an issue. Capture diagnostics rather than forwarding raw response headers or authentication material.
 
 Import mapping:
+
 - Mint a normal configured-prefix AWIT ID. Ignore Gitea’s database `id`; store JSON `number` as `external.id`.
 - Title is remote title. Body is the decoded JSON `body` string converted to UTF-8 bytes, without trimming or adding a skeleton. Null body maps to empty; malformed/missing required fields fail.
 - Labels are exact issue label names, first-seen deduplicated. Do not merge local default labels into an imported historical snapshot; later `update -l` can change them.
@@ -75,6 +78,7 @@ Import mapping:
 - Fetch before locking. Under `Store.Lock`, rescan active items and archived item files for the same normalized installation base + repo + issue number, then mint and save. Duplicate import errors name the existing item/archive path and leave all bytes unchanged. If a file cannot be inspected for identity, refuse import with that path rather than claim uniqueness was established. Archive scanning is only an import-identity guard; archived items remain excluded from the graph.
 
 Alias and lookup:
+
 - Optional scalar `alias`, set by create/update/import using `--alias`; update offers `--clear-alias`. Accept `[A-Za-z][A-Za-z0-9._-]{0,127}`. No whitespace, slash, `#`, or AWIT-shaped alias that could collide with canonical IDs. Uniqueness is case-insensitive across active parseable items; duplicate manual aliases make alias lookup fail with sorted canonical IDs, never choose one arbitrarily. They do not alter dependency readiness. `validate` warns about invalid/duplicate optional aliases.
 - Canonical IDs remain exact/case-sensitive and take precedence. Otherwise match alias case-insensitively. No prefix/fuzzy/title matching and no bare integer shorthand.
 - Additionally resolve `owner/repo#127` and quoted `'#127'` from valid external metadata; bare `#127` succeeds only if unique across active items. Ambiguity is an error listing canonical IDs. Existing issue references in journals/commits/docs are not rewritten.
@@ -102,7 +106,6 @@ Alias and lookup:
 
 Remote issue creation, bulk import, pull-request import, re-import-as-update, remote content becoming authoritative after creation, alias substitution inside Markdown, persistent indexes.
 
-
 ## Comments
 
 ### 2026-09-19T15:25:56Z agent/orchestrator
@@ -111,4 +114,4 @@ implemented
 
 ### 2026-09-19T15:26:02Z agent/orchestrator
 
-Shared hunk note: show.go showOne rewrite (resolveItemID + RefsBase baseDir) committed here; D8's 4 baseDir lines ride along — reviewed in both items.
+Shared hunk note: show.go showOne rewrite (resolveItemID + RefsBase baseDir) committed here; D8's 4 baseDir lines ride along - reviewed in both items.

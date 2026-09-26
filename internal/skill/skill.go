@@ -39,7 +39,7 @@ type Target struct {
 //
 // All five currently take the same frontmatter: each requires `name` and
 // `description` and ignores unknown keys, so one block satisfies them all.
-// That is a finding, not an assumption — it was checked against each tool's
+// That is a finding, not an assumption - it was checked against each tool's
 // own documentation, and Frontmatter stays per-target so a divergence later
 // is a one-line change.
 //

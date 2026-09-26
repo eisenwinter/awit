@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND5723G
-title: 'pkg/lock and store locking'
+title: "pkg/lock and store locking"
 brief: >-
   Add pkg/lock.Acquire (50ms poll via tryLock; unix Flock, Windows LockFileEx) and Store.Lock on .awit/.lock. Mutating commands lock for 5s after openStore. Timeout prints Error: another awit process holds .awit/.lock (waited 5s).
 status: closed
@@ -13,38 +13,42 @@ refs:
 ---
 
 ## Summary
+
 After this ticket `pkg/lock` exposes `Acquire(path, timeout)` which creates the file, takes an exclusive advisory lock, and polls `tryLock` every 50ms until success or timeout. Unix uses `syscall.Flock(LOCK_EX|LOCK_NB)`; Windows uses `golang.org/x/sys/windows.LockFileEx`. `Store.Lock` locks `filepath.Join(s.Dir, ".lock")` and, on timeout, returns `another awit process holds .awit/.lock (waited <duration>)`. Every mutating CLI command (`create`, `update`, `close`, `release`, `dep add`, `dep rm`, `comment`, `next --claim`) calls `s.Lock(5 * time.Second)` immediately after a successful `openStore` and `defer release()`. Read-only commands do not lock. Same-checkout concurrent `create` from ten goroutines all succeed with unique IDs.
 
 ## Context (read first)
-- Guide §4.10 `pkg/lock` — the only exported signature: `func Acquire(path string, timeout time.Duration) (release func() error, err error)`. Copy it. Do not rename. `release` unlocks and closes the file; leave the `.lock` file on disk (it is gitignored).
-- Guide §1 — `golang.org/x/sys` is allowed **only** in `pkg/lock` for Windows `LockFileEx`. Unix must use stdlib `syscall.Flock`, not `x/sys/unix`. Never hardcode `/`; `filepath.Join(s.Dir, ".lock")`. Linux **and** Windows.
-- Guide §1 errors — CLI `Action` errors print as `Error: <msg>` via `report`. The timeout string users see is exactly `Error: another awit process holds .awit/.lock (waited 5s)` because commands pass `5 * time.Second` and `time.Duration.String()` for that value is `5s`. `Store.Lock` produces the inner message; `Main` adds the `Error: ` prefix.
-- Guide §3 layout — `pkg/lock/lock.go lock_unix.go lock_windows.go`.
-- Guide §4.4 `Store` — `Init` already appends `.awit/.lock` to `.gitignore` (ticket `AWIT-0ND56E3G`). Do not change `Init`. `Store.Lock` is **new**; it is not in §4.4; add it with the signature in Interfaces.
-- Guide §4.11 — `openStore` already exists (`AWIT-0ND56G3G`). Insert the lock **after** it returns, never inside `openStore` (read-only commands also call `openStore`).
-- Spec Phase 5 — "Optional `.awit/.lock` (flock / LockFileEx) for same-checkout concurrency". Same worktree, two processes. Cross-worktree exclusion is Git, not this lock.
-- Spec Data model — the only non-committed file under `.awit/` is the lock.
+
+- Guide §4.10 `pkg/lock` - the only exported signature: `func Acquire(path string, timeout time.Duration) (release func() error, err error)`. Copy it. Do not rename. `release` unlocks and closes the file; leave the `.lock` file on disk (it is gitignored).
+- Guide §1 - `golang.org/x/sys` is allowed **only** in `pkg/lock` for Windows `LockFileEx`. Unix must use stdlib `syscall.Flock`, not `x/sys/unix`. Never hardcode `/`; `filepath.Join(s.Dir, ".lock")`. Linux **and** Windows.
+- Guide §1 errors - CLI `Action` errors print as `Error: <msg>` via `report`. The timeout string users see is exactly `Error: another awit process holds .awit/.lock (waited 5s)` because commands pass `5 * time.Second` and `time.Duration.String()` for that value is `5s`. `Store.Lock` produces the inner message; `Main` adds the `Error: ` prefix.
+- Guide §3 layout - `pkg/lock/lock.go lock_unix.go lock_windows.go`.
+- Guide §4.4 `Store` - `Init` already appends `.awit/.lock` to `.gitignore` (ticket `AWIT-0ND56E3G`). Do not change `Init`. `Store.Lock` is **new**; it is not in §4.4; add it with the signature in Interfaces.
+- Guide §4.11 - `openStore` already exists (`AWIT-0ND56G3G`). Insert the lock **after** it returns, never inside `openStore` (read-only commands also call `openStore`).
+- Spec Phase 5 - "Optional `.awit/.lock` (flock / LockFileEx) for same-checkout concurrency". Same worktree, two processes. Cross-worktree exclusion is Git, not this lock.
+- Spec Data model - the only non-committed file under `.awit/` is the lock.
 - Dep `AWIT-0ND56E3G` must be `status: closed` before you start. Phase-5 means `create` / `update` / `close` / `release` / `dep` / `comment` / `next` already exist; this ticket only inserts the lock call.
 - `internal/cli` tests never call `t.Parallel()` (`helpers_test.go` comment). Lock tests that share a path also must not.
 
 ## Files
+
 - Create: `pkg/lock/lock.go`
 - Create: `pkg/lock/lock_unix.go`
 - Create: `pkg/lock/lock_windows.go`
 - Create: `pkg/lock/lock_test.go`
 - Create: `pkg/item/lock_test.go`
 - Create: `internal/cli/lock_test.go`
-- Modify: `pkg/item/store.go` — add `Store.Lock`; add imports `"fmt"`, `"time"`, `"github.com/eisenwinter/awit/pkg/lock"` if missing.
-- Modify: `internal/cli/create.go` — lock after `openStore`.
-- Modify: `internal/cli/update.go` — lock after `openStore`.
-- Modify: `internal/cli/close.go` — lock after `openStore`.
-- Modify: `internal/cli/release.go` — lock after `openStore`.
-- Modify: `internal/cli/dep.go` — lock after `openStore` in both add and rm.
-- Modify: `internal/cli/comment.go` — lock after `openStore`.
-- Modify: `internal/cli/next.go` — lock after `openStore` **only when** `--claim` is set.
+- Modify: `pkg/item/store.go` - add `Store.Lock`; add imports `"fmt"`, `"time"`, `"github.com/eisenwinter/awit/pkg/lock"` if missing.
+- Modify: `internal/cli/create.go` - lock after `openStore`.
+- Modify: `internal/cli/update.go` - lock after `openStore`.
+- Modify: `internal/cli/close.go` - lock after `openStore`.
+- Modify: `internal/cli/release.go` - lock after `openStore`.
+- Modify: `internal/cli/dep.go` - lock after `openStore` in both add and rm.
+- Modify: `internal/cli/comment.go` - lock after `openStore`.
+- Modify: `internal/cli/next.go` - lock after `openStore` **only when** `--claim` is set.
 - Modify: `go.mod` / `go.sum` via `go get golang.org/x/sys` only.
 
 ## Interfaces
+
 - Consumes (already implemented; do not reimplement):
   ```go
   func openStore(cmd *cli.Command) (*item.Store, error)
@@ -55,12 +59,15 @@ After this ticket `pkg/lock` exposes `Acquire(path, timeout)` which creates the 
   func initRepo(t *testing.T) string
   ```
 - Produces (verbatim from guide §4.10):
+
   ```go
   package lock
 
   func Acquire(path string, timeout time.Duration) (release func() error, err error)
   ```
+
 - Produces (this ticket, not in the guide):
+
   ```go
   package lock
   var ErrTimeout = errors.New("lock: timeout")
@@ -432,7 +439,7 @@ After this ticket `pkg/lock` exposes `Acquire(path, timeout)` which creates the 
   }
   ```
 
-  `errors` is already imported in `store.go`. Path is `filepath.Join(s.Dir, ".lock")` — never `s.Dir + "/.lock"`.
+  `errors` is already imported in `store.go`. Path is `filepath.Join(s.Dir, ".lock")` - never `s.Dir + "/.lock"`.
 
 - [ ] **Step 8: Run Store.Lock tests, see them pass, commit.**
 
@@ -544,7 +551,7 @@ After this ticket `pkg/lock` exposes `Acquire(path, timeout)` which creates the 
   go test ./internal/cli -run 'TestCreateLockTimeout|TestConcurrentCreates' -v
   ```
 
-  Expected: `TestCreateLockTimeout` FAIL — create succeeds (exit 0) while another holder has the lock, because `create.go` does not call `s.Lock` yet. `TestConcurrentCreates` may PASS by luck (atomic rename) or FAIL with a mint collision; either way Step 11 still adds the lock. The red you need is `TestCreateLockTimeout` not seeing `Error: another awit process holds .awit/.lock (waited 5s)`.
+  Expected: `TestCreateLockTimeout` FAIL - create succeeds (exit 0) while another holder has the lock, because `create.go` does not call `s.Lock` yet. `TestConcurrentCreates` may PASS by luck (atomic rename) or FAIL with a mint collision; either way Step 11 still adds the lock. The red you need is `TestCreateLockTimeout` not seeing `Error: another awit process holds .awit/.lock (waited 5s)`.
 
 - [ ] **Step 11: Insert the lock into every mutating command.**
 
@@ -558,7 +565,7 @@ After this ticket `pkg/lock` exposes `Acquire(path, timeout)` which creates the 
   defer release()
   ```
 
-  **`internal/cli/create.go`** — `createAction` already has:
+  **`internal/cli/create.go`** - `createAction` already has:
 
   ```go
   s, err := openStore(cmd)
@@ -569,17 +576,17 @@ After this ticket `pkg/lock` exposes `Acquire(path, timeout)` which creates the 
 
   Insert the three statements immediately after that `if` block, before `itemID := cmd.String("id")`.
 
-  **`internal/cli/update.go`** — same insertion in the update `Action` after `openStore`.
+  **`internal/cli/update.go`** - same insertion in the update `Action` after `openStore`.
 
-  **`internal/cli/close.go`** — same insertion in the close `Action` after `openStore`.
+  **`internal/cli/close.go`** - same insertion in the close `Action` after `openStore`.
 
-  **`internal/cli/release.go`** — same insertion in the release `Action` after `openStore`.
+  **`internal/cli/release.go`** - same insertion in the release `Action` after `openStore`.
 
-  **`internal/cli/comment.go`** — same insertion in `commentAction` after `openStore`, before `loadItem`.
+  **`internal/cli/comment.go`** - same insertion in `commentAction` after `openStore`, before `loadItem`.
 
-  **`internal/cli/dep.go`** — both `dep add` and `dep rm` actions (whatever they are named: `depAddAction` / `depRmAction`, or a shared helper that is the only place `openStore` is called). Insert once per `openStore` success, not once per file if add and rm each call `openStore`. If they share a helper that already has `openStore`, insert there once.
+  **`internal/cli/dep.go`** - both `dep add` and `dep rm` actions (whatever they are named: `depAddAction` / `depRmAction`, or a shared helper that is the only place `openStore` is called). Insert once per `openStore` success, not once per file if add and rm each call `openStore`. If they share a helper that already has `openStore`, insert there once.
 
-  **`internal/cli/next.go`** — lock **only** when claiming. After `openStore` succeeds:
+  **`internal/cli/next.go`** - lock **only** when claiming. After `openStore` succeeds:
 
   ```go
   s, err := openStore(cmd)
@@ -624,7 +631,6 @@ After this ticket `pkg/lock` exposes `Acquire(path, timeout)` which creates the 
   ```
 
 - [ ] **Step 13: Close ticket.**
-
   - Set `status: closed` in the frontmatter of `.awit/items/AWIT-0ND5723G.md`.
   - Create `.awit/comments/AWIT-0ND5723G/<YYYYMMDDTHHMMSSZ>-<author>.md` with the captured `go test` output from Steps 4, 8 and 12.
   - Append the ref `../comments/AWIT-0ND5723G/<file>.md` to this ticket's `refs` (forward slashes, block style).
@@ -636,15 +642,17 @@ After this ticket `pkg/lock` exposes `Acquire(path, timeout)` which creates the 
     ```
 
 ## Acceptance Criteria
+
 - `go test ./pkg/lock -count=1` passes. `TestAcquireRelease`, `TestSecondAcquireBlocksUntilRelease`, `TestAcquireTimeout` exist and PASS.
-- `go test ./pkg/item -run 'TestLockIsGitignored|TestStoreLockTimeoutMessage' -v` — both PASS. After `Lock`, `.awit/.lock` exists and `.gitignore` contains exactly one `.awit/.lock` line. Timeout error string is `another awit process holds .awit/.lock (waited 50ms)`.
-- `go test ./internal/cli -run TestCreateLockTimeout -v` — PASS. stderr is exactly `Error: another awit process holds .awit/.lock (waited 5s)\n`, exit 1.
-- `go test ./internal/cli -run TestConcurrentCreates -v` — PASS. Ten goroutines each `awit create`; ten unique `items/*.md` files.
+- `go test ./pkg/item -run 'TestLockIsGitignored|TestStoreLockTimeoutMessage' -v` - both PASS. After `Lock`, `.awit/.lock` exists and `.gitignore` contains exactly one `.awit/.lock` line. Timeout error string is `another awit process holds .awit/.lock (waited 50ms)`.
+- `go test ./internal/cli -run TestCreateLockTimeout -v` - PASS. stderr is exactly `Error: another awit process holds .awit/.lock (waited 5s)\n`, exit 1.
+- `go test ./internal/cli -run TestConcurrentCreates -v` - PASS. Ten goroutines each `awit create`; ten unique `items/*.md` files.
 - `create.go`, `update.go`, `close.go`, `release.go`, `dep.go`, `comment.go` each contain `s.Lock(5 * time.Second)` after `openStore`. `next.go` contains it inside `if cmd.Bool("claim")`. `list` / `show` / `validate` / `prime` / `label` / `init` do not call `Lock`.
 - `pkg/lock/lock_unix.go` starts with `//go:build unix` and uses `syscall.Flock(..., syscall.LOCK_EX|syscall.LOCK_NB)`. `pkg/lock/lock_windows.go` starts with `//go:build windows` and uses `windows.LockFileEx` with `LOCKFILE_EXCLUSIVE_LOCK|LOCKFILE_FAIL_IMMEDIATELY`. `go.mod` requires `golang.org/x/sys`. No other package imports `x/sys`.
 - `gofmt -l pkg/lock pkg/item/store.go pkg/item/lock_test.go internal/cli` prints nothing.
 
 ## Out of scope
+
 - Changing `Init` gitignore behaviour, `openStore`, or any command's business logic beyond inserting the lock.
 - Cross-host or cross-worktree locking; NFS flock semantics; lock-file removal on release.
 - Locking `validate --stale-claims` (`AWIT-0ND5733G`), `list`, `show`, `prime`, `label`.

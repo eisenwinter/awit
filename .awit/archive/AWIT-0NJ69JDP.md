@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NJ69JDP
-title: 'item: accept additive GitLab issue metadata and subgroup URLs'
+title: "item: accept additive GitLab issue metadata and subgroup URLs"
 brief: >-
   Extend structured external metadata to GitLab issues while preserving valid Gitea files and behavior. Accept subgroup projects and both GitLab issue URL shapes without migrating existing items or weakening optional-metadata handling.
 status: closed
@@ -9,6 +9,7 @@ labels: [phase5, p0]
 refs_base: repo
 refs: []
 ---
+
 ## Summary
 
 Extend `external.tracker` from `gitea` to `gitea|gitlab`, keeping the four-field mapping and all existing identity, YAML-preservation, warning, and quarantine contracts. This is additive-only: no existing item rewrite, migration, legacy-scalar conversion, or changed Gitea grammar.
@@ -52,7 +53,7 @@ Validation rules:
 1. `tracker` is exactly lowercase `gitea` or `gitlab`. Required-field types, duplicate-owned-key rejection, positive base-10 int64 parsing, and preservation of extra nested keys remain as implemented.
 2. Gitea uses the existing two-segment `parseRepo` and existing URL-validation behavior, unchanged. Do not broaden or tighten Gitea acceptance incidentally.
 3. GitLab repo has **at least two** slash-separated segments. Reject leading/trailing slash, empty segments, `.` and `..`, Unicode whitespace/control characters, and any segment containing backslash or one of `/:?#@[]%`. Ordinary dots inside a name are allowed. Preserve case and spelling; do not clean or lowercase project paths.
-4. GitLab URL must be absolute HTTP(S), have a host, and have no userinfo, query—including an empty `?`—or fragment—including an empty `#`. Its decoded path must end exactly in `/<complete repo>/-/issues/<canonical decimal ID>` or `/<complete repo>/-/work_items/<canonical decimal ID>`.
+4. GitLab URL must be absolute HTTP(S), have a host, and have no userinfo, query-including an empty `?`-or fragment-including an empty `#`. Its decoded path must end exactly in `/<complete repo>/-/issues/<canonical decimal ID>` or `/<complete repo>/-/work_items/<canonical decimal ID>`.
 5. A prefix before that exact suffix is the installation path. Validate the entire path: no empty internal segments, dot segments, backslashes, whitespace/control characters, trailing slash, or encoded separator `%2f`/`%5c` in any case. Retain the existing conservative rejection of encoded dots `%2e`; reject nested encoded delimiter tricks rather than repeatedly decoding them. Match the full repo and ID, not a fixed four-segment suffix. Prefix segments follow the same safe-segment rules.
 6. `external.id` means Gitea `number` or GitLab **`iid`**, never either product’s database-wide `id`. There is no new `project_id`, resource-kind field, or stored remote state.
 7. `work_items` is accepted as an issue-link spelling, not a promise to import every GitLab work-item type. GL2 must prove the link resolves through the Issues API.
@@ -63,7 +64,7 @@ State terminology in the paired docs: local statuses remain `open|in_progress|cl
 
 ## Steps
 
-- [ ] **RED — add `TestExternalGitLabValidation` and `TestExternalGitLabRoundTrip`.** Cover subgroup and two-segment repos, both URL shapes, nested installation prefix, wrong repo/iid suffix, empty/dot segments, encoded separators/dots, credentials/query/fragment, unsupported tracker, nonpositive/overflow ID, malformed YAML fields, and old scalar preservation. Include existing valid Gitea fixtures as unchanged compatibility cases.
+- [ ] **RED - add `TestExternalGitLabValidation` and `TestExternalGitLabRoundTrip`.** Cover subgroup and two-segment repos, both URL shapes, nested installation prefix, wrong repo/iid suffix, empty/dot segments, encoded separators/dots, credentials/query/fragment, unsupported tracker, nonpositive/overflow ID, malformed YAML fields, and old scalar preservation. Include existing valid Gitea fixtures as unchanged compatibility cases.
 
   ```go
   e := External{
@@ -76,9 +77,9 @@ State terminology in the paired docs: local statuses remain `open|in_progress|cl
   ```
 
 - [ ] **Run RED:** `go test ./pkg/item -run 'ExternalGitLab|External.*RoundTrip' -count=1 -v`. Record the failure caused by the current Gitea-only validator; fixture/setup failures are not the RED proof.
-- [ ] **RED — extend command coverage with `TestExternalGitLabMetadataCLI`.** In `initRepo(t)`, call existing `run`/`Main` for create, show/list JSON, update with an identical mapping, and clear-external. Invalid/partial mappings must exit 2 without changing any item. With both tracker executables unavailable, all metadata-only operations and validate must still work.
+- [ ] **RED - extend command coverage with `TestExternalGitLabMetadataCLI`.** In `initRepo(t)`, call existing `run`/`Main` for create, show/list JSON, update with an identical mapping, and clear-external. Invalid/partial mappings must exit 2 without changing any item. With both tracker executables unavailable, all metadata-only operations and validate must still work.
 - [ ] **Run RED:** `go test ./internal/cli -run 'ExternalGitLabMetadataCLI' -count=1 -v`; record GitLab mapping rejection.
-- [ ] **GREEN — implement only the tracker-dependent validation branch and truthful metadata help.** Reuse current YAML parsing/setters, formatter fields, and warning path. Keep Gitea validation on its existing branch. Update guide §4.3 and schema rules in the same change.
+- [ ] **GREEN - implement only the tracker-dependent validation branch and truthful metadata help.** Reuse current YAML parsing/setters, formatter fields, and warning path. Keep Gitea validation on its existing branch. Update guide §4.3 and schema rules in the same change.
 - [ ] **Run GREEN:** `go test ./pkg/item ./pkg/format ./internal/cli -run 'External|RoundTrip|UnknownKey' -count=1`. Perform the temporary-repository acceptance sequence, finish paired docs, and hand the scoped evidence to the orchestrator for its commit.
 
 ## Acceptance Criteria
@@ -96,14 +97,13 @@ State terminology in the paired docs: local statuses remain `open|in_progress|cl
   ```
 
   Expect a normal minted AWIT ID, the exact GitLab mapping, no invalid-external warning, successful validation absent other faults, and removal of only external metadata on clear. No tea/glab process or commit occurs.
+
 - Replacing the repo with `group//project`, adding a URL query, or supplying a mismatched iid exits 2 with no item mutation. Legacy `external: gitlab#42` still warns rather than quarantines and round-trips unchanged.
 - Guide/schema describe additive compatibility and both URL shapes; they do not claim import or push availability before their owning work items land.
 
 ## Out of scope
 
 Subprocess integration, import, remote writes, MRs, non-issue work items, migration, automatic URL normalization, new schema fields, or changes to Gitea validation.
-
-
 
 ## Comments
 

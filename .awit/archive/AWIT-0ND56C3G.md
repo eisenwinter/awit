@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND56C3G
-title: 'internal/gitx: branch, user.name, root, commit'
+title: "internal/gitx: branch, user.name, root, commit"
 brief: >-
   Add internal/gitx, a thin os/exec wrapper around the git binary exposing Branch, UserName, Root and Commit. It is the only place in awit that shells out to git, and it never links a git library.
 status: closed
@@ -13,29 +13,34 @@ refs:
 ---
 
 ## Summary
-After this ticket `internal/gitx/gitx.go` exists with exactly four exported functions — `Branch`, `UserName`, `Root`, `Commit` — plus one private `run` helper that executes `git -C <dir> <args...>` and captures stdout and stderr. `Branch` and `UserName` swallow errors and return `""` because their callers (ID worker hashing, comment author fallback) must work in a directory that is not a Git repository. `Root` and `Commit` return errors. `internal/gitx/gitx_test.go` drives the real `git` binary in `t.TempDir()` repositories and skips when `git` is not installed. No CLI wiring, no ID minting, no claim logic is added here.
+
+After this ticket `internal/gitx/gitx.go` exists with exactly four exported functions - `Branch`, `UserName`, `Root`, `Commit` - plus one private `run` helper that executes `git -C <dir> <args...>` and captures stdout and stderr. `Branch` and `UserName` swallow errors and return `""` because their callers (ID worker hashing, comment author fallback) must work in a directory that is not a Git repository. `Root` and `Commit` return errors. `internal/gitx/gitx_test.go` drives the real `git` binary in `t.TempDir()` repositories and skips when `git` is not installed. No CLI wiring, no ID minting, no claim logic is added here.
 
 ## Context (read first)
-- Guide §4.5 `internal/gitx` — the exact four signatures this ticket must produce. Copy them; do not rename.
+
+- Guide §4.5 `internal/gitx` - the exact four signatures this ticket must produce. Copy them; do not rename.
 - Guide §1: `git` is invoked via `os/exec`, **never linked**. Dependencies are limited to `github.com/urfave/cli/v3` and `gopkg.in/yaml.v3`; this package uses stdlib only.
-- Guide §1: must compile and pass `go vet`, `staticcheck` and `go test ./...` on **Linux and Windows**; never hardcode `/` in filesystem paths — use `filepath`.
+- Guide §1: must compile and pass `go vet`, `staticcheck` and `go test ./...` on **Linux and Windows**; never hardcode `/` in filesystem paths - use `filepath`.
 - Guide §2 decision 2 (worker hash input): hostname + worktree absolute path + branch name, FNV-1a 32, `% 64`; **"Branch missing (not a git repo) → empty string, still hashed."** That is why `Branch` returns `""` instead of an error: `id.Worker` must never fail because a user runs `awit` outside a repository.
 - Guide §2 decision 4 (comment author source): `--author` → `AWIT_AGENT` → `config.agent_id` → `git config user.name` → error. The `user.name` step is `UserName`; it returns `""` so the resolution chain can fall through to its own error message.
 - Guide §2 "Git commit on `--claim`": `git -C <root> add <itemfile>` then `git -C <root> commit -m "awit: claim <id>" -- <itemfile>`. `Commit` is that operation, generalised to a slice of paths.
 - Guide §4.3: `Item.Path` is an **absolute** path on disk. Callers pass `it.Path` straight into `Commit`, so `Commit` must accept absolute paths. `git add --` and `git commit -- <pathspec>` both accept absolute paths as long as they are inside the worktree; Git resolves them against the worktree root itself, which is why no manual `filepath.Rel` conversion is needed (and why doing it by hand would be a portability bug on Windows, where `C:\...` paths and Git's internal forward-slash pathspecs differ).
-- Guide §4.4: `Store.Mint` uses `id.Worker(s.Root, gitx.Branch(s.Root))` — the single consumer of `Branch`.
+- Guide §4.4: `Store.Mint` uses `id.Worker(s.Root, gitx.Branch(s.Root))` - the single consumer of `Branch`.
 - Guide §5: tests use `testing` stdlib only, table-driven where it helps, `t.TempDir()` for the filesystem.
-- Spec `plan/awit-implementation-plan.md` §"Phased plan" → "Phase 0 — skeleton" and §"Decisions" row *Claims*: "Soft claim: writes `status`, `assignee`, `claimed_at`, then commits (`awit: claim <id>`) unless `--no-commit`" — the committed file must be **only** the claimed item, otherwise a claim commit would drag unrelated staged work along. `Commit` therefore always passes an explicit pathspec to `git commit`.
+- Spec `plan/awit-implementation-plan.md` §"Phased plan" → "Phase 0 - skeleton" and §"Decisions" row _Claims_: "Soft claim: writes `status`, `assignee`, `claimed_at`, then commits (`awit: claim <id>`) unless `--no-commit`" - the committed file must be **only** the claimed item, otherwise a claim commit would drag unrelated staged work along. `Commit` therefore always passes an explicit pathspec to `git commit`.
 
 ## Files
+
 - Create: `internal/gitx/gitx.go`
 - Create: `internal/gitx/gitx_test.go`
-- Modify: none. `go.mod` is untouched — this package imports only `bytes`, `errors`, `fmt`, `os/exec`, `strings` (and `os`, `path/filepath`, `testing` in the test).
+- Modify: none. `go.mod` is untouched - this package imports only `bytes`, `errors`, `fmt`, `os/exec`, `strings` (and `os`, `path/filepath`, `testing` in the test).
 - Fixtures/golden: none. Every test builds its repository at runtime with the real `git` binary in `t.TempDir()`.
 
 ## Interfaces
+
 - Consumes: nothing. This package has no dependency on any other awit package, which is why its `deps` list is empty and it can be built in parallel with `pkg/id`, `pkg/config` and the CLI skeleton.
 - Produces (verbatim from guide §4.5):
+
   ```go
   package gitx
 
@@ -48,7 +53,9 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
   // Commit stages the given paths (relative to or absolute within root) and commits only them.
   func Commit(root string, paths []string, message string) error
   ```
+
 - Produces (package-private, introduced by this ticket, not in guide §4):
+
   ```go
   // run executes `git -C dir <args...>`, returning trimmed stdout, or an error
   // wrapping git's exit status and trimmed stderr.
@@ -58,12 +65,14 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
   // commit whatever else happens to be staged in the worktree.
   var errNoPaths = errors.New("gitx: commit needs at least one path")
   ```
+
 - Future consumers (**not** implemented here): `pkg/item` `Store.Mint` (`Branch`), `internal/cli` comment author resolution (`UserName`), `internal/cli` `next --claim` (`Commit`), `internal/cli` `openStore` fallbacks (`Root`).
 
 ## Steps
 
 - [ ] **Step 1: Write the failing test for `run`, `Branch` and the repo helpers.**
-  Create `internal/gitx/gitx_test.go` with the two helpers and the three branch tests:
+      Create `internal/gitx/gitx_test.go` with the two helpers and the three branch tests:
+
   ```go
   package gitx
 
@@ -154,13 +163,17 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
   	}
   }
   ```
-  Note why `TestBranchDetached` asserts the precondition first: `rev-parse --abbrev-ref HEAD` printing the literal string `HEAD` is the *only* signal that distinguishes a detached head from a branch called something else, so the test pins that contract before asserting the mapping to `""`.
+
+  Note why `TestBranchDetached` asserts the precondition first: `rev-parse --abbrev-ref HEAD` printing the literal string `HEAD` is the _only_ signal that distinguishes a detached head from a branch called something else, so the test pins that contract before asserting the mapping to `""`.
 
 - [ ] **Step 2: Run it, see it fail to compile.**
+
   ```bash
   go test ./internal/gitx -run TestBranch -v
   ```
+
   Expected failure (no `gitx.go` yet, so the package has no non-test file and the identifiers are undefined):
+
   ```text
   # github.com/eisenwinter/awit/internal/gitx [github.com/eisenwinter/awit/internal/gitx.test]
   internal/gitx/gitx_test.go:34:19: undefined: Root
@@ -169,7 +182,8 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
   ```
 
 - [ ] **Step 3: Implement `run`, `Branch`, `UserName`, `Root`.**
-  Create `internal/gitx/gitx.go`:
+      Create `internal/gitx/gitx.go`:
+
   ```go
   // Package gitx wraps the git command line. It is the only package in awit that
   // shells out to git; nothing links a git library (guide §1).
@@ -230,13 +244,17 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
   	return run(dir, "rev-parse", "--show-toplevel")
   }
   ```
-  Two things to keep: `exec.Command("git", append([]string{"-C", dir}, args...)...)` — `-C dir` must come *before* the subcommand, and building a fresh slice avoids aliasing the caller's `args`. And `git` is resolved on `PATH` by `exec.Command`, which is what makes `exec.LookPath("git")` a valid skip guard in the tests.
+
+  Two things to keep: `exec.Command("git", append([]string{"-C", dir}, args...)...)` - `-C dir` must come _before_ the subcommand, and building a fresh slice avoids aliasing the caller's `args`. And `git` is resolved on `PATH` by `exec.Command`, which is what makes `exec.LookPath("git")` a valid skip guard in the tests.
 
 - [ ] **Step 4: Run the branch tests, see them pass.**
+
   ```bash
   go test ./internal/gitx -run TestBranch -v
   ```
+
   Expected:
+
   ```text
   === RUN   TestBranchInRepo
   --- PASS: TestBranchInRepo (0.03s)
@@ -247,16 +265,20 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
   PASS
   ok  	github.com/eisenwinter/awit/internal/gitx	0.09s
   ```
+
   Commit:
+
   ```bash
   gofmt -l internal/gitx
   git add internal/gitx
   git commit -m "gitx: run helper, Branch, UserName, Root"
   ```
+
   (`gofmt -l` must print nothing.)
 
 - [ ] **Step 5: Write the failing tests for `UserName` and `Root`.**
-  Append to `internal/gitx/gitx_test.go`:
+      Append to `internal/gitx/gitx_test.go`:
+
   ```go
   func TestUserName(t *testing.T) {
   	dir := newRepo(t)
@@ -320,11 +342,15 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
   	}
   }
   ```
+
   `TestRootOutsideRepo` also pins the `run` error format from Step 3 (`git <args>: <exit err>: <stderr>`), which is the reason `run` joins the args into the message at all.
+
   ```bash
   go test ./internal/gitx -run 'TestUserName|TestRoot' -v
   ```
+
   Expected failure: `TestUserName` and `TestUserNameOutsideRepo` fail with `undefined: UserName` only if Step 3 was skipped; after Step 3 they compile, so the expected red here is limited to whatever is still missing. Run it and confirm the four tests pass (`UserName` and `Root` were implemented in Step 3, these tests lock their behaviour down):
+
   ```text
   --- PASS: TestUserName (0.03s)
   --- PASS: TestUserNameOutsideRepo (0.01s)
@@ -332,14 +358,17 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
   --- PASS: TestRootOutsideRepo (0.01s)
   ok  	github.com/eisenwinter/awit/internal/gitx	0.09s
   ```
+
   Commit:
+
   ```bash
   git add internal/gitx/gitx_test.go
   git commit -m "gitx: test UserName and Root"
   ```
 
 - [ ] **Step 6: Write the failing tests for `Commit`.**
-  Append to `internal/gitx/gitx_test.go`:
+      Append to `internal/gitx/gitx_test.go`:
+
   ```go
   func TestCommitOnlyStagesGivenPaths(t *testing.T) {
   	dir := newRepo(t)
@@ -387,10 +416,13 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
   	}
   }
   ```
+
   ```bash
   go test ./internal/gitx -run TestCommit -v
   ```
+
   Expected failure:
+
   ```text
   # github.com/eisenwinter/awit/internal/gitx [github.com/eisenwinter/awit/internal/gitx.test]
   internal/gitx/gitx_test.go:151:12: undefined: Commit
@@ -398,7 +430,8 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
   ```
 
 - [ ] **Step 7: Implement `Commit`.**
-  Append to `internal/gitx/gitx.go`:
+      Append to `internal/gitx/gitx.go`:
+
   ```go
   // errNoPaths guards against an empty pathspec. `git commit -m msg --` with no
   // paths commits everything already in the index, which would turn a claim
@@ -410,7 +443,7 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
   //
   // Paths normally arrive as item.Path, which is absolute (guide §4.3). Git
   // accepts absolute pathspecs inside the worktree and resolves them against the
-  // worktree root, so no filepath.Rel conversion is needed — and none should be
+  // worktree root, so no filepath.Rel conversion is needed - and none should be
   // attempted, because hand-built relative paths break on Windows drive letters.
   //
   // The explicit pathspec on `git commit` is what makes the commit minimal: the
@@ -428,13 +461,17 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
   	return nil
   }
   ```
+
   `-q` keeps git's commit summary off stderr so a successful claim prints nothing; `--` terminates options so a path that begins with `-` is still treated as a path.
 
 - [ ] **Step 8: Run the commit tests, see them pass.**
+
   ```bash
   go test ./internal/gitx -run TestCommit -v
   ```
+
   Expected:
+
   ```text
   === RUN   TestCommitOnlyStagesGivenPaths
   --- PASS: TestCommitOnlyStagesGivenPaths (0.12s)
@@ -445,7 +482,9 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
   PASS
   ok  	github.com/eisenwinter/awit/internal/gitx	0.23s
   ```
+
   Commit:
+
   ```bash
   gofmt -l internal/gitx
   git add internal/gitx
@@ -453,21 +492,26 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
   ```
 
 - [ ] **Step 9: Run the whole package, build and vet.**
+
   ```bash
   go test ./internal/gitx -v
   go build ./...
   go vet ./...
   ```
+
   Expected: nine tests pass (`TestBranchInRepo`, `TestBranchOutsideRepo`, `TestBranchDetached`, `TestUserName`, `TestUserNameOutsideRepo`, `TestRoot`, `TestRootOutsideRepo`, `TestCommitOnlyStagesGivenPaths`, `TestCommitError`, `TestCommitNoPaths`), then `ok  	github.com/eisenwinter/awit/internal/gitx`; `go build` and `go vet` print nothing and exit `0`.
   Also confirm the skip path works, because CI images without git must stay green rather than fail:
+
   ```bash
   env PATH=/nonexistent go test ./internal/gitx -v 2>&1 | grep -c SKIP
   ```
-  Expected: a non-zero count — every test reports `--- SKIP: ... git not installed`. (On Windows use `set PATH=` in `cmd` or `$env:PATH=''` in PowerShell; the `go` binary must still be reachable by absolute path.)
+
+  Expected: a non-zero count - every test reports `--- SKIP: ... git not installed`. (On Windows use `set PATH=` in `cmd` or `$env:PATH=''` in PowerShell; the `go` binary must still be reachable by absolute path.)
 
 - [ ] **Step 10: Close ticket.**
   - Set `status: closed` in the frontmatter of `.awit/items/AWIT-0ND56C3G.md`.
   - Create `.awit/comments/AWIT-0ND56C3G/<YYYYMMDDTHHMMSSZ>-<author>.md` (UTC stamp, e.g. `20260917T152233Z-claude.md`):
+
     ```markdown
     ---
     author: agent/claude
@@ -488,6 +532,7 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
     $ gofmt -l internal/gitx
     (no output)
     ```
+
   - Append the ref `../comments/AWIT-0ND56C3G/<file>.md` to this ticket's `refs` list (forward slashes, block style, after the two plan refs).
   - Commit:
     ```bash
@@ -496,6 +541,7 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
     ```
 
 ## Acceptance Criteria
+
 - `go test ./internal/gitx -v` → all ten tests `PASS` (or uniformly `SKIP` with `git not installed` on a machine without git), final line `ok  	github.com/eisenwinter/awit/internal/gitx`, exit code `0`.
 - `go test ./internal/gitx -run TestCommitOnlyStagesGivenPaths -v` → `PASS`; the test proves `git log -1 --pretty=%s` is `awit: test` and `git status --porcelain` is exactly `?? b.txt`.
 - `go test ./internal/gitx -run TestBranchDetached -v` → `PASS`; `Branch` returns `""` for a detached HEAD.
@@ -506,11 +552,12 @@ After this ticket `internal/gitx/gitx.go` exists with exactly four exported func
 - The package imports no third-party module: `go list -deps ./internal/gitx | grep -c eisenwinter` → `1` (only the package itself), and `grep -c 'urfave\|yaml' internal/gitx/gitx.go` → `0` with exit code `1`.
 
 ## Out of scope
-- `id.Worker` / `id.WorkerFor` and any hashing of the branch name — `AWIT-0ND5693G` (`pkg/id`).
-- `Store.Mint`, `Store.Save` and every other `pkg/item` symbol that will call into this package — `AWIT-0ND56E3G`.
-- The `next --claim` flow (frontmatter write, `claimed_at`, `--no-commit`, the `awit: claim <id>` message) — `AWIT-0ND56X3G`. This ticket provides `Commit`; it does not build a message or decide when to call it.
-- Comment author resolution (`--author` → `AWIT_AGENT` → `config.agent_id` → `UserName`) — `AWIT-0ND56Y3G` for the command, `AWIT-0ND56A3G` for `config.Agent`.
+
+- `id.Worker` / `id.WorkerFor` and any hashing of the branch name - `AWIT-0ND5693G` (`pkg/id`).
+- `Store.Mint`, `Store.Save` and every other `pkg/item` symbol that will call into this package - `AWIT-0ND56E3G`.
+- The `next --claim` flow (frontmatter write, `claimed_at`, `--no-commit`, the `awit: claim <id>` message) - `AWIT-0ND56X3G`. This ticket provides `Commit`; it does not build a message or decide when to call it.
+- Comment author resolution (`--author` → `AWIT_AGENT` → `config.agent_id` → `UserName`) - `AWIT-0ND56Y3G` for the command, `AWIT-0ND56A3G` for `config.Agent`.
 - Any CLI command, flag, or `internal/cli` file. `internal/gitx` has no knowledge of urfave/cli.
 - Extra git operations: no `push`, `pull`, `status` parsing, `diff`, branch creation, stash, or worktree discovery beyond `Root`. Guide §4.5 lists four functions; four is the whole surface.
 - Caching results across calls, or a package-level `Runner` interface to mock git. The tests drive the real binary, which is the only thing that proves the argument order is right.
-- CI configuration for the new package — `AWIT-0ND56B3G` already runs `go test ./...` on both operating systems.
+- CI configuration for the new package - `AWIT-0ND56B3G` already runs `go test ./...` on both operating systems.

@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND56X3G
-title: 'awit next with seeded tie-break, -l, --claim, --no-commit'
+title: "awit next with seeded tie-break, -l, --claim, --no-commit"
 brief: >-
   Add `awit next`: pick the top ready item by UnblockCount, shuffle the first equal-count group with math/rand/v2 PCG, filter with -l, and optionally claim with a git commit unless --no-commit.
 status: closed
@@ -13,30 +13,34 @@ refs:
 ---
 
 ## Summary
+
 After this ticket `internal/cli/next.go` registers `awit next`. Candidates are `graph.FilterLabels(g.Ready(), SplitLabels(-l))`. Rank is UnblockCount descending (already the Ready() order). The first run of equal UnblockCount is shuffled with `math/rand/v2` `rand.NewPCG(seed, seed)`; `--seed` 0 (the default) uses `time.Now().UnixNano()`. Empty candidates print `No ready items` and, when `-l` is set, ` (labels: p0)`, then exit 1 via `cli.Exit` (no `Error:` prefix). `--claim` requires an agent identity (`--agent` / `AWIT_AGENT` / `config.agent_id`), writes `in_progress` + `assignee` (`agent/`+value unless the value contains `/`) + `claimed_at`, `Save`s, then `gitx.Commit` with `awit: claim <id>` unless `--no-commit`. A commit error after a successful write is `claimed <id> but git commit failed: ...` exit 1.
 
 ## Context (read first)
-- Guide §2 `next` tie-break — `math/rand/v2` PCG(seed, seed). Shuffle **only** the leading equal-UnblockCount group; do not shuffle the whole candidate list.
-- Guide §2 Git commit on `--claim` — `gitx.Commit(root, []string{it.Path}, "awit: claim "+id)`. Path is absolute (`item.Path`). Commit failure is an error **after** the file was written.
-- Guide §2 decision 3 — only `--claim` commits. `--no-commit` skips `gitx.Commit`. `--no-commit` without `--claim` is a no-op.
-- Guide §4.2 — `Config.Agent(flag)` is flag → `AWIT_AGENT` → `c.AgentID` → `""` and never adds `agent/`. Prefix with `withAgentPrefix` from AWIT-0ND56M3G (`contains "/" → verbatim`, else `"agent/"+v`).
-- Guide §4.5 — `gitx.Commit`. Guide §4.7 — `format.WriteOne` for compact/table/json of one `Entry`. Guide §4.11 — `loadGraph`, `toEntry` (owned by AWIT-0ND56J3G). This ticket's deps do **not** include J3G, so define both if absent (exact code in Step 3).
-- Guide §4.11 / spec — flags `-l`, `--claim`, `--no-commit`, `--seed`. Agent identity: `--agent`, else `AWIT_AGENT`, else `config.agent_id`; none → refuse `--claim`.
-- 683G `report` — `cli.Exit("No ready items", 1)` prints `No ready items\n` on stderr with **no** `Error:` prefix. Use that, not `fmt.Errorf`.
-- AWIT-0ND56M3G — `withAgentPrefix`, `loadItem` (not needed here; claim uses the graph node then `s.Load`/`Save`), `seedItem` in `update_test.go` (same package — reuse it). `initRepo`, `run`, `copyFixture`, `readItem` from G3G.
+
+- Guide §2 `next` tie-break - `math/rand/v2` PCG(seed, seed). Shuffle **only** the leading equal-UnblockCount group; do not shuffle the whole candidate list.
+- Guide §2 Git commit on `--claim` - `gitx.Commit(root, []string{it.Path}, "awit: claim "+id)`. Path is absolute (`item.Path`). Commit failure is an error **after** the file was written.
+- Guide §2 decision 3 - only `--claim` commits. `--no-commit` skips `gitx.Commit`. `--no-commit` without `--claim` is a no-op.
+- Guide §4.2 - `Config.Agent(flag)` is flag → `AWIT_AGENT` → `c.AgentID` → `""` and never adds `agent/`. Prefix with `withAgentPrefix` from AWIT-0ND56M3G (`contains "/" → verbatim`, else `"agent/"+v`).
+- Guide §4.5 - `gitx.Commit`. Guide §4.7 - `format.WriteOne` for compact/table/json of one `Entry`. Guide §4.11 - `loadGraph`, `toEntry` (owned by AWIT-0ND56J3G). This ticket's deps do **not** include J3G, so define both if absent (exact code in Step 3).
+- Guide §4.11 / spec - flags `-l`, `--claim`, `--no-commit`, `--seed`. Agent identity: `--agent`, else `AWIT_AGENT`, else `config.agent_id`; none → refuse `--claim`.
+- 683G `report` - `cli.Exit("No ready items", 1)` prints `No ready items\n` on stderr with **no** `Error:` prefix. Use that, not `fmt.Errorf`.
+- AWIT-0ND56M3G - `withAgentPrefix`, `loadItem` (not needed here; claim uses the graph node then `s.Load`/`Save`), `seedItem` in `update_test.go` (same package - reuse it). `initRepo`, `run`, `copyFixture`, `readItem` from G3G.
 - Guide §8 `clean`: Ready is 0001 (UnblockCount 2), 0002 (0), 0006 (0). `next` without `-l` always returns 0001 because it uniquely holds the top count. `-l p0` filters Ready to empty (0004 is p0 but blocked) → `No ready items (labels: p0)`.
 - `--seed` is `Int64Flag`, default 0. Tests always pass a non-zero seed.
 - `--agent` is `StringFlag` with `Sources: cli.EnvVars("AWIT_AGENT")`. Then `s.Config.Agent(cmd.String("agent"))`.
 - Claimed timestamp: `time.Now().UTC().Truncate(time.Second)` stored via `SetClaimedAt`.
 - Print the compact/json line **after** a successful claim (so JSON `status` is `in_progress`) and **after** a successful commit. If commit fails, do not print the line; return the claimed-but-failed error.
-- `detectFormat` — define if absent (H3G). Tests pass `--format compact` except `TestNextJSON`.
+- `detectFormat` - define if absent (H3G). Tests pass `--format compact` except `TestNextJSON`.
 
 ## Files
+
 - Create: `internal/cli/next.go`
 - Create: `internal/cli/next_test.go`
-- Modify: `internal/cli/app.go` — append `nextCmd`; add `loadGraph` / `toEntry` / `detectFormat` only if they are not already defined.
+- Modify: `internal/cli/app.go` - append `nextCmd`; add `loadGraph` / `toEntry` / `detectFormat` only if they are not already defined.
 
 ## Interfaces
+
 - Consumes:
   ```go
   func openStore(cmd *cli.Command) (*item.Store, error)
@@ -264,7 +268,7 @@ After this ticket `internal/cli/next.go` registers `awit next`. Candidates are `
   go test ./internal/cli -run 'TestNext' -v
   ```
 
-  Expected: `next` is unknown (exit 2) or `undefined: seedItem` if M3G is not closed — M3G is a dep and must be `status: closed` before you start. Valid red:
+  Expected: `next` is unknown (exit 2) or `undefined: seedItem` if M3G is not closed - M3G is a dep and must be `status: closed` before you start. Valid red:
 
   ```text
   --- FAIL: TestNextTopByUnblocks
@@ -483,7 +487,8 @@ After this ticket `internal/cli/next.go` registers `awit next`. Candidates are `
   Set `status: closed` on this file, write `.awit/comments/AWIT-0ND56X3G/<YYYYMMDDTHHMMSSZ>-<author>.md` with the acceptance output, append that ref, commit `tickets: close AWIT-0ND56X3G`.
 
 ## Acceptance Criteria
-- `go test ./internal/cli -run 'TestNext' -v` — all PASS (`TestNextClaimCommits` may SKIP).
+
+- `go test ./internal/cli -run 'TestNext' -v` - all PASS (`TestNextClaimCommits` may SKIP).
 - `next --seed 1` on clean prints the 0001 compact line, exit 0.
 - Two ready items with equal UnblockCount: `--seed 1` twice is identical; the pick is one of the two IDs.
 - `next -l p0` on clean: stderr `No ready items (labels: p0)\n`, stdout empty, exit 1, no `Error:` prefix.
@@ -494,4 +499,5 @@ After this ticket `internal/cli/next.go` registers `awit next`. Candidates are `
 - `gofmt -l internal/cli/next.go` prints nothing.
 
 ## Out of scope
+
 - `awit prime`. Stale-claim checks. `close` committing. Changing `gitx.Commit` or `FilterLabels`. Registering `--seed` on any other command.

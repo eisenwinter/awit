@@ -9,8 +9,8 @@ import (
 
 // warnQuarantined prints the single stderr summary that makes graph
 // exclusions visible: "warning: N items quarantined, run awit validate".
-// N counts quarantined parseable nodes plus broken files — not fault
-// records — so a cycle with several members counts those members and a
+// N counts quarantined parseable nodes plus broken files - not fault
+// records - so a cycle with several members counts those members and a
 // node with several reasons counts once. The same wording is used for
 // N=1. Call it exactly once per command, right after the command's
 // initial loadGraph; warn before any filtering so hidden quarantined

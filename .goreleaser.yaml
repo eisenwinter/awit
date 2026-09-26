@@ -63,7 +63,7 @@ changelog:
       - "^test:"
       # "tickets:" was the scope before AWIT-0NEZV7T2 renamed the unit to
       # work item; it stays so changelogs spanning older tags keep excluding
-      # those commits. "items:" is the scope guide §7 mandates now — note
+      # those commits. "items:" is the scope guide §7 mandates now - note
       # "^item:" below does not match it, the colon makes them distinct.
       - "^tickets:"
       - "^items:"

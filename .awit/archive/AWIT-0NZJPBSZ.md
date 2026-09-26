@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NZJPBSZ
-title: 'lazy: Graph tab — prime overview rows, focused tree (depth 5, +N more), enter jump'
+title: "lazy: Graph tab - prime overview rows, focused tree (depth 5, +N more), enter jump"
 brief: >-
   The Graph tab shows awit prime's READY/BLOCKED/CRITICAL PATH text verbatim with selectable node rows, and a focused ASCII tree of deps above and unblocks below the selected id capped at depth 5, with tab toggling modes and enter jumping to the Issues tab.
 status: closed
@@ -10,22 +10,23 @@ refs_base: repo
 refs: []
 assignee: agent/orchestrator
 ---
+
 ## Summary
 
-Two render modes over the shared graph snapshot. Overview = `prime.Render(&buf, g, prime.Options{})` split into lines; a line becomes a selectable row with id X when it starts with `[X]` and `g.Nodes[X]` exists (the §6 output contract) — byte-identical to `awit prime` apart from the two-column cursor gutter. Focused = the selected id's upstream `Deps` tree and downstream `Unblocks` tree, children sorted by ID, each direction capped at depth 5 with `(+N more)` stubs. `tab` toggles modes, `enter` jumps to the Issues tab pinned on the row's id. The Graph tab has no detail pane; the tree/overview fills the body.
+Two render modes over the shared graph snapshot. Overview = `prime.Render(&buf, g, prime.Options{})` split into lines; a line becomes a selectable row with id X when it starts with `[X]` and `g.Nodes[X]` exists (the §6 output contract) - byte-identical to `awit prime` apart from the two-column cursor gutter. Focused = the selected id's upstream `Deps` tree and downstream `Unblocks` tree, children sorted by ID, each direction capped at depth 5 with `(+N more)` stubs. `tab` toggles modes, `enter` jumps to the Issues tab pinned on the row's id. The Graph tab has no detail pane; the tree/overview fills the body.
 
 ## Context (read first)
 
 - Design spec "Graph tab"; plan §D.10.
-- `docs/design-spec.md` §6 "`awit prime` Output Contract" — every node row starts with `[<ID>]`; CRITICAL PATH is one `A -> B -> C` line (not selectable).
-- `pkg/prime` — `Render(w io.Writer, g *graph.Graph, opts Options) error`, `Options{MaxTokens, Labels}`.
-- `pkg/graph` — `Node.Deps`, `Node.Unblocks` (both sorted by ID in `Build`), `Node.Quarantined()`.
+- `docs/design-spec.md` §6 "`awit prime` Output Contract" - every node row starts with `[<ID>]`; CRITICAL PATH is one `A -> B -> C` line (not selectable).
+- `pkg/prime` - `Render(w io.Writer, g *graph.Graph, opts Options) error`, `Options{MaxTokens, Labels}`.
+- `pkg/graph` - `Node.Deps`, `Node.Unblocks` (both sorted by ID in `Build`), `Node.Quarantined()`.
 - WI-4: `cursorList`, `row`, `press`, `golden`, `newFixture`.
 
 ## Files
 
-- `internal/lazy/graph.go` — `graphState`, `overviewRows`, `treeRows`, `focusedRows`, key handling (`tab`, `enter`).
-- `internal/lazy/model.go`, `view.go` — Graph tab wiring; on entering the tab (`2`) `rootID` = current Issues selection when non-empty; header line 2 = `Overview` | `Focused on <id>`; hint line `j/k move  tab overview/focused  enter open in issues  c close  b block  u unblock  m comment  ? help`; body = list only, full width.
+- `internal/lazy/graph.go` - `graphState`, `overviewRows`, `treeRows`, `focusedRows`, key handling (`tab`, `enter`).
+- `internal/lazy/model.go`, `view.go` - Graph tab wiring; on entering the tab (`2`) `rootID` = current Issues selection when non-empty; header line 2 = `Overview` | `Focused on <id>`; hint line `j/k move  tab overview/focused  enter open in issues  c close  b block  u unblock  m comment  ? help`; body = list only, full width.
 - `internal/lazy/graph_test.go`; goldens `graph_overview`, `graph_focused`, `tree_depth_cap`.
 
 ## Interfaces
@@ -53,3 +54,4 @@ func nodeText(n *graph.Node) string // "[ID] status title" + " [quarantined]" wh
 ### 2026-09-24T21:09:51Z jan
 
 implemented
+```

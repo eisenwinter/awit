@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND5763G
-title: 'awit label (vocabulary with counts, --state)'
+title: "awit label (vocabulary with counts, --state)"
 brief: >-
   Add internal/cli/label.go: the label command validates --state open|closed|all (default open, open = status != closed), counts labels over LoadAll's parseable items only (graph-quarantined items count, broken files never do), sorts rows count descending then label ascending, and renders through format.WriteLabels with the global --format flag.
 status: closed
@@ -13,43 +13,48 @@ refs:
 ---
 
 ## Summary
+
 After this ticket `awit label` prints the label vocabulary with usage counts. `--state open` (the default) counts every item whose status is **not** `closed` (so `open` and `in_progress`), `--state closed` counts only closed items, `--state all` counts every parseable item. The command never builds a graph: it reads `store.LoadAll()` and counts `Item.Labels`, which by construction includes items the graph would quarantine (dangling dep, cycle member) and excludes unparseable files (they come back in the `Broken` slice, which is discarded on purpose). Rows are sorted by count descending then label ascending and rendered by `format.WriteLabels`, so `--format compact|table|json` and the non-TTY compact default all work; an empty vocabulary prints nothing in compact, `[]` in JSON, and exits 0. An invalid `--state` value is a plain action error: `Error: --state must be open, closed or all`, exit 1.
 
 ## Context (read first)
-- **guide §2, row "awit label semantics"** (verbatim decision): "`--state open` (default) counts items whose status is **not** `closed` (so `open` + `in_progress`); `--state closed` counts only closed; `--state all` counts every parseable item. Quarantined items are counted (they still carry labels); unparseable files are not. Rows sorted by count desc, then label asc. Labels never declared anywhere — the vocabulary is whatever items use."
-- **spec `plan/awit-implementation-plan.md` §CLI command matrix** — row `awit label`: flags `--state open|closed|all`, `--format`; purpose "Label vocabulary with usage counts; answers 'what labels exist and how busy are they'". "Priority" in the plan: no dedicated field, `p0`/`p1` are just labels — this command is how an agent discovers them.
-- **guide §4.7 `pkg/format`** — this ticket consumes, never reimplements:
+
+- **guide §2, row "awit label semantics"** (verbatim decision): "`--state open` (default) counts items whose status is **not** `closed` (so `open` + `in_progress`); `--state closed` counts only closed; `--state all` counts every parseable item. Quarantined items are counted (they still carry labels); unparseable files are not. Rows sorted by count desc, then label asc. Labels never declared anywhere - the vocabulary is whatever items use."
+- **spec `plan/awit-implementation-plan.md` §CLI command matrix** - row `awit label`: flags `--state open|closed|all`, `--format`; purpose "Label vocabulary with usage counts; answers 'what labels exist and how busy are they'". "Priority" in the plan: no dedicated field, `p0`/`p1` are just labels - this command is how an agent discovers them.
+- **guide §4.7 `pkg/format`** - this ticket consumes, never reimplements:
   - `format.LabelCount{Label string; Count int}` with json tags `label`, `count`.
   - `WriteLabels(w, f, counts)`: compact is `<label> <count>\n` per line (nothing when empty); table is a tabwriter block with the uppercase header `LABEL  COUNT`; json is an indented two-space array with a trailing newline, `[]\n` when empty.
-  - `Detect(flag, stdout *os.File)`: non-empty flag wins and is validated (`format: unknown format "yaml" (compact|table|json)`), else terminal → table, non-terminal → compact. `IsTerminal(nil)` is false, so a type-asserted nil `*os.File` means compact — that is exactly what happens under `go test`, where the writer is a `bytes.Buffer`.
-- **guide §4.11 `internal/cli`** — `openStore(cmd)` honours `--repo` (AWIT-0ND56G3G). `--format` and `--repo` are persistent root flags read with `cmd.Root().String("format")`; a command-local flag like `--state` is read with `cmd.String("state")`. Precedent: G3G's `initAction` validates its local flag and returns `fmt.Errorf`, which `Main`'s `report` prints as `Error: <msg>` with exit 1 (`TestInitBadPrefix`). This ticket's `--state` validation follows that precedent exactly.
-- **guide §1** — deterministic output (the sort makes it so; never range over a map into output), no colour, errors as `Error: ` on stderr, `filepath` never a hardcoded `/`.
-- **AWIT-0ND56G3G test harness** (`internal/cli/helpers_test.go`) — consume, do not redeclare: `run(t, args...) (code, stdout, stderr)`, `copyFixture(t, name) string` (returns the temp repo root containing the `.awit` copy), `golden(t, name, got []byte)` with the `-update` flag, `readItem`. Tests always pass `--repo <copy>` and put global flags before the subcommand, locals after (G3G style: `run(t, "--repo", dir, "init", "--prefix", "PROJ")`).
-- **Fixture facts (AWIT-0ND56N3G, guide §8)** — the `clean` fixture, all six items:
+  - `Detect(flag, stdout *os.File)`: non-empty flag wins and is validated (`format: unknown format "yaml" (compact|table|json)`), else terminal → table, non-terminal → compact. `IsTerminal(nil)` is false, so a type-asserted nil `*os.File` means compact - that is exactly what happens under `go test`, where the writer is a `bytes.Buffer`.
+- **guide §4.11 `internal/cli`** - `openStore(cmd)` honours `--repo` (AWIT-0ND56G3G). `--format` and `--repo` are persistent root flags read with `cmd.Root().String("format")`; a command-local flag like `--state` is read with `cmd.String("state")`. Precedent: G3G's `initAction` validates its local flag and returns `fmt.Errorf`, which `Main`'s `report` prints as `Error: <msg>` with exit 1 (`TestInitBadPrefix`). This ticket's `--state` validation follows that precedent exactly.
+- **guide §1** - deterministic output (the sort makes it so; never range over a map into output), no colour, errors as `Error: ` on stderr, `filepath` never a hardcoded `/`.
+- **AWIT-0ND56G3G test harness** (`internal/cli/helpers_test.go`) - consume, do not redeclare: `run(t, args...) (code, stdout, stderr)`, `copyFixture(t, name) string` (returns the temp repo root containing the `.awit` copy), `golden(t, name, got []byte)` with the `-update` flag, `readItem`. Tests always pass `--repo <copy>` and put global flags before the subcommand, locals after (G3G style: `run(t, "--repo", dir, "init", "--prefix", "PROJ")`).
+- **Fixture facts (AWIT-0ND56N3G, guide §8)** - the `clean` fixture, all six items:
 
-  | item | status | labels |
-  | --- | --- | --- |
-  | `AWIT-TEST0001` | open | `auth, p1` |
-  | `AWIT-TEST0002` | open | `db` |
-  | `AWIT-TEST0003` | open | — |
-  | `AWIT-TEST0004` | open | `p0` |
-  | `AWIT-TEST0005` | closed | — |
-  | `AWIT-TEST0006` | in_progress | — |
+  | item            | status      | labels     |
+  | --------------- | ----------- | ---------- |
+  | `AWIT-TEST0001` | open        | `auth, p1` |
+  | `AWIT-TEST0002` | open        | `db`       |
+  | `AWIT-TEST0003` | open        | -          |
+  | `AWIT-TEST0004` | open        | `p0`       |
+  | `AWIT-TEST0005` | closed      | -          |
+  | `AWIT-TEST0006` | in_progress | -          |
 
-  `0005` and `0006` carry `labels: []`. So the pristine vocabulary is: **open** (default) → `auth 1, db 1, p0 1, p1 1` (all counts 1, order is the label-ascending tie-break); **closed** → empty (`0005` has no labels); **all** → same rows as open (`0005` adds nothing). The `dangling` fixture: `0001` is open with `labels: [auth, p1]` and `deps: [AWIT-TEST9999]` — parseable, so its labels count even though the graph quarantines it; `0002` is open with `labels: []`. The parse-error shape `title: [unclosed` makes a file unparseable.
-- **Quarantine is a graph concept; label never imports `pkg/graph`.** `LoadAll() ([]*Item, []Broken, error)` already splits exactly the way this command needs: parseable items (including future dangling-dep/cycle quarantine victims) on the left, broken files on the right. Discard the `Broken` slice with a comment saying why. Do not "fix" a counting bug by building a graph — building one here is the bug.
+  `0005` and `0006` carry `labels: []`. So the pristine vocabulary is: **open** (default) → `auth 1, db 1, p0 1, p1 1` (all counts 1, order is the label-ascending tie-break); **closed** → empty (`0005` has no labels); **all** → same rows as open (`0005` adds nothing). The `dangling` fixture: `0001` is open with `labels: [auth, p1]` and `deps: [AWIT-TEST9999]` - parseable, so its labels count even though the graph quarantines it; `0002` is open with `labels: []`. The parse-error shape `title: [unclosed` makes a file unparseable.
+
+- **Quarantine is a graph concept; label never imports `pkg/graph`.** `LoadAll() ([]*Item, []Broken, error)` already splits exactly the way this command needs: parseable items (including future dangling-dep/cycle quarantine victims) on the left, broken files on the right. Discard the `Broken` slice with a comment saying why. Do not "fix" a counting bug by building a graph - building one here is the bug.
 - **Duplicate label inside one item** counts once per occurrence (`labels: [auth, auth]` → `auth` +2). No dedupe; fixtures never repeat a label, and the vocabulary semantics do not care.
 - **`--state ""`** (explicitly passed empty) is invalid: urfave only applies the flag's `Value: "open"` default when the flag is absent, so an explicit empty string reaches the action and must produce the same error as `bogus`.
-- The fixtures on disk come from AWIT-0ND56N3G (phase2 p0; in dependency practice it lands before this p2 ticket). If `copyFixture(t, "clean")` fails with a missing directory, N3G has not landed yet — stop and pick another ticket, do not create fixtures here.
+- The fixtures on disk come from AWIT-0ND56N3G (phase2 p0; in dependency practice it lands before this p2 ticket). If `copyFixture(t, "clean")` fails with a missing directory, N3G has not landed yet - stop and pick another ticket, do not create fixtures here.
 - `awit label` takes no positional arguments and writes nothing to disk: it is a read-only view, so no locking, no commit, no temp-then-rename.
 
 ## Files
-- Create: `internal/cli/label.go` — `labelCmd`, `labelAction`, `labelCounts`.
+
+- Create: `internal/cli/label.go` - `labelCmd`, `labelAction`, `labelCounts`.
 - Create: `internal/cli/label_test.go`.
 - Create (via `-update`): `testdata/golden/label_clean_table.golden`.
-- Modify: `internal/cli/app.go` — append `labelCmd` to the `Commands` slice in `newRoot`.
+- Modify: `internal/cli/app.go` - append `labelCmd` to the `Commands` slice in `newRoot`.
 
 ## Interfaces
+
 - Consumes (already implemented by closed deps, do not reimplement):
 
   ```go
@@ -86,7 +91,7 @@ After this ticket `awit label` prints the label vocabulary with usage counts. `-
   func labelCounts(items []*item.Item, state string) []format.LabelCount
   ```
 
-- Not produced: `loadGraph`, `toEntry` (those belong to `awit list`, AWIT-0ND56J3G — do not define them here even as stubs); anything in `pkg/format` or `pkg/item`.
+- Not produced: `loadGraph`, `toEntry` (those belong to `awit list`, AWIT-0ND56J3G - do not define them here even as stubs); anything in `pkg/format` or `pkg/item`.
 
 ## Steps
 
@@ -293,7 +298,7 @@ After this ticket `awit label` prints the label vocabulary with usage counts. `-
   }
 
   // 0001 in the dangling fixture has deps: [AWIT-TEST9999], so the graph
-  // quarantines it — but it parses, so its auth and p1 must count. The extra
+  // quarantines it - but it parses, so its auth and p1 must count. The extra
   // AWIT-TEST0003 is invalid YAML, so its ghost label must not count at all.
   func TestLabelCountsQuarantinedSkipsBroken(t *testing.T) {
   	repo := copyFixture(t, "dangling")
@@ -406,7 +411,7 @@ After this ticket `awit label` prints the label vocabulary with usage counts. `-
   	}
   	// cmd.Writer is the root's stream, inherited by subcommands. In tests it
   	// is a bytes.Buffer, which is not an *os.File, so Detect falls back to
-  	// compact — exactly the non-TTY default we want.
+  	// compact - exactly the non-TTY default we want.
   	out, _ := cmd.Writer.(*os.File)
   	fm, err := format.Detect(cmd.Root().String("format"), out)
   	if err != nil {
@@ -419,8 +424,8 @@ After this ticket `awit label` prints the label vocabulary with usage counts. `-
   // Labels are never declared anywhere (guide §2): the vocabulary is whatever
   // the items use. state is one of open|closed|all and was validated by the
   // caller: "open" counts every status except closed, "closed" only closed,
-  // "all" everything. Graph quarantine is irrelevant here — a parseable item
-  // with a dangling dep still carries its labels — and unparseable files are
+  // "all" everything. Graph quarantine is irrelevant here - a parseable item
+  // with a dangling dep still carries its labels - and unparseable files are
   // not in items at all, so they never count. Rows sort by count descending,
   // then label ascending, so the output is deterministic.
   func labelCounts(items []*item.Item, state string) []format.LabelCount {
@@ -454,12 +459,12 @@ After this ticket `awit label` prints the label vocabulary with usage counts. `-
   }
   ```
 
-  In `internal/cli/app.go`, append `labelCmd` to the `Commands` slice in `newRoot`. Keep every command other tickets already registered (`create`, `update`, …) — this ticket only adds one entry:
+  In `internal/cli/app.go`, append `labelCmd` to the `Commands` slice in `newRoot`. Keep every command other tickets already registered (`create`, `update`, …) - this ticket only adds one entry:
 
   ```go
   		Commands: []*cli.Command{
   			initCmd,
-  			labelCmd, // awit label — AWIT-0ND5763G
+  			labelCmd, // awit label - AWIT-0ND5763G
   		},
   ```
 
@@ -521,7 +526,6 @@ After this ticket `awit label` prints the label vocabulary with usage counts. `-
   passes (skeleton, init and any other landed command tests included).
 
 - [ ] **Step 6: Close the ticket.**
-
   1. Create `.awit/comments/AWIT-0ND5763G/<YYYYMMDDTHHMMSSZ>-<author>.md`
      (UTC stamp) with the real acceptance output pasted into a fenced block.
   2. In `.awit/items/AWIT-0ND5763G.md` set `status: closed` and append
@@ -535,11 +539,11 @@ After this ticket `awit label` prints the label vocabulary with usage counts. `-
 
 ## Acceptance Criteria
 
-- `go test ./internal/cli -run 'TestLabel' -count=1 -v` — all nine tests PASS,
+- `go test ./internal/cli -run 'TestLabel' -count=1 -v` - all nine tests PASS,
   including every `TestLabelBadState` subtest (`bogus`, `OPEN`, empty).
-- `go test ./internal/cli -count=1` — exit 0; earlier tickets' tests still pass.
-- `go build ./... && go vet ./...` — no output, exit 0.
-- `cat testdata/golden/label_clean_table.golden` — exactly the five lines shown
+- `go test ./internal/cli -count=1` - exit 0; earlier tickets' tests still pass.
+- `go build ./... && go vet ./...` - no output, exit 0.
+- `cat testdata/golden/label_clean_table.golden` - exactly the five lines shown
   in Step 4, ending `p1     1` plus one newline.
 - `go build -o /tmp/awit ./cmd/awit` from the repo root, then:
   - `/tmp/awit --repo testdata/fixtures/clean --format compact label` prints
@@ -556,13 +560,14 @@ After this ticket `awit label` prints the label vocabulary with usage counts. `-
 - `gofmt -l internal/cli` prints nothing.
 
 ## Out of scope
-- Any rendering change in `pkg/format` — `WriteLabels`, `Detect`, table/json
+
+- Any rendering change in `pkg/format` - `WriteLabels`, `Detect`, table/json
   shapes are AWIT-0ND56F3G's contract; a mismatch is a bug there, not here.
 - `loadGraph` and `toEntry` (AWIT-0ND56J3G). This command never imports
   `pkg/graph`; if a counting rule seems to need the graph, reread guide §2.
 - Label filtering (`-l`), which belongs to `list` / `next` / `prime`; label
   renaming or normalisation; a declared vocabulary file; case-folding.
-- New fixture trees — tests only copy `clean` and `dangling` and add extra
+- New fixture trees - tests only copy `clean` and `dangling` and add extra
   item files inside the copy. The only new testdata is the one golden file.
 - Any `app.go` change beyond appending `labelCmd` to `Commands`.
 - Writing anything to disk, locking, or committing from the command.

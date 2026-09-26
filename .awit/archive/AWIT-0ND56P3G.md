@@ -13,16 +13,18 @@ refs:
 ---
 
 ## Summary
+
 After this ticket `pkg/graph/scc.go` contains Tarjan's strongly connected components algorithm over `Node.Deps`. `Build` still calls `g.detectCycles()` (the call site in `graph.go` does not change). The empty seam body is deleted from `graph.go` and the method now lives in `scc.go`. An SCC of size > 1, or of size 1 with a self-edge, puts `ReasonCycle` on **every member's** `Node.Faults` and **once** on `g.Faults`. Detail is the example chain starting at the smallest member ID and following `Deps` inside the SCC until that ID repeats: `A -> B -> C -> A`. A self-loop is `A -> A`. Fix is `awit dep rm <A> <B> (break the cycle)` using the first edge of that chain. Classification, unblock counts, `WouldCycle`, and `FilterLabels` stay untouched.
 
 ## Context (read first)
-- Guide §4.6 `pkg/graph` — `Fault`, `Node`, `Graph`, `Build`. This ticket does not change those signatures.
+
+- Guide §4.6 `pkg/graph` - `Fault`, `Node`, `Graph`, `Build`. This ticket does not change those signatures.
 - Guide §1: stdlib only on top of `pkg/item`; tests use `testing`; determinism (no map iteration order in output). Iterate `g.Order` (already ID-sorted) as Tarjan's outer loop so SCCs and chains are stable.
 - Guide §2 / spec §Graph engine: "Cycle detection on load | Tarjan SCC | One report per SCC; the DFS back-edge path is used only to print one example chain."
 - Guide §8 `cyclic` fixture (already on disk from `AWIT-0ND56N3G`):
-  - `TEST0001` deps `0002`; `TEST0002` deps `0003`; `TEST0003` deps `0001` — one 3-cycle.
-  - `TEST0004` deps `0004` — one self-loop.
-  - `TEST0005` clean — must **not** be quarantined.
+  - `TEST0001` deps `0002`; `TEST0002` deps `0003`; `TEST0003` deps `0001` - one 3-cycle.
+  - `TEST0004` deps `0004` - one self-loop.
+  - `TEST0005` clean - must **not** be quarantined.
 - Spec error contract is about `dep add` (next tickets). This ticket only quarantines on load.
 - `pkg/graph/graph.go` already has `Build`, types, dangling/broken faults, `sortFaults` after the three seam calls, and empty `detectCycles` / `classify` / `countUnblocks`. `pkg/graph/graph_test.go` already defines `buildFixture`, `nodeIDs`, `depIDs` in package `graph`. Do **not** redeclare those helpers (same package). Do **not** redeclare `detectCycles` in `graph.go` after you move it.
 - Reason constant: `item.ReasonCycle = "CYCLE"`.
@@ -38,12 +40,15 @@ After this ticket `pkg/graph/scc.go` contains Tarjan's strongly connected compon
 - `classify` and `countUnblocks` remain empty seams in `graph.go`.
 
 ## Files
+
 - Create: `pkg/graph/scc.go`
 - Create: `pkg/graph/scc_test.go`
-- Modify: `pkg/graph/graph.go` — **delete** the empty `func (g *Graph) detectCycles() {}` method. Leave the `g.detectCycles()` call in `Build` and leave the empty `classify` / `countUnblocks` methods.
+- Modify: `pkg/graph/graph.go` - **delete** the empty `func (g *Graph) detectCycles() {}` method. Leave the `g.detectCycles()` call in `Build` and leave the empty `classify` / `countUnblocks` methods.
 
 ## Interfaces
+
 - Consumes (already in `pkg/graph/graph.go` from `AWIT-0ND56N3G`):
+
   ```go
   package graph
 
@@ -71,6 +76,7 @@ After this ticket `pkg/graph/scc.go` contains Tarjan's strongly connected compon
   }
   func Build(items []*item.Item, broken []item.Broken) *Graph
   ```
+
 - Consumes (test helpers already in `pkg/graph/graph_test.go`; same package `graph`, do not copy into `scc_test.go`):
   ```go
   func buildFixture(t *testing.T, name string) *Graph
@@ -492,6 +498,7 @@ After this ticket `pkg/graph/scc.go` contains Tarjan's strongly connected compon
   `gofmt -l pkg/graph` must print nothing. Confirm `graph.go` no longer contains a `detectCycles` method body (the identifier may appear only as the `g.detectCycles()` call). Two method definitions of `detectCycles` will not compile.
 
 ## Acceptance Criteria
+
 - `go test ./pkg/graph -count=1` passes.
 - Cyclic fixture: `g.Faults` contains **two** `CYCLE` faults (not six). Triangle nodes `0001`/`0002`/`0003` each have Detail `AWIT-TEST0001 -> AWIT-TEST0002 -> AWIT-TEST0003 -> AWIT-TEST0001` and Fix `awit dep rm AWIT-TEST0001 AWIT-TEST0002 (break the cycle)`. `0004` has Detail `AWIT-TEST0004 -> AWIT-TEST0004` and Fix `awit dep rm AWIT-TEST0004 AWIT-TEST0004 (break the cycle)`. `0005` is not quarantined.
 - `TestTarjanUnit`: two disjoint cycles plus a chain; five quarantined nodes; two graph-level CYCLE faults; chain nodes clean.
@@ -499,6 +506,7 @@ After this ticket `pkg/graph/scc.go` contains Tarjan's strongly connected compon
 - `detectCycles` is defined once, in `scc.go`. `Build` still calls `g.detectCycles(); g.classify(); g.countUnblocks()` in that order.
 
 ## Out of scope
+
 - Filling `classify` or `countUnblocks`.
 - `Ready`, `Blocked`, `Quarantined()`, `Closed`, `WouldCycle`, `FilterLabels` methods on `Graph`.
 - `CriticalPath`.

@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND56E3G
-title: 'pkg/item Store: find, load-all with broken detection, atomic save, mint, comments'
+title: "pkg/item Store: find, load-all with broken detection, atomic save, mint, comments"
 brief: >-
   Add pkg/item.Store: Find/Open/Init, LoadAll with quarantine reasons, atomic Save via config.WriteAtomic, Mint, and comment/attachment files with sanitised names.
 status: closed
@@ -13,20 +13,23 @@ refs:
 ---
 
 ## Summary
-After this ticket `pkg/item/store.go` and `pkg/item/comment.go` exist. `Store` locates and initialises `.awit/`, loads every `items/*.md` as either an `Item` or a `Broken` (never panicking on a bad file), writes items through `config.WriteAtomic`, mints IDs via `id.Mint`, and appends comments/attachments under `comments/<id>/` with a forward-slash `refs` entry. CLI commands are not wired yet. `testdata/fixtures` do not exist — every test builds a tree in `t.TempDir()`.
+
+After this ticket `pkg/item/store.go` and `pkg/item/comment.go` exist. `Store` locates and initialises `.awit/`, loads every `items/*.md` as either an `Item` or a `Broken` (never panicking on a bad file), writes items through `config.WriteAtomic`, mints IDs via `id.Mint`, and appends comments/attachments under `comments/<id>/` with a forward-slash `refs` entry. CLI commands are not wired yet. `testdata/fixtures` do not exist - every test builds a tree in `t.TempDir()`.
 
 ## Context (read first)
-- **guide §4.4 `pkg/item` — Store** — exact signatures. Copy them; do not rename.
-- **guide §4.2** — `config.WriteAtomic(path string, data []byte) error` is how `Save` (and comment files) hit disk. Do not reimplement temp-rename.
-- **guide §4.1** — `id.Mint(prefix, now, worker, exists)`, `id.Worker`, `id.Valid`. Mint 50 IDs at **distinct seconds**; 4 random bits mean 16 IDs per timestamp, so the same `now` fifty times hits `ErrExhausted`.
-- **guide §4.5** — `gitx.Branch(s.Root)` returns `""` outside a repo; `Mint` still works.
-- **guide §1** — never hardcode `/` in filesystem paths (`filepath`). `refs` inside frontmatter are always forward slashes: build them with `path.Join`, **never** `filepath.Join`.
-- **guide §2** — `Init` gitignores only `.awit/.lock` (forward slashes, git convention). Comment filename `<YYYYMMDDTHHMMSSZ>-<author><ext>`; collision `-2`, `-3` before the extension. Duplicate ID = two `items/` stems equal case-insensitively (`strings.ToUpper`). Comment file format: frontmatter `author` + `created` (RFC3339 UTC), blank line, text. `--file` copies bytes verbatim, no frontmatter.
-- **guide §5** — stdlib `testing`, `t.TempDir()`. Comparing refs: forward slashes, no `\\`.
-- **spec Data model / Quarantine** — conflict markers, parse errors, id mismatch, duplicate ids all become `Broken`; the CLI never panics on a bad file.
-- Deps must be `status: closed` before you start: `AWIT-0ND56D3G` (Parse/Bytes/New/SetRefs/HasConflictMarkers/Broken/Reason*), `AWIT-0ND5693G` (id), `AWIT-0ND56A3G` (config), `AWIT-0ND56C3G` (gitx.Branch).
+
+- **guide §4.4 `pkg/item` - Store** - exact signatures. Copy them; do not rename.
+- **guide §4.2** - `config.WriteAtomic(path string, data []byte) error` is how `Save` (and comment files) hit disk. Do not reimplement temp-rename.
+- **guide §4.1** - `id.Mint(prefix, now, worker, exists)`, `id.Worker`, `id.Valid`. Mint 50 IDs at **distinct seconds**; 4 random bits mean 16 IDs per timestamp, so the same `now` fifty times hits `ErrExhausted`.
+- **guide §4.5** - `gitx.Branch(s.Root)` returns `""` outside a repo; `Mint` still works.
+- **guide §1** - never hardcode `/` in filesystem paths (`filepath`). `refs` inside frontmatter are always forward slashes: build them with `path.Join`, **never** `filepath.Join`.
+- **guide §2** - `Init` gitignores only `.awit/.lock` (forward slashes, git convention). Comment filename `<YYYYMMDDTHHMMSSZ>-<author><ext>`; collision `-2`, `-3` before the extension. Duplicate ID = two `items/` stems equal case-insensitively (`strings.ToUpper`). Comment file format: frontmatter `author` + `created` (RFC3339 UTC), blank line, text. `--file` copies bytes verbatim, no frontmatter.
+- **guide §5** - stdlib `testing`, `t.TempDir()`. Comparing refs: forward slashes, no `\\`.
+- **spec Data model / Quarantine** - conflict markers, parse errors, id mismatch, duplicate ids all become `Broken`; the CLI never panics on a bad file.
+- Deps must be `status: closed` before you start: `AWIT-0ND56D3G` (Parse/Bytes/New/SetRefs/HasConflictMarkers/Broken/Reason\*), `AWIT-0ND5693G` (id), `AWIT-0ND56A3G` (config), `AWIT-0ND56C3G` (gitx.Branch).
 
 ## Files
+
 - Create: `pkg/item/store.go`
 - Create: `pkg/item/comment.go`
 - Create: `pkg/item/store_test.go`
@@ -34,6 +37,7 @@ After this ticket `pkg/item/store.go` and `pkg/item/comment.go` exist. `Store` l
 - Modify: none of the files from `AWIT-0ND56D3G` unless a compile error forces a tiny unexported helper; do not change Parse/Bytes behaviour.
 
 ## Interfaces
+
 - Consumes: `item.Parse`, `Item.Bytes`, `Item.New`, `Item.SetRefs`, `HasConflictMarkers`, `Broken`, `Reason*` from this package; `config.Default`, `config.Load`, `config.Config.Write`, `config.WriteAtomic`; `id.Mint`, `id.Worker`, `id.Valid`; `gitx.Branch`.
 - Produces (verbatim from guide §4.4):
 
@@ -82,7 +86,7 @@ func uniqueCommentFile(dir, stampAuthor, ext string) (filename string, err error
 ## Steps
 
 - [ ] **Step 1: Failing tests for `SanitizeAuthor` and `CommentFileName`.**
-  Create `pkg/item/comment_test.go`:
+      Create `pkg/item/comment_test.go`:
 
 ```go
 package item
@@ -131,10 +135,10 @@ func TestCommentFileName(t *testing.T) {
 go test ./pkg/item -run 'TestSanitizeAuthor|TestCommentFileName' -v
 ```
 
-  Expected: `undefined: SanitizeAuthor`, `undefined: CommentFileName`, `[build failed]`.
+Expected: `undefined: SanitizeAuthor`, `undefined: CommentFileName`, `[build failed]`.
 
 - [ ] **Step 3: Implement `comment.go` sanitiser + filename (AddComment later).**
-  Create `pkg/item/comment.go` with at least:
+      Create `pkg/item/comment.go` with at least:
 
 ```go
 package item
@@ -179,7 +183,7 @@ func uniqueCommentFile(dir, stampAuthor, ext string) (string, error) {
 	if _, err := os.Stat(p); errors.Is(err, os.ErrNotExist) {
 		return name, nil
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-		// Stat nil err means exists — fall through to suffix.
+		// Stat nil err means exists - fall through to suffix.
 	}
 	if _, err := os.Stat(p); err == nil {
 		for n := 2; n < 10000; n++ {
@@ -198,9 +202,9 @@ func uniqueCommentFile(dir, stampAuthor, ext string) (string, error) {
 }
 ```
 
-  Write a clean version of `uniqueCommentFile` (the sketch above is the algorithm; gofmt-valid code with one `os.Stat` per candidate, first hit of `ErrNotExist` wins, first name has **no** `-1`). Need imports: `errors`, `fmt`, `os`, `path/filepath`, `strconv`. `path` is imported for `AddComment` in Step 11. Drop unused `unicode`/`path` until then if the compiler complains.
+Write a clean version of `uniqueCommentFile` (the sketch above is the algorithm; gofmt-valid code with one `os.Stat` per candidate, first hit of `ErrNotExist` wins, first name has **no** `-1`). Need imports: `errors`, `fmt`, `os`, `path/filepath`, `strconv`. `path` is imported for `AddComment` in Step 11. Drop unused `unicode`/`path` until then if the compiler complains.
 
-  Order for SanitizeAuthor: strip leading `"agent/"` (once, case-sensitive), then lower, then map every rune not in `[a-z0-9._-]` to `-`, collapse `--+` to `-`, trim `-`, empty → `"anon"`.
+Order for SanitizeAuthor: strip leading `"agent/"` (once, case-sensitive), then lower, then map every rune not in `[a-z0-9._-]` to `-`, collapse `--+` to `-`, trim `-`, empty → `"anon"`.
 
 - [ ] **Step 4: Pass sanitiser tests, commit.**
 
@@ -208,7 +212,7 @@ func uniqueCommentFile(dir, stampAuthor, ext string) (string, error) {
 go test ./pkg/item -run 'TestSanitizeAuthor|TestCommentFileName' -v
 ```
 
-  Expected: `--- PASS: TestSanitizeAuthor`, `--- PASS: TestCommentFileName`, `ok`.
+Expected: `--- PASS: TestSanitizeAuthor`, `--- PASS: TestCommentFileName`, `ok`.
 
 ```sh
 gofmt -w pkg/item/comment.go pkg/item/comment_test.go
@@ -217,7 +221,7 @@ git commit -m "item: SanitizeAuthor and CommentFileName"
 ```
 
 - [ ] **Step 5: Failing tests for Init, Open, Find.**
-  Create `pkg/item/store_test.go`:
+      Create `pkg/item/store_test.go`:
 
 ```go
 package item
@@ -329,11 +333,10 @@ func TestFindNotFound(t *testing.T) {
 go test ./pkg/item -run 'TestInit|TestOpenMissing|TestFind' -v
 ```
 
-  Expected: `undefined: Init`, `undefined: Open`, `undefined: Find`, `undefined: ErrExists`, `undefined: ErrNotFound`, `[build failed]`.
+Expected: `undefined: Init`, `undefined: Open`, `undefined: Find`, `undefined: ErrExists`, `undefined: ErrNotFound`, `[build failed]`.
 
 - [ ] **Step 7: Implement `store.go` Init/Open/Find/path helpers.**
-  Create `pkg/item/store.go`. Required behaviour:
-
+      Create `pkg/item/store.go`. Required behaviour:
   - `DirName = ".awit"`.
   - `Init`: if `repoRoot/.awit` exists (Stat succeeds) → `ErrExists`. `MkdirAll` `items` and `comments` at `0o755`. `config.Default(prefix).Write(dir)`. `ensureGitignore(repoRoot)`. Return `Open(repoRoot)`.
   - `ensureGitignore`: read `.gitignore` (missing file → empty). If non-empty and not ending in `\n`, append `\n` first. If any line equals `.awit/.lock`, write only if you added that newline; otherwise return. Else append `.awit/.lock\n`. Write via `config.WriteAtomic`.
@@ -350,7 +353,7 @@ func (s *Store) Mint(now time.Time) (string, error) {
 }
 ```
 
-  Stub `Load`/`LoadAll`/`Save` so the file compiles if you add them empty, or wait for Step 9 — tests in this step do not call them.
+Stub `Load`/`LoadAll`/`Save` so the file compiles if you add them empty, or wait for Step 9 - tests in this step do not call them.
 
 - [ ] **Step 8: Pass layout tests, commit.**
 
@@ -358,7 +361,7 @@ func (s *Store) Mint(now time.Time) (string, error) {
 go test ./pkg/item -run 'TestInit|TestOpenMissing|TestFind|TestSanitizeAuthor|TestCommentFileName' -v
 ```
 
-  Expected: all PASS. `ok  	github.com/eisenwinter/awit/pkg/item`.
+Expected: all PASS. `ok  	github.com/eisenwinter/awit/pkg/item`.
 
 ```sh
 gofmt -w pkg/item/store.go
@@ -367,7 +370,7 @@ git commit -m "item: Store Init, Open, Find"
 ```
 
 - [ ] **Step 9: Failing tests for LoadAll, Load, Save, Mint.**
-  Append to `pkg/item/store_test.go`:
+      Append to `pkg/item/store_test.go`:
 
 ```go
 func initStore(t *testing.T) *Store {
@@ -559,21 +562,20 @@ func TestMintUniqueAndValid(t *testing.T) {
 go test ./pkg/item -run 'TestLoad|TestSave|TestMintUniqueAndValid' -v
 ```
 
-  Expected: `undefined: LoadAll` / `undefined: Save` / `undefined: BrokenError` or FAIL if stubs return nil.
+Expected: `undefined: LoadAll` / `undefined: Save` / `undefined: BrokenError` or FAIL if stubs return nil.
 
 - [ ] **Step 11: Implement Load, LoadAll, Save, BrokenError.**
-  `BrokenError.Error` returns `fmt.Sprintf("%s: %s: %s", e.Broken.Reason, e.Broken.ID, e.Broken.Detail)`.
+      `BrokenError.Error` returns `fmt.Sprintf("%s: %s: %s", e.Broken.Reason, e.Broken.ID, e.Broken.Detail)`.
 
   `Save`: `data, err := it.Bytes()`; `os.MkdirAll(s.ItemsDir(), 0o755)`; `config.WriteAtomic(s.ItemPath(it.ID), data)`; `it.Path = s.ItemPath(it.ID)`.
 
   `Load`: `os.ReadFile(s.ItemPath(id))`. If that error is non-nil, **return it unchanged** (`os.ErrNotExist` must pass through). Then:
-
   1. `HasConflictMarkers` → `&BrokenError{Broken: Broken{ID: id, Path: path, Reason: ReasonConflict, Detail: "conflict markers in file"}}`
   2. `Parse` error → `ReasonParse`, Detail = `err.Error()`
   3. `it.ID != stem` (stem = `strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))`) → `ReasonIDMismatch`
   4. else return `it, nil`
 
-  `LoadAll` — implement **this algorithm**, not a different order:
+  `LoadAll` - implement **this algorithm**, not a different order:
 
 ```go
 func (s *Store) LoadAll() ([]*Item, []Broken, error) {
@@ -652,7 +654,7 @@ func (s *Store) LoadAll() ([]*Item, []Broken, error) {
 }
 ```
 
-  Duplicate grouping **overrides** a previous reason: both colliding files become `ReasonDuplicate`. Directory read errors propagate; a bad file never makes `LoadAll` return a non-nil error.
+Duplicate grouping **overrides** a previous reason: both colliding files become `ReasonDuplicate`. Directory read errors propagate; a bad file never makes `LoadAll` return a non-nil error.
 
 - [ ] **Step 12: Pass load/save/mint, commit.**
 
@@ -660,7 +662,7 @@ func (s *Store) LoadAll() ([]*Item, []Broken, error) {
 go test ./pkg/item -run 'TestLoad|TestSave|TestMintUniqueAndValid|TestInit|TestFind' -v
 ```
 
-  Expected: all PASS.
+Expected: all PASS.
 
 ```sh
 gofmt -w pkg/item/store.go pkg/item/store_test.go
@@ -669,7 +671,7 @@ git commit -m "item: LoadAll quarantine, Save, Mint"
 ```
 
 - [ ] **Step 13: Failing tests for AddComment and AttachFile.**
-  Append to `pkg/item/store_test.go`:
+      Append to `pkg/item/store_test.go`:
 
 ```go
 func TestAddCommentWritesFileAndRef(t *testing.T) {
@@ -768,7 +770,7 @@ func TestAttachFilePreservesExtension(t *testing.T) {
 go test ./pkg/item -run 'TestAddComment|TestAttachFile' -v
 ```
 
-  Expected: `undefined: AddComment` / `undefined: AttachFile` or FAIL.
+Expected: `undefined: AddComment` / `undefined: AttachFile` or FAIL.
 
 - [ ] **Step 15: Implement AddComment and AttachFile in `comment.go`.**
 
@@ -825,7 +827,7 @@ func (s *Store) AttachFile(it *Item, author string, now time.Time, src string) (
 }
 ```
 
-  `path.Join` (import `"path"`) always uses `/`. Never `filepath.Join` for the ref string. Author in the comment YAML is the **original** `author` argument, not the sanitised form. AttachFile copies `src` bytes verbatim (no frontmatter) and keeps `filepath.Ext(src)` including case.
+`path.Join` (import `"path"`) always uses `/`. Never `filepath.Join` for the ref string. Author in the comment YAML is the **original** `author` argument, not the sanitised form. AttachFile copies `src` bytes verbatim (no frontmatter) and keeps `filepath.Ext(src)` including case.
 
 - [ ] **Step 16: Run the whole package, pass, commit.**
 
@@ -833,7 +835,7 @@ func (s *Store) AttachFile(it *Item, author string, now time.Time, src string) (
 go test ./pkg/item -count=1
 ```
 
-  Expected: `ok  	github.com/eisenwinter/awit/pkg/item`. `gofmt -l pkg/item` prints nothing.
+Expected: `ok  	github.com/eisenwinter/awit/pkg/item`. `gofmt -l pkg/item` prints nothing.
 
 ```sh
 gofmt -w pkg/item/*.go
@@ -842,21 +844,23 @@ git commit -m "item: AddComment, AttachFile, comment collision suffix"
 ```
 
 ## Acceptance Criteria
+
 - `go test ./pkg/item -count=1` passes (frontmatter tests from AWIT-0ND56D3G still green).
-- `TestInitCreatesLayoutAndGitignore` — second `Init` is `ErrExists`; `.gitignore` contains exactly one `.awit/.lock` line.
-- `TestInitAppendsToExistingGitignore` — pre-existing `dist/` without trailing newline becomes `dist/\n.awit/.lock\n`.
-- `TestLoadAllClassifiesBroken` — one clean item, three broken with `CONFLICT MARKERS`, `PARSE ERROR`, `ID MISMATCH` sorted by ID.
+- `TestInitCreatesLayoutAndGitignore` - second `Init` is `ErrExists`; `.gitignore` contains exactly one `.awit/.lock` line.
+- `TestInitAppendsToExistingGitignore` - pre-existing `dist/` without trailing newline becomes `dist/\n.awit/.lock\n`.
+- `TestLoadAllClassifiesBroken` - one clean item, three broken with `CONFLICT MARKERS`, `PARSE ERROR`, `ID MISMATCH` sorted by ID.
 - `TestLoadAllDuplicateCaseInsensitive` skips on a case-insensitive FS; otherwise both files `DUPLICATE ID`.
-- `TestLoadBrokenError` — `errors.As(err, **BrokenError)`.
-- `TestLoadMissing` — `errors.Is(err, os.ErrNotExist)`.
-- `TestMintUniqueAndValid` — 50 unique `id.Valid` IDs, files not created.
-- `TestAddCommentWritesFileAndRef` — ref contains `/` and no `\`; file body is author/created frontmatter + trimmed text.
-- `TestAddCommentCollisionSuffix` — same `now` twice → `…-jan-2.md`.
-- `TestAttachFilePreservesExtension` — dest name keeps `.PNG`, bytes identical to source.
+- `TestLoadBrokenError` - `errors.As(err, **BrokenError)`.
+- `TestLoadMissing` - `errors.Is(err, os.ErrNotExist)`.
+- `TestMintUniqueAndValid` - 50 unique `id.Valid` IDs, files not created.
+- `TestAddCommentWritesFileAndRef` - ref contains `/` and no `\`; file body is author/created frontmatter + trimmed text.
+- `TestAddCommentCollisionSuffix` - same `now` twice → `…-jan-2.md`.
+- `TestAttachFilePreservesExtension` - dest name keeps `.PNG`, bytes identical to source.
 - Save goes through `config.WriteAtomic`. No new third-party deps.
 
 ## Out of scope
+
 - CLI `awit init` / `awit comment` / `awit create` (later tickets call this Store).
-- `testdata/fixtures/**` — do not create them.
+- `testdata/fixtures/**` - do not create them.
 - `pkg/lock`, graph, formatters.
 - Changing Parse/Bytes/setter contracts from AWIT-0ND56D3G.

@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND56J3G
-title: 'awit list (-s, -l, --ready, --blocked, --quarantined, --format)'
+title: "awit list (-s, -l, --ready, --blocked, --quarantined, --format)"
 brief: >-
   Add `awit list` with status, label, and ready/blocked/quarantined filters, plus shared `loadGraph` and `toEntry` on the root CLI package. Default listing is g.Order including closed; --ready alone uses g.Ready().
 status: closed
@@ -13,13 +13,15 @@ refs:
 ---
 
 ## Summary
+
 After this ticket `internal/cli/list.go` registers `awit list`. Flags are `-s/--status`, `-l/--label` (AND across flags, OR within a flag via `SplitLabels`/`FilterLabels`), and `--ready` / `--blocked` / `--quarantined` which are OR-ed. When none of those three set-filters is set, the listing is every node in `g.Order` including closed. `--ready` alone (no `--blocked`, no `--quarantined`) uses `g.Ready()` so UnblockCount-desc order is visible. Tests pass `--format compact` except `TestListJSON`. `loadGraph` and `toEntry` live in `app.go` for later commands.
 
 ## Context (read first)
-- Guide §2 decision 1 — AND across `-l` flags, OR within a flag. `SplitLabels(["p0,p1","auth"])` → `[["p0","p1"],["auth"]]`. `graph.FilterLabels` already implements that.
-- Guide §4.6 — `Ready()` is UnblockCount desc then ID asc. `Blocked` / `Quarantined` / `Closed` / `Order` are ID asc. `Order` contains every parseable node, including closed and quarantined.
-- Guide §4.7 — `format.Write`, `format.Line`, `format.Entry`. Compact line is `[ID] Title | labels | Unblocks: N` with `-` when labels are empty and ` | QUARANTINED` when `State == "quarantined"`. JSON is an indented array. This ticket converts `*graph.Node` → `format.Entry` in `toEntry`; `pkg/format` never imports `pkg/graph`.
-- Guide §4.11 — `loadGraph = store.LoadAll + graph.Build`. `toEntry` is defined here. If AWIT-0ND56S3G already defined `loadGraph`, do not redeclare it — the body must be identical.
+
+- Guide §2 decision 1 - AND across `-l` flags, OR within a flag. `SplitLabels(["p0,p1","auth"])` → `[["p0","p1"],["auth"]]`. `graph.FilterLabels` already implements that.
+- Guide §4.6 - `Ready()` is UnblockCount desc then ID asc. `Blocked` / `Quarantined` / `Closed` / `Order` are ID asc. `Order` contains every parseable node, including closed and quarantined.
+- Guide §4.7 - `format.Write`, `format.Line`, `format.Entry`. Compact line is `[ID] Title | labels | Unblocks: N` with `-` when labels are empty and ` | QUARANTINED` when `State == "quarantined"`. JSON is an indented array. This ticket converts `*graph.Node` → `format.Entry` in `toEntry`; `pkg/format` never imports `pkg/graph`.
+- Guide §4.11 - `loadGraph = store.LoadAll + graph.Build`. `toEntry` is defined here. If AWIT-0ND56S3G already defined `loadGraph`, do not redeclare it - the body must be identical.
 - Guide §8 `clean` fixture (AWIT-0ND56N3G):
   - `0001` open, labels `auth,p1`, Ready, UnblockCount 2, title `Implement OAuth2 bearer token extraction`
   - `0002` open, labels `db`, Ready, UnblockCount 0, title `Update database migration scripts`
@@ -29,18 +31,20 @@ After this ticket `internal/cli/list.go` registers `awit list`. Flags are `-s/--
   - `0006` in_progress, no labels, Ready, UnblockCount 0, title `Implement refresh-token rotation`
   - Ready order: `0001`, `0002`, `0006`. `-l p0 -l auth` matches nobody. `-l auth,db` matches `0001` and `0002`.
 - Guide §8 `cyclic` fixture (AWIT-0ND56P3G): `0001`/`0002`/`0003` triangle quarantined, `0004` self-loop quarantined, `0005` clean. `--quarantined` lists four nodes, each compact line ending ` | QUARANTINED`. `0005` is absent.
-- Guide §5 — `run`, `copyFixture`, `golden` already exist. Always pass `--repo`. Tests that are not JSON pass `--format compact` even though a `bytes.Buffer` already selects compact.
+- Guide §5 - `run`, `copyFixture`, `golden` already exist. Always pass `--repo`. Tests that are not JSON pass `--format compact` even though a `bytes.Buffer` already selects compact.
 - `detectFormat` is defined by AWIT-0ND56H3G. This ticket's deps do not include H3G; define `detectFormat` if absent (exact code in Step 3).
 - `-s` takes `open`, `in_progress`, or `closed` (`item.ParseStatus`). Repeatable / comma-separated values are OR. Unknown status is the `ParseStatus` error (exit 1).
 - Set-filters OR: `--ready --blocked` is the union, walked in `g.Order` (ID asc), not Ready-order concatenated with Blocked-order.
 
 ## Files
+
 - Create: `internal/cli/list.go`
 - Create: `internal/cli/list_test.go`
 - Create: `testdata/golden/list_clean_compact.golden`
-- Modify: `internal/cli/app.go` — add `loadGraph` (if absent) and `toEntry`; append `listCmd` to `Commands`. Keep every command already in the slice.
+- Modify: `internal/cli/app.go` - add `loadGraph` (if absent) and `toEntry`; append `listCmd` to `Commands`. Keep every command already in the slice.
 
 ## Interfaces
+
 - Consumes:
   ```go
   func openStore(cmd *cli.Command) (*item.Store, error)
@@ -278,7 +282,7 @@ After this ticket `internal/cli/list.go` registers `awit list`. Flags are `-s/--
   }
   ```
 
-  Add `toEntry` to `internal/cli/app.go` (this ticket owns it; do not put it in `list.go` if next/show will import it from the package — package-level in `app.go` is the home):
+  Add `toEntry` to `internal/cli/app.go` (this ticket owns it; do not put it in `list.go` if next/show will import it from the package - package-level in `app.go` is the home):
 
   ```go
   func toEntry(n *graph.Node) format.Entry {
@@ -434,7 +438,8 @@ After this ticket `internal/cli/list.go` registers `awit list`. Flags are `-s/--
   Set `status: closed` on this file, write `.awit/comments/AWIT-0ND56J3G/<YYYYMMDDTHHMMSSZ>-<author>.md` with the acceptance output, append that ref, commit `tickets: close AWIT-0ND56J3G`.
 
 ## Acceptance Criteria
-- `go test ./internal/cli -run 'TestList' -v` — all six tests PASS.
+
+- `go test ./internal/cli -run 'TestList' -v` - all six tests PASS.
 - `list --format compact` on clean matches `list_clean_compact.golden` (6 lines, ID order, 0005 present).
 - `list --ready --format compact` on clean: first line is `AWIT-TEST0001`, then `0002`, then `0006`.
 - `list -s closed` is only 0005; `list -s open` is 0001–0004; `list -s in_progress` is only 0006.
@@ -444,4 +449,5 @@ After this ticket `internal/cli/list.go` registers `awit list`. Flags are `-s/--
 - `loadGraph` and `toEntry` exist once in package `cli`. `gofmt -l internal/cli/list.go` prints nothing.
 
 ## Out of scope
-- `awit label` (AWIT-0ND5763G). `awit show`. Changing `pkg/format` or `FilterLabels`. Defaulting format to table inside this command — `detectFormat` already handles TTY.
+
+- `awit label` (AWIT-0ND5763G). `awit show`. Changing `pkg/format` or `FilterLabels`. Defaulting format to table inside this command - `detectFormat` already handles TTY.

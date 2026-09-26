@@ -198,7 +198,7 @@ func TestLabelTableGolden(t *testing.T) {
 }
 
 // 0001 in the dangling fixture has deps: [AWIT-TEST9999], so the graph
-// quarantines it — but it parses, so its auth and p1 must count. The extra
+// quarantines it - but it parses, so its auth and p1 must count. The extra
 // AWIT-TEST0003 is invalid YAML, so its ghost label must not count at all.
 func TestLabelCountsQuarantinedSkipsBroken(t *testing.T) {
 	repo := copyFixture(t, "dangling")
