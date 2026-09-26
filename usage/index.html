@@ -904,11 +904,11 @@ and <code>--no-commit</code> is the deprecated spelling of <code>--commit=false<
 <code>close</code> is a plain file write; the human or agent commits when done.</p>
 <h2 id="finding-work">Finding work<a class="headerlink" href="#finding-work" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>awit list</code> — index view; filter with <code>-s</code> status, <code>-l</code> label, <code>--ready</code>,
+<li><code>awit list</code> - index view; filter with <code>-s</code> status, <code>-l</code> label, <code>--ready</code>,
   <code>--blocked</code>, <code>--quarantined</code>.</li>
-<li><code>awit next</code> — top unblocked item; <code>-l</code> filters first. <code>-l</code> is AND across
+<li><code>awit next</code> - top unblocked item; <code>-l</code> filters first. <code>-l</code> is AND across
   repeated flags, OR inside one comma list (<code>-l p0 -l auth</code> vs <code>-l p0,p1</code>).</li>
-<li><code>awit prime</code> — deterministic whole-graph snapshot for prompt injection;
+<li><code>awit prime</code> - deterministic whole-graph snapshot for prompt injection;
   <code>--max-tokens N</code> is a soft budget that never sheds warnings or the top
   ready row.</li>
 </ul>
@@ -927,15 +927,15 @@ canonical IDs.</p>
 recorded reason; <code>awit unblock &lt;id&gt;</code> removes only the hold; <code>awit release
 &lt;id&gt;</code> reopens to <code>open</code> (the hold stays); <code>awit close &lt;id&gt;</code> finishes the
 item (the hold clears, <code>--reason</code> becomes a comment). A <code>blocked</code> label
-alone never holds anything — the commands warn once on stderr when that
+alone never holds anything - the commands warn once on stderr when that
 label lands on a hold-less item.</p>
 <h2 id="external-trackers">External trackers<a class="headerlink" href="#external-trackers" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>awit import &lt;issue-url&gt;</code> — one-time snapshot of a Gitea (<code>tea</code>) or
+<li><code>awit import &lt;issue-url&gt;</code> - one-time snapshot of a Gitea (<code>tea</code>) or
   GitLab (<code>glab</code>) issue: number/iid, exact body, labels, open/closed state.</li>
-<li><code>awit external check [key]</code> — byte-exact local-vs-remote body comparison;
+<li><code>awit external check [key]</code> - byte-exact local-vs-remote body comparison;
   exit 1 on any drift or error.</li>
-<li><code>awit external push-body &lt;key&gt;</code> — explicit local-canonical repair.</li>
+<li><code>awit external push-body &lt;key&gt;</code> - explicit local-canonical repair.</li>
 </ul>
 <p>For linked items <code>close</code> pushes <code>closed</code> (and <code>release</code> pushes <code>open</code>) to
 the linked issue after the local save; an explicit <code>update --status</code> pushes
@@ -1144,7 +1144,7 @@ the file.</p>
 </tr>
 </tbody>
 </table>
-<p><code>lazyawit</code> — the TUI, see <a href="#browsing-interactively">Browsing interactively</a>.</p>
+<p><code>lazyawit</code> - the TUI, see <a href="#browsing-interactively">Browsing interactively</a>.</p>
 <p>Global flags: <code>--format compact|table|json</code>, <code>--repo &lt;path&gt;</code>, <code>--no-color</code>
 (accepted, no-op). Exit codes: <code>0</code> success, <code>1</code> expected non-success, <code>2</code>
 usage error. Graph-reading commands print one stderr quarantine warning

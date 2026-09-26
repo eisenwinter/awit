@@ -723,7 +723,7 @@ Refs are repo-root relative with forward slashes.</p>
   E --&gt; A</code></pre>
 <p>Each step is one process invocation; state between steps lives only in the
 files and in Git. <code>--claim</code> writes <code>status: in_progress</code>, <code>assignee</code>,
-<code>claimed_at</code>, then commits <code>awit: claim &lt;id&gt;</code> touching only that file — the
+<code>claimed_at</code>, then commits <code>awit: claim &lt;id&gt;</code> touching only that file - the
 commit turns a double-claim across worktrees into a merge conflict instead
 of silent duplication.</p>
 <p>→ <a href="../design-spec/#6-agent-surfaces">Design Spec: Agent surface</a></p>
@@ -740,14 +740,14 @@ of silent duplication.</p>
   F --&gt; G[Ready / Blocked classification]
   G --&gt; H[Memoized unblock counts]
   H --&gt; I[next · prime · critical path]</code></pre>
-<p>Every command rebuilds this graph from scratch — O(V+E); hundreds of items
+<p>Every command rebuilds this graph from scratch - O(V+E); hundreds of items
 resolve in well under 10 ms. <code>status</code> (<code>open</code>/<code>in_progress</code>/<code>closed</code>) is
 stored; ready/blocked eligibility is derived: ready means not closed, no
 manual hold, every dep closed. A stored <code>blocked_reason</code> holds an item
 regardless of deps.</p>
 <p>→ <a href="../design-spec/#4-graph-engine">Design Spec: Graph engine</a></p>
 <h2 id="ranking-what-to-do-next">Ranking: what to do next<a class="headerlink" href="#ranking-what-to-do-next" title="Permanent link">&para;</a></h2>
-<p>Each ready item scores its transitive unblock count — unique non-closed
+<p>Each ready item scores its transitive unblock count - unique non-closed
 downstream nodes. <code>prime</code> sorts by unblocks desc, ID asc (deterministic,
 prompt-cacheable); <code>next</code> ranks the same way but breaks ties randomly so two
 agents racing a claim diverge. The critical path is the longest path over
@@ -758,12 +758,12 @@ priority check.</p>
 <p>Cycles, dangling deps, unparseable frontmatter, Git conflict markers, ID
 mismatches and duplicate IDs all become quarantine through one path.
 Quarantined items are excluded from <code>next</code>, listed under <code>GRAPH WARNINGS</code> in
-<code>prime</code>, and reported as <code>FAIL</code> by <code>validate</code> — each with the <code>fix:</code> command
+<code>prime</code>, and reported as <code>FAIL</code> by <code>validate</code> - each with the <code>fix:</code> command
 that repairs it. The CLI never panics on a bad file. <code>validate</code> is the
 intended pre-commit hook.</p>
 <p>→ <a href="../design-spec/#fault-handling-and-quarantine">Design Spec: Quarantine</a></p>
 <h2 id="holding-work-blocks-vs-labels">Holding work: blocks vs labels<a class="headerlink" href="#holding-work-blocks-vs-labels" title="Permanent link">&para;</a></h2>
-<p>A <code>blocked_reason</code> holds; the <code>blocked</code> label does not — <code>create</code>, <code>update</code>
+<p>A <code>blocked_reason</code> holds; the <code>blocked</code> label does not - <code>create</code>, <code>update</code>
 and <code>import</code> print one stderr warning when a hold-less non-closed item newly
 receives that exact label. <code>awit block &lt;id&gt; --reason "&lt;obstacle and release
 condition&gt;"</code> stores the hold (open + claim cleared, one save); <code>awit

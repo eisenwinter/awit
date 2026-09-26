@@ -967,7 +967,7 @@ bases. On-disk paths use <code>filepath</code> (OS separators).</p>
 <tr>
 <td><code>commit</code></td>
 <td>no</td>
-<td>bool; repository default for <code>next --claim</code> git commits. Absent → <code>true</code>. <code>next --commit=true\|false</code> overrides per invocation; <code>--no-commit</code> (deprecated) equals <code>--commit=false</code>. Only <code>next --claim</code> reads it — never pushing, never another command. Independent of <code>external_push</code></td>
+<td>bool; repository default for <code>next --claim</code> git commits. Absent → <code>true</code>. <code>next --commit=true\|false</code> overrides per invocation; <code>--no-commit</code> (deprecated) equals <code>--commit=false</code>. Only <code>next --claim</code> reads it - never pushing, never another command. Independent of <code>external_push</code></td>
 </tr>
 <tr>
 <td><code>external_push</code></td>
@@ -1062,7 +1062,7 @@ and the exact body. <code>Split</code> also accepts <code>\r\n</code>.</p>
 <tr>
 <td><code>labels</code></td>
 <td>list of strings</td>
-<td>Free-form. <code>p0</code>–<code>p4</code> recommended for priority. Flow style. Optional <code>config.yaml</code> <code>labels</code> is advisory only — unknown names warn on <code>create</code>/<code>update</code> and still store</td>
+<td>Free-form. <code>p0</code>–<code>p4</code> recommended for priority. Flow style. Optional <code>config.yaml</code> <code>labels</code> is advisory only - unknown names warn on <code>create</code>/<code>update</code> and still store</td>
 </tr>
 <tr>
 <td><code>assignee</code></td>
@@ -1107,7 +1107,7 @@ and the exact body. <code>Split</code> also accepts <code>\r\n</code>.</p>
 <h3 id="optional-key-alias">Optional key: <code>alias</code><a class="headerlink" href="#optional-key-alias" title="Permanent link">&para;</a></h3>
 <p>A short human handle set by <code>create</code>/<code>update --alias</code> or <code>import --alias</code>
 (<code>update --clear-alias</code> removes it). Grammar:
-<code>[A-Za-z][A-Za-z0-9._-]{0,127}</code> — no whitespace, slash or <code>#</code>, and never
+<code>[A-Za-z][A-Za-z0-9._-]{0,127}</code> - no whitespace, slash or <code>#</code>, and never
 anything shaped like a canonical ID. Uniqueness is case-insensitive across
 active parseable items but is not enforced at write time: duplicate
 hand-edited aliases make alias lookup fail with the matching canonical IDs
@@ -1119,7 +1119,7 @@ edges and commit messages always use the canonical ID.</p>
 carries one is <code>Blocked</code> regardless of its dependencies, so a <code>blocked</code>
 tracker label with zero open deps is representable without a new status,
 a new quarantine category, or graph edges. Labels alone never hold an
-item — a zero-dependency item with only a <code>blocked</code> label stays ready.
+item - a zero-dependency item with only a <code>blocked</code> label stays ready.
 Because that label is a classic failure point, <code>create</code>, <code>update</code>, and
 <code>import</code> print one stderr line when a non-closed item without a manual
 block newly receives the exact label <code>blocked</code>:
@@ -1137,7 +1137,7 @@ selectable while its declaration is unreadable.</p>
 <p>Eligibility vs structure: readiness requires both no manual block and all
 deps satisfied; clearing the reason restores readiness only when the deps
 permit. Edges, cycle detection, unblock counts, the critical path, and
-archive eligibility are unchanged — held nodes stay structural, exactly
+archive eligibility are unchanged - held nodes stay structural, exactly
 like dep-blocked nodes today.</p>
 <p>Lifecycle: <code>awit block &lt;id&gt; --reason "&lt;obstacle and release condition&gt;"</code>
 stores or replaces the reason, sets <code>open</code>, and clears the claim in one
@@ -1157,8 +1157,8 @@ and JSON rows carry <code>blocked_reason</code> with <code>state: "blocked"</cod
 (exact, case-sensitive, always wins), an alias (case-insensitive), or an
 external key <code>owner/repo#&lt;n&gt;</code> (GitLab subgroups: <code>group/sub/project#127</code>)
 or bare <code>#&lt;n&gt;</code> matched against valid <code>external:</code> metadata (the bare form
-must be unique). Ambiguity — including the same repo and number on two
-trackers or hosts — is an error listing the matching canonical IDs;
+must be unique). Ambiguity - including the same repo and number on two
+trackers or hosts - is an error listing the matching canonical IDs;
 unknown keys error as <code>unknown item &lt;key&gt;</code> and never become filesystem
 paths. There is no new lookup syntax and no tracker prefix on the key;
 aliases and canonical IDs disambiguate.</p>
@@ -1199,19 +1199,19 @@ import every GitLab work-item type.</p>
 local <code>open</code> and wire <code>closed</code> to <code>closed</code>; that conversion is remote
 integration, not YAML parsing.</p>
 <p>GitLab transport and auth (wrapper contract, <code>internal/glabx</code>, qualified
-against glab 1.118.0): glab is pre-authenticated by the operator — awit
+against glab 1.118.0): glab is pre-authenticated by the operator - awit
 never logs in, selects logins, reads tokens, or writes configuration, and
 only the named non-secret settings (<code>subfolder</code>, <code>api_host</code>,
 <code>api_protocol</code>) are ever read. The effective installation subfolder for
 the link host decides the repo segments (<code>GITLAB_SUBFOLDER</code> wins inside
 glab); contradictory <code>api_host</code>/<code>api_protocol</code>/subfolder overrides fail
 instead of targeting another instance. Every request is host-scoped
-(<code>--hostname</code> carries the bare link host — glab rejects host:port there —
+(<code>--hostname</code> carries the bare link host - glab rejects host:port there -
 with one <code>%2F</code>-encoded project segment). Description writes travel
 byte-exact: the transport file holds exactly the body, no line-ending is
 added or stripped, and delivery needs 2xx, verified identity, and
 <code>bytes.Equal</code> on the returned/read-back description. A body with any
-column-zero <code>/lowercase</code> line is refused before any mutation — GitLab
+column-zero <code>/lowercase</code> line is refused before any mutation - GitLab
 would execute it as a quick action instead of storing it, even inside
 fenced code blocks, which awit does not exempt and never rewrites around.</p>
 <p><code>awit create</code> and <code>awit update</code> take <code>--external-tracker</code>, <code>--external-repo</code>,
@@ -1230,7 +1230,7 @@ display only a valid link (<code>gitea owner/repo#127</code> or
 <p><code>awit import &lt;issue-url&gt; [--brief &lt;summary&gt;] [--alias X] [--tea-login name]</code>
 creates an item from an existing Gitea issue through <code>tea</code> or GitLab issue
 through <code>glab</code>. GitLab is recognized only by the <code>/-/issues/</code> or
-<code>/-/work_items/</code> URL shape — never by host — and both spellings of the
+<code>/-/work_items/</code> URL shape - never by host - and both spellings of the
 same issue are one identity. The item is a one-time snapshot: Gitea
 <code>number</code> or GitLab <code>iid</code> as <code>external.id</code>, the decoded body/description
 byte-exact, remote labels first-seen exact-name deduplicated (local
@@ -1255,8 +1255,8 @@ override exits 1 (<code>cannot derive import brief: remote title and body are
 empty; pass --brief</code>) before minting.</p>
 <p><code>awit external check [key] [--tea-login name]</code> compares the raw local
 body bytes (<code>Item.Body()</code>: every byte after the frontmatter closing
-fence) against the linked issue body — Gitea through <code>tea</code>, GitLab
-through <code>glab</code> — and nothing else: frontmatter, title, labels, comments,
+fence) against the linked issue body - Gitea through <code>tea</code>, GitLab
+through <code>glab</code> - and nothing else: frontmatter, title, labels, comments,
 and remote state are ignored, so any whitespace, line-ending,
 final-newline, or leading-blank-line difference is drift. <code>--tea-login</code>
 is Gitea-only and ignored for GitLab. The command is read-only: no local
@@ -1274,7 +1274,7 @@ local-canonical repair: it pushes the local body bytes to the linked
 issue and nothing else (no title, label, state, local-content, or history
 change). The push holds the store lock until the bounded request
 completes, refuses ambiguous duplicate external links, and verifies the
-remote took the exact bytes — against the write response, or a GET of the
+remote took the exact bytes - against the write response, or a GET of the
 same issue when the response omits the body. A mismatch is an error,
 never success. Gitea requires a 2xx status (tea exits zero on HTTP
 errors, so the <code>--include</code> status line is authoritative); GitLab requires
@@ -1291,7 +1291,7 @@ archive). <code>--tea-login</code> is Gitea-only and ignored for GitLab. Automat
 pushes follow <code>.awit/config.yaml</code> <code>external_push:</code> (omitted → true);
 <code>--push=true|false</code> overrides per invocation (true <code>--no-push</code> equals
 <code>--push=false</code>; <code>--no-push=false</code> is neutral). The local
-item is saved first — keeping close's reason comment and claim-clearing —
+item is saved first - keeping close's reason comment and claim-clearing -
 then the push runs under the held store lock with the bounded subprocess
 deadline (Gitea: <code>tea api --login &lt;login&gt; --repo &lt;owner/repo&gt; --include
 -X PATCH -f state=&lt;open|closed&gt; repos/&lt;owner&gt;/&lt;repo&gt;/issues/&lt;n&gt;</code>; GitLab:
@@ -1335,7 +1335,7 @@ bytes. <code>create</code> seeds:</p>
 </code></pre></div>
 <p>(leading newline after the fence) when <code>template</code> is unset. When
 <code>template:</code> names a file, <code>create</code> copies those bytes exactly as the
-body — no extra leading newline — and does not parse them as frontmatter.
+body - no extra leading newline - and does not parse them as frontmatter.
 An empty template file is an empty body. Conflict marker lines
 (<code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code>, <code>=======</code>, <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>) anywhere in the file quarantine
 the item as <code>CONFLICT MARKERS</code>; a template containing them is refused
@@ -1375,7 +1375,7 @@ are Markdown with their own frontmatter:</p>
 </tr>
 </tbody>
 </table>
-<p><code>--file</code> copies the source bytes verbatim — no frontmatter is added.</p>
+<p><code>--file</code> copies the source bytes verbatim - no frontmatter is added.</p>
 <p>After a comment or attachment is written, existing refs are normalized to
 the repo-root base and the item's <code>refs</code> gains a forward-slash entry
 <code>.awit/comments/&lt;id&gt;/&lt;filename&gt;</code>.</p>
@@ -1416,8 +1416,8 @@ mutating commands. <code>awit init</code> appends <code>.awit/.lock</code> to th
 <code>.gitignore</code> and does not create the file. The file is created on first
 <code>Store.Lock</code>. It is never committed.</p>
 <h2 id="seeded-agent-skills">Seeded agent skills<a class="headerlink" href="#seeded-agent-skills" title="Permanent link">&para;</a></h2>
-<p><code>awit init</code> also looks for agent directories in the repo root — <code>.claude</code>,
-<code>.omp</code>, <code>.opencode</code>, <code>.agents</code>, <code>.pi</code>, in that order — and offers to write
+<p><code>awit init</code> also looks for agent directories in the repo root - <code>.claude</code>,
+<code>.omp</code>, <code>.opencode</code>, <code>.agents</code>, <code>.pi</code>, in that order - and offers to write
 <code>&lt;dir&gt;/skills/driving-awit/SKILL.md</code> into each one it finds. It never
 creates an agent directory; their presence is the signal that the tool is
 in use. <code>--skills</code> seeds every detected directory without asking,
@@ -1430,7 +1430,7 @@ They are project config and are meant to be committed; unlike <code>.awit/.lock<
 <p>These are not extra keys; they are reasons a file fails to become a
 healthy item: <code>PARSE ERROR</code>, <code>CONFLICT MARKERS</code>, <code>ID MISMATCH</code>,
 <code>DUPLICATE ID</code>, <code>DANGLING DEP</code>, <code>CYCLE</code>. Invalid <code>external:</code> metadata is
-none of these — it is a <code>validate</code> WARN only. A malformed
+none of these - it is a <code>validate</code> WARN only. A malformed
 <code>blocked_reason</code> (wrong type, empty content, control characters,
 duplicate key) is a <code>PARSE ERROR</code>, not a new category: the hold fails
 closed and the item is never selectable until the declaration is readable.</p>

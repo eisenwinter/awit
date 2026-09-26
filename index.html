@@ -618,12 +618,12 @@
 <p>Cast away the eldritch horror of TICKETS.md. A zero-daemon, git-native task graph built for agents and humans alike.<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup></p>
 </blockquote>
 <p><strong>Agent work item tool.</strong> A zero-daemon Go CLI that turns Markdown files under
-<code>.awit/</code> into a dependency graph that humans and agents work from — offline,
+<code>.awit/</code> into a dependency graph that humans and agents work from - offline,
 versioned in Git, no database, no daemon, no server.</p>
 <p>Every command rebuilds the graph from <code>.awit/items/*.md</code>, operates on it, and
 writes back at most one file. A clone is the whole state: nothing to migrate,
 nothing to repair beyond text files. Work items carry <code>deps</code>, so the tool can
-answer the only question an agent actually needs answered — <em>what can I start
+answer the only question an agent actually needs answered - <em>what can I start
 right now, and what does finishing it unblock?</em></p>
 <ul>
 <li><strong>Ready, not assigned.</strong> Eligibility is derived from the graph, not stored.</li>
@@ -631,8 +631,8 @@ right now, and what does finishing it unblock?</em></p>
   frontmatter, Git conflict markers and duplicate IDs all become quarantine,
   and <code>awit validate</code> prints the command that fixes each one.</li>
 <li><strong>Git is the sync protocol.</strong> Two agents racing a claim produce a merge
-  conflict, which quarantine surfaces — instead of a silent double-claim.</li>
-<li><strong>Labels adapt to any workflow.</strong> Free-form grouping sets with no enforced meaning — <code>p0</code>…<code>p4</code> for priority, areas, phases, whatever you need; filter them with <code>-l</code>.</li>
+  conflict, which quarantine surfaces - instead of a silent double-claim.</li>
+<li><strong>Labels adapt to any workflow.</strong> Free-form grouping sets with no enforced meaning - <code>p0</code>…<code>p4</code> for priority, areas, phases, whatever you need; filter them with <code>-l</code>.</li>
 </ul>
 <p><a class="md-button md-button--primary" href="usage/">Install and first steps</a>
 <a class="md-button" href="how-it-works/">How it works</a></p>
@@ -669,7 +669,7 @@ right now, and what does finishing it unblock?</em></p>
 </tr>
 <tr>
 <td><a href="design-spec/">Design Spec</a></td>
-<td>Decisions, command matrix, package layout — the contract</td>
+<td>Decisions, command matrix, package layout - the contract</td>
 </tr>
 <tr>
 <td><a href="schema/">On-disk Schema</a></td>

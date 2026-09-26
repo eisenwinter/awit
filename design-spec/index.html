@@ -995,7 +995,7 @@
   
 
 
-<h1 id="awit-system-specification-architecture">awit — System Specification &amp; Architecture<a class="headerlink" href="#awit-system-specification-architecture" title="Permanent link">&para;</a></h1>
+<h1 id="awit-system-specification-architecture">awit - System Specification &amp; Architecture<a class="headerlink" href="#awit-system-specification-architecture" title="Permanent link">&para;</a></h1>
 <p><strong>System:</strong> <code>awit</code>, a zero-daemon Go CLI that builds a dependency graph from Markdown files in <code>.awit/</code> for humans and agents. Versioned in Git; no database, no daemon, no external state.</p>
 <p><strong>Architecture:</strong> Graph-reading commands rebuild the in-memory graph from <code>.awit/items/*.md</code> and operate on the condensed DAG. Mutations write only targeted files. Faults (parse errors, cycles, dangling dependencies, conflict markers, ID mismatches, duplicate IDs) route to quarantine.</p>
 <p><strong>Tech Stack:</strong> Go 1.27.1, <code>github.com/urfave/cli/v3</code> (CLI), <code>gopkg.in/yaml.v3</code> (frontmatter Node editing), <code>golang.org/x/sys</code> (<code>pkg/lock</code> Windows only), stdlib. External git operations execute via <code>os/exec</code>. External trackers interface via pre-authenticated <code>tea</code> (Gitea) and <code>glab</code> (GitLab) subprocesses.</p>
@@ -1003,13 +1003,13 @@
 <hr />
 <h2 id="vocabulary">Vocabulary<a class="headerlink" href="#vocabulary" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Work item</strong> — one Markdown file under <code>.awit/items/</code> (ID = filename stem): frontmatter plus body. The unit of work; <code>item</code> is the short form and the Go noun.</li>
-<li><strong>Graph</strong> — the in-memory DAG rebuilt from items on every graph-reading command. Nodes are items; edges are <code>deps</code>/<code>Unblocks</code>.</li>
-<li><strong>Ready / Blocked</strong> — derived eligibility, never stored. Ready means not closed, unheld, every dep closed. Blocked means a non-closed item that is held or waiting on deps.</li>
-<li><strong>Quarantine</strong> — the exclusion set for unreadable or faulted items. Visible everywhere, selectable nowhere.</li>
-<li><strong>Labels</strong> — free-form grouping sets with no enforced meaning. Any spelling is allowed; <code>p0</code>…<code>p4</code> may be convention for priority, usable with <code>-l</code> filters. Labels carry no scores and enforce no workflow — they group, and flows are built on top.</li>
-<li><strong>Claim</strong> — a soft reservation (<code>status</code>, <code>assignee</code>, <code>claimed_at</code>, plus a git commit by default), visible across worktrees only after push.</li>
-<li><strong>Refs</strong> — repo-relative file pointers, resolved by <code>show --full</code>.</li>
+<li><strong>Work item</strong> - one Markdown file under <code>.awit/items/</code> (ID = filename stem): frontmatter plus body. The unit of work; <code>item</code> is the short form and the Go noun.</li>
+<li><strong>Graph</strong> - the in-memory DAG rebuilt from items on every graph-reading command. Nodes are items; edges are <code>deps</code>/<code>Unblocks</code>.</li>
+<li><strong>Ready / Blocked</strong> - derived eligibility, never stored. Ready means not closed, unheld, every dep closed. Blocked means a non-closed item that is held or waiting on deps.</li>
+<li><strong>Quarantine</strong> - the exclusion set for unreadable or faulted items. Visible everywhere, selectable nowhere.</li>
+<li><strong>Labels</strong> - free-form grouping sets with no enforced meaning. Any spelling is allowed; <code>p0</code>…<code>p4</code> may be convention for priority, usable with <code>-l</code> filters. Labels carry no scores and enforce no workflow - they group, and flows are built on top.</li>
+<li><strong>Claim</strong> - a soft reservation (<code>status</code>, <code>assignee</code>, <code>claimed_at</code>, plus a git commit by default), visible across worktrees only after push.</li>
+<li><strong>Refs</strong> - repo-relative file pointers, resolved by <code>show --full</code>.</li>
 </ul>
 <hr />
 <h2 id="1-system-overview">1. System Overview<a class="headerlink" href="#1-system-overview" title="Permanent link">&para;</a></h2>
@@ -1142,12 +1142,12 @@
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  The API gateway rejects valid bearer tokens that contain URL-safe base64
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  characters. Fix header parsing in the auth middleware and return a
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>  structured 401 on invalid signatures.
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>status: in_progress            # open | in_progress | closed
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>deps: [AWIT-0K7LZ9RT]          # Prerequisite IDs
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>labels: [auth, api, p1]        # Free-form grouping sets; p0..p4 by convention
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>status: in_progress # open | in_progress | closed
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>deps: [AWIT-0K7LZ9RT] # Prerequisite IDs
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>labels: [auth, api, p1] # Free-form grouping sets; p0..p4 by convention
 <a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>assignee: agent/claude
 <a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>claimed_at: 2026-09-17T14:32:05Z
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>refs_base: repo                # "repo" (root relative) or absent (legacy items-relative)
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>refs_base: repo # "repo" (root relative) or absent (legacy items-relative)
 <a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>refs:
 <a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span><span class="k">-</span><span class="w"> </span>.awit/comments/AWIT-0K7M2QX9/20260917T143205Z-claude.md
 <a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="gu">  - docs/architecture/auth-middleware-spec.md</span>
@@ -1244,7 +1244,7 @@
 </tr>
 <tr>
 <td><code>template</code></td>
-<td>—</td>
+<td>-</td>
 <td>Both</td>
 <td>Emits configured item body template or fallback skeleton. Builds no graph.</td>
 </tr>
@@ -1316,13 +1316,13 @@
 </tr>
 <tr>
 <td><code>unblock &lt;id&gt;</code></td>
-<td>—</td>
+<td>-</td>
 <td>Both</td>
 <td>Deletes <code>blocked_reason</code>. Retains status, assignee, and external links.</td>
 </tr>
 <tr>
 <td><code>dep add\|rm &lt;a&gt; &lt;b&gt;</code></td>
-<td>—</td>
+<td>-</td>
 <td>Both</td>
 <td>Mutates dependency edge. <code>add</code> executes cycle pre-check before writing.</td>
 </tr>
@@ -1384,14 +1384,16 @@
 <a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>AWIT-0K7M2QX9 -&gt; AWIT-0K7M4C3H -&gt; AWIT-0K7M5E5K
 </code></pre></div>
 <h4 id="token-budgeting-rules-max-tokens-n">Token Budgeting Rules (<code>--max-tokens N</code>)<a class="headerlink" href="#token-budgeting-rules-max-tokens-n" title="Permanent link">&para;</a></h4>
-<p>Budget estimation uses <code>len(bytes) / 4</code>. Budget enforcement is soft with an immutable floor:
-1. Warning lines and the first <code>READY</code> item are <strong>never shed</strong>, even if they breach the limit.
-2. Shedding sequence:
-   - Evict <code>BLOCKED</code> rows from bottom to top.
-   - Evict <code>READY</code> rows from bottom to top (stopping at item 1).
-   - Evict the <code>CRITICAL PATH</code> section entirely.
-   - Evict section scaffolding (<code>(+N more)</code> counters, section headers).
-3. Row counts reflect pre-truncation totals. Negative token limits exit with code 2.</p>
+<p>Budget estimation uses <code>len(bytes) / 4</code>. Budget enforcement is soft with an immutable floor:</p>
+<ol>
+<li>Warning lines and the first <code>READY</code> item are <strong>never shed</strong>, even if they breach the limit.</li>
+<li>Shedding sequence:</li>
+<li>Evict <code>BLOCKED</code> rows from bottom to top.</li>
+<li>Evict <code>READY</code> rows from bottom to top (stopping at item 1).</li>
+<li>Evict the <code>CRITICAL PATH</code> section entirely.</li>
+<li>Evict section scaffolding (<code>(+N more)</code> counters, section headers).</li>
+<li>Row counts reflect pre-truncation totals. Negative token limits exit with code 2.</li>
+</ol>
 <h3 id="awit-next-output-contract"><code>awit next</code> Output Contract<a class="headerlink" href="#awit-next-output-contract" title="Permanent link">&para;</a></h3>
 <p>Selects one item from the ready set (ready nodes minus quarantined, filtered by <code>-l</code>). An explicit <code>[key]</code> is a lookup, not a rerank; with <code>--claim</code> the item must be ready, unheld and unclaimed.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>[AWIT-0K7M2QX9] Implement OAuth2 token extraction | auth,api,p1 | Unblocks: 4
@@ -1426,7 +1428,7 @@
 <a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>pkg/lock/           → advisory .lock (flock / LockFileEx)
 </code></pre></div>
 <p>Exact signatures live in code (<code>go doc</code>); this map says where to look. Exit codes: <code>0</code> success, <code>1</code> expected non-success (<code>next</code> with no candidates, <code>validate</code> with FAIL, drift/error), <code>2</code> usage error.
-Writes are temp-then-rename in the target directory; unparseable files never panic — they become <code>Broken</code>/quarantined. Output is deterministic: no timestamps, map iteration order, or randomness except the <code>next</code> tie-break. The TUI adds no output contract; its rows, detail, overview and queue are the <code>list</code>, <code>show --full</code>, <code>prime</code> and <code>Ready()</code> renderings, produced by the same <code>internal/ops</code> functions.</p>
+Writes are temp-then-rename in the target directory; unparseable files never panic - they become <code>Broken</code>/quarantined. Output is deterministic: no timestamps, map iteration order, or randomness except the <code>next</code> tie-break. The TUI adds no output contract; its rows, detail, overview and queue are the <code>list</code>, <code>show --full</code>, <code>prime</code> and <code>Ready()</code> renderings, produced by the same <code>internal/ops</code> functions.</p>
 
 
 
