@@ -19,7 +19,7 @@ var commentCmd = &cli.Command{
 	Usage:     "Write a timestamped comment or attach a file to an item",
 	ArgsUsage: "<id> [text...]",
 	Flags: []cli.Flag{
-		&cli.StringFlag{Name: "file", Usage: "copy this file into the item's comments instead of writing text"},
+		&cli.StringFlag{Name: "file", Usage: "attach this file (debug evidence, logs, reports) to the item's comments instead of text"},
 		&cli.StringFlag{Name: "author", Usage: "author (default: AWIT_AGENT, config agent_id, git user.name)"},
 	},
 	Action: commentAction,
