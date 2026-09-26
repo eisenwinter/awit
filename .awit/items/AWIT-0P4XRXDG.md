@@ -3,13 +3,12 @@ id: AWIT-0P4XRXDG
 title: Document skill sync across command references and the driving-awit skill
 brief: >-
   README, usage, design matrix, embedded Quick reference, and help consistency for skill sync.
-status: in_progress
+status: closed
 deps: [AWIT-0P4XRXDX]
 labels: []
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P4XRXDG/20260926T210732Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-26T21:01:05Z"
 ---
 ## Summary
 

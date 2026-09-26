@@ -62,6 +62,22 @@ This creates `.awit/` (`config.yaml`, `items/`, `comments/`), and appends
 (`.claude`, `.omp`, `.opencode`, `.agents`, `.pi`); `--no-skills` skips that
 step.
 
+## Refreshing skills
+
+```bash
+awit skill sync
+```
+
+Refreshes the driving-awit skill in every detected agent directory
+(`.claude`, `.omp`, `.opencode`, `.agents`, `.pi`) whose directory
+already exists. One line per target: `current`, `updated`, or `created`
+plus the repo-relative slash path. Byte-identical files are not
+rewritten; hand-edits are overwritten; missing files and parent
+directories are created. Inherits `--repo`. Exit 0 on full success,
+including when nothing is detected. The first read or write error
+stops the run with a nonzero exit and no success line for that target.
+There is no dry-run and no JSON output.
+
 ## Creating work items
 
 ```bash
@@ -201,6 +217,7 @@ the file.
 | Command                         | Purpose                                                          |
 | ------------------------------- | ---------------------------------------------------------------- |
 | `awit init`                     | Create `.awit/`, `config.yaml`, gitignore the lock; offer skills |
+| `awit skill sync`               | Refresh detected skills, overwriting hand edits                  |
 | `awit create <title>`           | Mint an ID, write a lean item                                    |
 | `awit template`                 | Print the body template `create` would use                       |
 | `awit import <issue-url>`       | Snapshot a Gitea or GitLab issue                                 |
