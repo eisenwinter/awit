@@ -983,7 +983,10 @@ bases. On-disk paths use <code>filepath</code> (OS separators).</p>
 </table>
 <p>Unknown keys in <code>config.yaml</code> are not part of v1; <code>Load</code> decodes into a
 struct and extra keys are dropped on the next <code>Write</code>. Do not put
-<code>external:</code> here.</p>
+<code>external:</code> here. <code>lazyawit</code>'s Config tab edits these keys through the same
+<code>Load</code>/<code>Write</code> pair: a value is checked with the rules above plus the
+<code>prefix</code> grammar before the file is rewritten, so every save is a full
+rewrite (comments and unknown keys are dropped, as after any <code>Write</code>).</p>
 <h2 id="item-files">Item files<a class="headerlink" href="#item-files" title="Permanent link">&para;</a></h2>
 <p>Filename: <code>.awit/items/&lt;id&gt;.md</code>. The stem <strong>must</strong> equal the <code>id</code> key
 (case-sensitive match after parse; a case-insensitive stem collision with

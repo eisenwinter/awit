@@ -1359,6 +1359,7 @@
 </tbody>
 </table>
 <p>Global flags: <code>--format compact|table|json</code>, <code>--repo &lt;dir&gt;</code>, <code>--no-color</code>.</p>
+<p><code>lazyawit</code> is a separate binary in the same release (archive <code>lazyawit_&lt;version&gt;_&lt;os&gt;_&lt;arch&gt;</code>), flags <code>--repo</code> and <code>--agent</code> only. It runs the keyboard-driven browse + triage TUI (tabs: work items/graph/queue/config) directly; in-TUI close/block/unblock/comment/claim/release call the same <code>internal/ops</code> functions the CLI commands call, never push external state and never git-commit; <code>P</code> runs a read-only <code>external check</code>. <code>awit</code> has no <code>lazy-human</code> command and no TUI code in its import graph. The Config tab edits <code>.awit/config.yaml</code> through <code>pkg/config</code> <code>Load</code>/<code>Write</code> with the same validation and the <code>init</code> prefix grammar; a save rewrites the file under the store lock.</p>
 <p>Mutating operations from subdirectories log a single path notice to stderr. Graph commands loading quarantined items print <code>warning: N items quarantined, run awit validate</code> to stderr.</p>
 <h3 id="item-identifiers">Item Identifiers<a class="headerlink" href="#item-identifiers" title="Permanent link">&para;</a></h3>
 <p>Commands accepting <code>&lt;id&gt;</code> accept canonical IDs, case-insensitive aliases, or external keys (<code>owner/repo#N</code>, <code>group/sub/project#N</code>, <code>#N</code>). Ambiguity halts execution with matching canonical IDs.</p>
@@ -1406,23 +1407,26 @@
 </ul>
 <hr />
 <h2 id="7-package-layout">7. Package Layout<a class="headerlink" href="#7-package-layout" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cmd/awit            → main: three lines into internal/cli.Main
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>internal/cli/       → command tree: one file per command, Main(), store/graph helpers
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>internal/gitx/      → branch, user.name, root, commit via os/exec
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>internal/teax/      → Gitea `tea` subprocess wrapper
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>internal/glabx/     → GitLab `glab` subprocess wrapper
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>internal/skill/     → driving-awit skill assets, Detect, Render
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>pkg/id/             → snowflake IDs: encode, decode, mint
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>pkg/config/         → config.yaml load/write, agent resolution
-<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>pkg/item/           → frontmatter parse/setters, Store, comments, archive
-<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>pkg/graph/          → Build, Tarjan SCC, rank, critical path, archivable
-<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>pkg/format/         → compact/table/json entry rendering
-<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>pkg/prime/          → deterministic snapshot renderer
-<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>pkg/resolver/       → ref resolution from a base directory
-<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>pkg/lock/           → advisory .lock (flock / LockFileEx)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cmd/awit            → classic main: three lines into internal/cli.Main
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>cmd/lazyawit        → human TUI main: --repo/--agent, boots Bubble Tea over internal/ops
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>internal/cli/       → command tree: one file per command, Main(); actions delegate store-level work to internal/ops
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>internal/ops/       → store-level service layer shared by internal/cli and cmd/lazyawit: Open, LoadGraph/LoadItem, Close/Block/Unblock/Release/Claim, ShowFull/ValidateText, CheckOne, Lazy (lazy.Ops impl); never pushes, never commits; never imports internal/cli or internal/lazy
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>internal/gitx/      → branch, user.name, root, commit via os/exec
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>internal/teax/      → Gitea `tea` subprocess wrapper
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>internal/glabx/     → GitLab `glab` subprocess wrapper
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>internal/skill/     → driving-awit skill assets, Detect, Render
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>internal/lazy/      → lazyawit TUI: Bubble Tea model, tabs, keymap; writes only through internal/ops
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>pkg/id/             → snowflake IDs: encode, decode, mint
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>pkg/config/         → config.yaml load/write, agent resolution
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>pkg/item/           → frontmatter parse/setters, Store, comments, archive
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>pkg/graph/          → Build, Tarjan SCC, rank, critical path, archivable
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>pkg/format/         → compact/table/json entry rendering
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>pkg/prime/          → deterministic snapshot renderer
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>pkg/resolver/       → ref resolution from a base directory
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>pkg/lock/           → advisory .lock (flock / LockFileEx)
 </code></pre></div>
-<p>Exact signatures live in code (<code>go doc</code>); this map says where to look. Exit codes: <code>0</code> success, <code>1</code> expected non-success (<code>next</code> with no candidates, <code>validate</code> with FAIL, drift/error), <code>2</code> usage error.</p>
-<p>Writes are temp-then-rename in the target directory; unparseable files never panic — they become <code>Broken</code>/quarantined. Output is deterministic: no timestamps, map iteration order, or randomness except the <code>next</code> tie-break.</p>
+<p>Exact signatures live in code (<code>go doc</code>); this map says where to look. Exit codes: <code>0</code> success, <code>1</code> expected non-success (<code>next</code> with no candidates, <code>validate</code> with FAIL, drift/error), <code>2</code> usage error.
+Writes are temp-then-rename in the target directory; unparseable files never panic — they become <code>Broken</code>/quarantined. Output is deterministic: no timestamps, map iteration order, or randomness except the <code>next</code> tie-break. The TUI adds no output contract; its rows, detail, overview and queue are the <code>list</code>, <code>show --full</code>, <code>prime</code> and <code>Ready()</code> renderings, produced by the same <code>internal/ops</code> functions.</p>
 
 
 

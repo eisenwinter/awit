@@ -498,6 +498,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#browsing-interactively" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browsing interactively
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#command-reference" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -756,6 +767,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#browsing-interactively" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browsing interactively
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#command-reference" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -821,7 +843,8 @@
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>curl<span class="w"> </span>-sL<span class="w"> </span><span class="s2">"https://github.com/eisenwinter/awit/releases/download/</span><span class="nv">$V</span><span class="s2">/awit_</span><span class="si">${</span><span class="nv">V</span><span class="p">#v</span><span class="si">}</span><span class="s2">_</span><span class="si">${</span><span class="nv">OS</span><span class="si">}</span><span class="s2">_</span><span class="si">${</span><span class="nv">ARCH</span><span class="si">}</span><span class="s2">.tar.gz"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tar<span class="w"> </span>xz<span class="w"> </span>awit
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>./awit<span class="w"> </span>--version<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./awit<span class="w"> </span>init<span class="w"> </span>--skills
 </code></pre></div>
-<p>Assets are named <code>awit_&lt;version&gt;_&lt;os&gt;_&lt;arch&gt;.tar.gz</code> (<code>.zip</code> on Windows, e.g. <code>awit_0.5.0_linux_amd64.tar.gz</code>).</p>
+<p>Assets are named <code>awit_&lt;version&gt;_&lt;os&gt;_&lt;arch&gt;.tar.gz</code> (<code>.zip</code> on Windows, e.g. <code>awit_0.5.0_linux_amd64.tar.gz</code>).
+The human TUI ships separately as <code>lazyawit_&lt;version&gt;_&lt;os&gt;_&lt;arch&gt;.tar.gz</code> (<code>.zip</code> on Windows); agents only need <code>awit</code>.</p>
 <p>Or paste this to your agent and skip the shell entirely:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Bootstrap awit in the current repository: download the release binary for
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>this machine from github.com/eisenwinter/awit/releases (assets are named
@@ -831,6 +854,7 @@
 </code></pre></div>
 <p>From source (Go 1.27+):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>go<span class="w"> </span>install<span class="w"> </span>github.com/eisenwinter/awit/cmd/awit@latest
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>go<span class="w"> </span>install<span class="w"> </span>github.com/eisenwinter/awit/cmd/lazyawit@latest
 </code></pre></div>
 <p>Or download a tagged binary from GitHub Releases. Each tag <code>v*</code> publishes
 linux, darwin and windows builds for amd64 and arm64, all with
@@ -929,6 +953,102 @@ explicit silent offline path, or <code>--tea-login</code> to choose the Gitea lo
 <p>Only closed items with no dependant outside the set move; the rest stay
 closed and archivable later. Comments collapse into the archived file.
 There is no <code>unarchive</code>; <code>git revert</code> is the way back.</p>
+<h2 id="browsing-interactively">Browsing interactively<a class="headerlink" href="#browsing-interactively" title="Permanent link">&para;</a></h2>
+<p><code>lazyawit</code> (a separate binary; flags <code>--repo</code> and <code>--agent</code>) is a
+keyboard-driven triage TUI over the same data the CLI prints. The Work items
+tab shows the <code>awit list</code> rows with the <code>show --full</code>
+detail beside them, the Graph tab shows the <code>awit prime</code> overview (or the
+focused dependency DAG for one item), and the Queue tab shows the ready
+items in <code>prime</code> order. In-TUI close, block, unblock, comment, claim and
+release reuse the CLI write paths and never push external state or
+git-commit; <code>P</code> runs a read-only <code>external check</code>. <code>awit</code> itself has no
+TUI; agents that only have <code>awit</code> cannot open it. The Config tab lists every
+<code>config.yaml</code> key with its rule, default and current value; <code>e</code>/<code>enter</code> edits
+one value, which is checked with the rules <code>awit</code> applies when loading the
+file (plus the <code>prefix</code> grammar) and then written atomically; <code>R</code> re-reads
+the file.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>1/2/3/4</code></td>
+<td>Switch tabs (Work items / Graph / Queue / Config)</td>
+</tr>
+<tr>
+<td><code>j/k</code></td>
+<td>Move the cursor</td>
+</tr>
+<tr>
+<td><code>h/l</code>/<code>tab</code></td>
+<td>Move focus between list and detail (Graph: <code>tab</code> toggles overview/focused)</td>
+</tr>
+<tr>
+<td><code>enter</code></td>
+<td>Pin / open the selection in Work items</td>
+</tr>
+<tr>
+<td><code>e</code></td>
+<td>Edit the selected config value (Config; <code>enter</code> also edits)</td>
+</tr>
+<tr>
+<td><code>/</code></td>
+<td>Filter using <code>awit list</code> flags (<code>-s</code>, <code>-l</code>, <code>--ready</code>, <code>--blocked</code>, <code>--quarantined</code>) plus free words as search</td>
+</tr>
+<tr>
+<td><code>o</code></td>
+<td>Toggle open/archive source</td>
+</tr>
+<tr>
+<td><code>c</code></td>
+<td>Close the selected item (prompts for a reason)</td>
+</tr>
+<tr>
+<td><code>b</code></td>
+<td>Block the selected item (prompts for a reason)</td>
+</tr>
+<tr>
+<td><code>u</code></td>
+<td>Unblock the selected item</td>
+</tr>
+<tr>
+<td><code>m</code></td>
+<td>Comment on the selected item</td>
+</tr>
+<tr>
+<td><code>space</code></td>
+<td>Claim the selected queue item</td>
+</tr>
+<tr>
+<td><code>r</code></td>
+<td>Release the selected queue item</td>
+</tr>
+<tr>
+<td><code>R</code></td>
+<td>Reload items and config from disk</td>
+</tr>
+<tr>
+<td><code>P</code></td>
+<td>Run <code>external check</code> on the selection</td>
+</tr>
+<tr>
+<td><code>V</code></td>
+<td>Show the <code>validate</code> report</td>
+</tr>
+<tr>
+<td><code>?</code></td>
+<td>Help</td>
+</tr>
+<tr>
+<td><code>q</code></td>
+<td>Quit</td>
+</tr>
+</tbody>
+</table>
 <h2 id="command-reference">Command reference<a class="headerlink" href="#command-reference" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1024,6 +1144,7 @@ There is no <code>unarchive</code>; <code>git revert</code> is the way back.</p>
 </tr>
 </tbody>
 </table>
+<p><code>lazyawit</code> — the TUI, see <a href="#browsing-interactively">Browsing interactively</a>.</p>
 <p>Global flags: <code>--format compact|table|json</code>, <code>--repo &lt;path&gt;</code>, <code>--no-color</code>
 (accepted, no-op). Exit codes: <code>0</code> success, <code>1</code> expected non-success, <code>2</code>
 usage error. Graph-reading commands print one stderr quarantine warning
