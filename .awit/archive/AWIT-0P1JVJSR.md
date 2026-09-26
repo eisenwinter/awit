@@ -1,6 +1,6 @@
 ---
 id: AWIT-0P1JVJSR
-title: 'ops: Lazy — lazy.Ops implementation and parity tests move out of internal/cli'
+title: "ops: Lazy - lazy.Ops implementation and parity tests move out of internal/cli"
 brief: >-
   Replaces internal/cli's lazyOps with exported ops.Lazy/NewLazy built on the moved primitives, moves the CLI-vs-Ops parity, byte, refusal and archive tests to internal/ops as external tests, and leaves internal/cli/lazy.go as a thin command until the split lands.
 status: closed
@@ -10,6 +10,7 @@ refs_base: repo
 refs: []
 assignee: agent/orchestrator
 ---
+
 ## Summary
 
 `lazyOps` (lazy.go:38-208) becomes `ops.Lazy` with constructor `ops.NewLazy(s, agent, now)`. Exported (deviation from the spec's "unexported" wording): `cmd/lazyawit` is another package and must construct it; the fields stay unexported. `ops` does not import `internal/lazy`, so the `var _ lazy.Ops = (*ops.Lazy)(nil)` assertion lives in the test file now and in `cmd/lazyawit/main.go` from TB-6. Every refusal string is byte-identical. `internal/cli/lazy.go` shrinks to `lazyHumanCmd` + `lazyHumanAction` calling `ops.NewLazy`; `awit lazy-human` still works after this item (TB-7 removes it).
@@ -17,19 +18,19 @@ assignee: agent/orchestrator
 ## Context (read first)
 
 - `docs/superpowers/specs/2026-09-25-two-binary-plan.md` §C (deviation), §D.2 Lazy row, §I (package-name shadowing).
-- `internal/cli/lazy.go:38-208` — `lazyOps` and its 14 methods. After TB-2..4 every body already calls `ops.X`; this item only relocates the type.
-- `internal/lazy/ops.go:22-37` — the `Ops` interface (untouched).
-- `internal/cli/lazy_test.go` — the moving tests: `newLazyOps` (20-24), `idsOf`, `idsFromCompact`, `TestLazyListParity`, `TestLazyDetailOverviewQueueParity`, `TestLazyOpsBytesMatchCLI`, `stripLine`, `TestLazyOpsRefusalsMatchCLI`, `TestLazyArchiveOps`. `TestLazyHumanRegisteredAndQuits` (229-248) stays in cli until TB-7.
-- Test rewrites while moving: `o.s.ItemPath(...)` / `o.s.Comments(...)` / `o.s.LoadArchive` → the store returned by `newLazyOps`; `o.agent = ""` (line 201) → `o = ops.NewLazy(s, "", fixedNow)`; the local `ops := []op{…}` in `TestLazyOpsBytesMatchCLI` (line 109) must be renamed `cases` — it would shadow the package.
+- `internal/cli/lazy.go:38-208` - `lazyOps` and its 14 methods. After TB-2..4 every body already calls `ops.X`; this item only relocates the type.
+- `internal/lazy/ops.go:22-37` - the `Ops` interface (untouched).
+- `internal/cli/lazy_test.go` - the moving tests: `newLazyOps` (20-24), `idsOf`, `idsFromCompact`, `TestLazyListParity`, `TestLazyDetailOverviewQueueParity`, `TestLazyOpsBytesMatchCLI`, `stripLine`, `TestLazyOpsRefusalsMatchCLI`, `TestLazyArchiveOps`. `TestLazyHumanRegisteredAndQuits` (229-248) stays in cli until TB-7.
+- Test rewrites while moving: `o.s.ItemPath(...)` / `o.s.Comments(...)` / `o.s.LoadArchive` → the store returned by `newLazyOps`; `o.agent = ""` (line 201) → `o = ops.NewLazy(s, "", fixedNow)`; the local `ops := []op{…}` in `TestLazyOpsBytesMatchCLI` (line 109) must be renamed `cases` - it would shadow the package.
 - `internal/ops/helpers_test.go` (TB-1) already provides `run`, `copyFixture`, `openTestStore`, `readItem`.
 
 ## Files
 
-- `internal/ops/lazy.go` — new: `Lazy`, `NewLazy`, 14 methods.
-- `internal/ops/lazy_test.go` (`package ops_test`) — moved tests.
-- `internal/cli/lazy.go` — only `lazyHumanCmd` + `lazyHumanAction` remain (imports: `context`, `time`, bubbletea, `internal/lazy`, `internal/ops`, urfave).
-- `internal/cli/lazy_test.go` — only `TestLazyHumanRegisteredAndQuits` remains.
-- `internal/lazy/ops.go` — doc comments: "implemented by internal/cli" → "implemented by internal/ops (`ops.Lazy`) with the same functions the CLI commands call"; package doc "awit lazy-human TUI" → "lazyawit TUI".
+- `internal/ops/lazy.go` - new: `Lazy`, `NewLazy`, 14 methods.
+- `internal/ops/lazy_test.go` (`package ops_test`) - moved tests.
+- `internal/cli/lazy.go` - only `lazyHumanCmd` + `lazyHumanAction` remain (imports: `context`, `time`, bubbletea, `internal/lazy`, `internal/ops`, urfave).
+- `internal/cli/lazy_test.go` - only `TestLazyHumanRegisteredAndQuits` remains.
+- `internal/lazy/ops.go` - doc comments: "implemented by internal/cli" → "implemented by internal/ops (`ops.Lazy`) with the same functions the CLI commands call"; package doc "awit lazy-human TUI" → "lazyawit TUI".
 
 ## Interfaces
 
@@ -68,3 +69,4 @@ func (o *Lazy) ExternalCheck(ctx context.Context, id string) string
 ### 2026-09-25T15:07:19Z jan
 
 implemented
+```

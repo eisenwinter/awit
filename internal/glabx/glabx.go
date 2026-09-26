@@ -490,7 +490,7 @@ func validateBody(body []byte) error {
 			if len(short) > 20 {
 				short = short[:20] + "…"
 			}
-			return fmt.Errorf("body contains a line starting with \"/%s\" at column zero, which GitLab would execute as a quick action instead of storing it; move the slash line away from column zero (even inside fenced code blocks, which awit does not exempt) and retry — awit never rewrites the body", short)
+			return fmt.Errorf("body contains a line starting with \"/%s\" at column zero, which GitLab would execute as a quick action instead of storing it; move the slash line away from column zero (even inside fenced code blocks, which awit does not exempt) and retry - awit never rewrites the body", short)
 		}
 	}
 	return nil
@@ -533,7 +533,7 @@ func transportFile(body []byte) (path string, cleanup func(), err error) {
 // provided bytes. Quick-action-shaped bodies are refused before any file or
 // subprocess exists. The request carries only the description field; title,
 // labels, and state are never included. Success requires a 2xx status,
-// verified identity, and a byte-exact description — against the PUT
+// verified identity, and a byte-exact description - against the PUT
 // response, or a GET of the same issue when the response omits the changed
 // field. A mismatch is an error, never success or rollback.
 func (c *Client) SetBody(ctx context.Context, number int64, body []byte) error {

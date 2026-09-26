@@ -13,19 +13,19 @@ assignee: agent/orchestrator
 
 ## Summary
 
-Evidence: same Kimi run — after closes printed without status, default
+Evidence: same Kimi run - after closes printed without status, default
 `list` could not confirm either: compact lines carry no status column, and
 table STATE renders both `open` and `in_progress` as ready/blocked. Only
 `--format json` distinguishes them.
 
-Carry `status` in compact (`[ID] status Title | …` or appended token — keep
+Carry `status` in compact (`[ID] status Title | …` or appended token - keep
 golden-stable choice in the diff) and add a STATUS column to table. JSON
 already has it. Scope is display only; sorting/filtering untouched.
 
 ## Acceptance Criteria
 
 - [ ] Compact and table `list` show each item's status distinctly
-  (open vs in_progress vs closed visible without json).
+      (open vs in_progress vs closed visible without json).
 - [ ] Golden files updated via `-update`; `validate` PASS.
 
 ## Comments

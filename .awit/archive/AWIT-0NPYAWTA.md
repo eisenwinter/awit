@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NPYAWTA
-title: 'cli/update: add --body and --body-file'
+title: "cli/update: add --body and --body-file"
 brief: >-
   A work item body can only be corrected by editing the file directly, contradicting the skill's core rule that every state change goes through the CLI. Adds update --body and --body-file, replacing the body while leaving frontmatter untouched.
 status: closed
@@ -23,17 +23,17 @@ human or close-and-recreate.
 
 ## Context (read first)
 
-- `plan/implementation-guide.md` §1 — global constraints; §5 — flags are detected by value, never `cmd.IsSet`.
-- **`internal/cli/update.go:70-72`** — the `nothing to update` guard. It tests ten flag values, returns `fmt.Errorf("nothing to update")` (exit 1), and runs **before** `openStore`. A `--body`-only update hits it and dies unless the guard is extended. This is the one thing that will silently break this item.
-- `internal/cli/update.go:95` — `// Echo order is fixed: status, title, brief, assignee, labels, alias, external.` Goes stale when the body case lands.
-- `internal/cli/update.go:116` — the `brief` case; the body case goes directly after it.
-- `pkg/item/item.go` — `SetBody` owns a copy and never touches the YAML node, so frontmatter goldens are unaffected.
+- `plan/implementation-guide.md` §1 - global constraints; §5 - flags are detected by value, never `cmd.IsSet`.
+- **`internal/cli/update.go:70-72`** - the `nothing to update` guard. It tests ten flag values, returns `fmt.Errorf("nothing to update")` (exit 1), and runs **before** `openStore`. A `--body`-only update hits it and dies unless the guard is extended. This is the one thing that will silently break this item.
+- `internal/cli/update.go:95` - `// Echo order is fixed: status, title, brief, assignee, labels, alias, external.` Goes stale when the body case lands.
+- `internal/cli/update.go:116` - the `brief` case; the body case goes directly after it.
+- `pkg/item/item.go` - `SetBody` owns a copy and never touches the YAML node, so frontmatter goldens are unaffected.
 - Depends on `resolveBodyFlags` and `validateBodyBytes` from the create-body item.
 
 ## Files
 
-- `internal/cli/update.go` — two flags, body resolution above the guard, the guard condition, the setter, the comment.
-- `internal/cli/update_test.go` — four new tests.
+- `internal/cli/update.go` - two flags, body resolution above the guard, the guard condition, the setter, the comment.
+- `internal/cli/update_test.go` - four new tests.
 
 ## Interfaces
 
@@ -116,7 +116,7 @@ func TestUpdateBodyFlagsAreMutuallyExclusive(t *testing.T) {
 }
 ```
 
-- [ ] Run `go test ./internal/cli/ -run TestUpdateBody -v` — see it FAIL: `flag provided but not defined: -body`
+- [ ] Run `go test ./internal/cli/ -run TestUpdateBody -v` - see it FAIL: `flag provided but not defined: -body`
 - [ ] Add to the `updateCmd` `Flags` slice after the `brief` flag:
 
 ```go
@@ -133,10 +133,10 @@ func TestUpdateBodyFlagsAreMutuallyExclusive(t *testing.T) {
 	}
 ```
 
-  and add `body == nil` to that guard's condition. Without this a `--body`-only update exits
-  1 with `Error: nothing to update` before any of the new code runs. The guard sits before
-  `openStore` and `resolveBodyFlags` reads only flags and `cmd.Root().Reader`, so the order
-  is safe and a usage error still costs nothing.
+and add `body == nil` to that guard's condition. Without this a `--body`-only update exits
+1 with `Error: nothing to update` before any of the new code runs. The guard sits before
+`openStore` and `resolveBodyFlags` reads only flags and `cmd.Root().Reader`, so the order
+is safe and a usage error still costs nothing.
 
 - [ ] Add the setter directly after the `brief` case at line 116:
 
@@ -147,15 +147,15 @@ func TestUpdateBodyFlagsAreMutuallyExclusive(t *testing.T) {
 	}
 ```
 
-  `fmt` is already imported.
+`fmt` is already imported.
 
 - [ ] Update the echo-order comment at line 95 to: `// Echo order is fixed: status, title, brief, body, assignee, labels, alias, external.`
-- [ ] Run `go test ./internal/cli/ -run TestUpdate -v` — PASS, every pre-existing update test and minimal-diff golden included
+- [ ] Run `go test ./internal/cli/ -run TestUpdate -v` - PASS, every pre-existing update test and minimal-diff golden included
 - [ ] Commit: `cli/update: add --body and --body-file`
 
 ## Acceptance Criteria
 
-- A `--body`-only update **succeeds** — it must not hit `nothing to update`.
+- A `--body`-only update **succeeds** - it must not hit `nothing to update`.
 - `update <id> --body "## Replaced\n"` replaces the body and leaves `brief` and `labels` byte-identical.
 - `update <id> --body-file -` stores piped stdin.
 - `update <id> --body` containing conflict markers exits non-zero and the item on disk is unchanged.
@@ -167,7 +167,6 @@ func TestUpdateBodyFlagsAreMutuallyExclusive(t *testing.T) {
 - Appending to a body rather than replacing it.
 - Any frontmatter behaviour change; `--body` never pushes to a linked tracker.
 
-
 ## Comments
 
 ### 2026-09-21T14:18:04Z agent/orchestrator
@@ -176,4 +175,4 @@ update replaces the body via --body or --body-file, frontmatter untouched, valid
 
 ### 2026-09-21T14:18:04Z agent/orchestrator
 
-Implemented by UpdateBodyWorker (TDD red then green; 22 update tests pass; full suite, vet, gofmt clean; scratch-binary smoke: body replaced, frontmatter intact, mutual exclusion exit 2). Reviewed by reviewer agent: SATISFIED zero findings — guard extended so --body-only updates succeed, validate-before-save keeps the file byte-identical on refusal, push path still gated on status.
+Implemented by UpdateBodyWorker (TDD red then green; 22 update tests pass; full suite, vet, gofmt clean; scratch-binary smoke: body replaced, frontmatter intact, mutual exclusion exit 2). Reviewed by reviewer agent: SATISFIED zero findings - guard extended so --body-only updates succeed, validate-before-save keeps the file byte-identical on refusal, push path still gated on status.

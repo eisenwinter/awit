@@ -16,7 +16,7 @@ I noticed that the agents started requiring more and more tokens. Then I was gra
 > Quota Exceeded
 ```
 
-Well. It hadn't done any work; it just started instant-compacting—then compacting—then compacting, and then the quota was gone. `feelsbadman.jpg`
+Well. It hadn't done any work; it just started instant-compacting-then compacting-then compacting, and then the quota was gone. `feelsbadman.jpg`
 
 So - `thinking_hat_mode: true`.
 
@@ -36,7 +36,7 @@ Let's look at those numbers:
 
 Well, well, well. If this wasn't a cute widdley-diddle allocation of tokens.
 
-While in the beginning it was so tidy and neat, a combination of accruing gates and checkpoints, open decisions, and feature ideas had grown TICKETS.md into a behemoth—an untameable eldritch horror of plaintext task writing. At least it was consistent (at least somehow).
+While in the beginning it was so tidy and neat, a combination of accruing gates and checkpoints, open decisions, and feature ideas had grown TICKETS.md into a behemoth-an untameable eldritch horror of plaintext task writing. At least it was consistent (at least somehow).
 
 So again, `thinking_hat_mode: true` - this is a solved issue. At `$dayJob`, we use GitLab and have all of our issues, plans, and roadmap there. The agent can just utilize that, so why not use it for $funProject? The SCM I had set up was a Gitea instance on a cheap VPS I've been using for years, so yeah, tea it is. Move all the tickets there: tickets become issues, and issues can be filtered without reading a whopping 177k of context in a single markdown file. Prefilter first.
 
@@ -44,13 +44,13 @@ This radically reduced the TICKETS.md file, while PLAN.md was shrunk by introduc
 
 UNTIL IT WAS NOT. **Again.**
 
-So, the VPS had a bunch of massive outages in a row. But I was *Prepared*™: I had a local low-power machine mirroring the git repositories. Because that device is already booked solid and hence resource-constrained, it was just running standard git via SSH—no bells, no whistles.
+So, the VPS had a bunch of massive outages in a row. But I was *Prepared*™: I had a local low-power machine mirroring the git repositories. Because that device is already booked solid and hence resource-constrained, it was just running standard git via SSH-no bells, no whistles.
 
 So yeah, I wanted to continue my work despite that multi-day outage, but of course fetching tickets via tea went straight to 404.
 
-Stranded, I was pondering the issue at hand. We need something that can manage work items similar to tea and glab (because that had been working really well despite the ever-growing issue list), that works with standard git—just git—and keeps the work items inline without the classic agent drift over time (if you know, you know).
+Stranded, I was pondering the issue at hand. We need something that can manage work items similar to tea and glab (because that had been working really well despite the ever-growing issue list), that works with standard git-just git-and keeps the work items inline without the classic agent drift over time (if you know, you know).
 
-So awit was born. Native git becomes the work item tracker. Commits make it atomic and traceable. Agents can easily work with it. Next item? No problemo. Claim, done, block—all we need, right there on the filesystem and good old git.
+So awit was born. Native git becomes the work item tracker. Commits make it atomic and traceable. Agents can easily work with it. Next item? No problemo. Claim, done, block-all we need, right there on the filesystem and good old git.
 
 And that is how it came to be.
 
@@ -72,8 +72,8 @@ Not unless your disk is made of literal wood. Go scanning a few hundred local Ma
 
 ## Why support Gitea (`tea`) and GitLab (`glab`) if the whole point was ditching web trackers?
 
-We didn't ditch them because they are inherently bad—we ditched hard runtime dependencies on them. Your team or your clients probably still live in GitLab or Gitea. `awit` lets you import and mirror remote issues so you can take your entire work backlog onto a plane, a train, or a cheap offline mirror machine. When the network comes back, you push the state changes upstream. Local-first, but not anti-social.
+We didn't ditch them because they are inherently bad-we ditched hard runtime dependencies on them. Your team or your clients probably still live in GitLab or Gitea. `awit` lets you import and mirror remote issues so you can take your entire work backlog onto a plane, a train, or a cheap offline mirror machine. When the network comes back, you push the state changes upstream. Local-first, but not anti-social.
 
 ## What stops an enthusiastic agent from corrupting frontmatter or creating dependency loops?
 
-First, agents interact through CLI commands like `awit dep add`—which runs cycle pre-checks before writing a single byte. Second, `awit validate` catches schema slips, dangling dependencies, and broken syntax before anything gets out of hand. If an item somehow gets mangled anyway, it gets quarantined instead of crashing the whole graph.
+First, agents interact through CLI commands like `awit dep add`-which runs cycle pre-checks before writing a single byte. Second, `awit validate` catches schema slips, dangling dependencies, and broken syntax before anything gets out of hand. If an item somehow gets mangled anyway, it gets quarantined instead of crashing the whole graph.

@@ -13,10 +13,12 @@ refs:
 ---
 
 ## Summary
+
 After this ticket `pkg/graph/critical.go` exists with `func (g *Graph) CriticalPath() []*Node`. Candidates are nodes that are not closed and not quarantined. A Kahn topological walk over `Unblocks` edges restricted to candidates (ready queue kept sorted by ID) computes `dist[n]`, the longest path to `n` measured in nodes, and `prev[n]`, the predecessor that achieved it. On equal distance the smaller-ID predecessor wins; the end node is the maximum distance, ties by smaller ID; the path is walked back through `prev` and reversed. No candidates → an empty **non-nil** slice. `pkg/prime` (`AWIT-0ND56W3G`) consumes this; nothing else changes.
 
 ## Context (read first)
-- Guide §4.6 `pkg/graph` — the exact signature `func (g *Graph) CriticalPath() []*Node` with comment "see §2; empty when no open nodes". Copy it. Do not change any existing signature.
+
+- Guide §4.6 `pkg/graph` - the exact signature `func (g *Graph) CriticalPath() []*Node` with comment "see §2; empty when no open nodes". Copy it. Do not change any existing signature.
 - Guide §2 decision table, row "Critical path": "Longest path (by node count) over non-closed, non-quarantined nodes following `Unblocks` edges in topological order; ties by smaller ID at each DP step. Printed from the root (item with no open deps) downstream." This ticket implements the path computation only; printing is `AWIT-0ND56W3G`.
 - Guide §8 fixture rows this ticket asserts:
   - `clean`: Critical = `0001 → 0003 → 0004`. `0005` is closed (not a candidate); `0006` is `in_progress` with dep `0005` closed, so it is a candidate root of distance 1 and never wins.
@@ -28,10 +30,12 @@ After this ticket `pkg/graph/critical.go` exists with `func (g *Graph) CriticalP
 - Guide §1: stdlib plus `pkg/item` only in this package; table-driven tests with the `testing` stdlib; `sort` and `slices` are stdlib and allowed. Commit scope for this package is `graph`.
 
 ## Files
+
 - Create: `pkg/graph/critical.go`
 - Create: `pkg/graph/critical_test.go`
 
 ## Interfaces
+
 - Consumes (already in the package, do not reimplement):
   ```go
   type Graph struct {
@@ -179,7 +183,7 @@ After this ticket `pkg/graph/critical.go` exists with `func (g *Graph) CriticalP
   go test ./pkg/graph -run 'TestCriticalPath' -v
   ```
 
-  Expected failure — `CriticalPath` does not exist yet, so the package does not compile:
+  Expected failure - `CriticalPath` does not exist yet, so the package does not compile:
 
   ```text
   # github.com/eisenwinter/awit/pkg/graph [github.com/eisenwinter/awit/pkg/graph.test]
@@ -336,7 +340,6 @@ After this ticket `pkg/graph/critical.go` exists with `func (g *Graph) CriticalP
   `gofmt -l pkg/graph` must print nothing.
 
 - [ ] **Step 5: Close ticket.**
-
   1. Run `go build ./... && go vet ./pkg/graph && go test ./pkg/graph -count=1` and copy the output.
   2. Create `.awit/comments/AWIT-0ND56V3G/<YYYYMMDDTHHMMSSZ>-<author>.md` (UTC stamp, author sanitised to `[a-z0-9._-]`, e.g. `20260917T153000Z-claude.md`) with this shape:
 
@@ -350,6 +353,7 @@ After this ticket `pkg/graph/critical.go` exists with `func (g *Graph) CriticalP
 
      <paste the real test/vet output from step 1>
      ```
+
   3. In `.awit/items/AWIT-0ND56V3G.md` append `  - ../comments/AWIT-0ND56V3G/<that filename>` to the `refs:` block and change `status: open` to `status: closed`. Touch nothing else in the frontmatter.
   4. Commit:
 
@@ -359,8 +363,9 @@ After this ticket `pkg/graph/critical.go` exists with `func (g *Graph) CriticalP
      ```
 
 ## Acceptance Criteria
+
 - `go test ./pkg/graph -count=1` passes, including the five new tests.
-- `TestCriticalPathClean`: clean fixture path is exactly `[AWIT-TEST0001, AWIT-TEST0003, AWIT-TEST0004]` — root first, measured in nodes.
+- `TestCriticalPathClean`: clean fixture path is exactly `[AWIT-TEST0001, AWIT-TEST0003, AWIT-TEST0004]` - root first, measured in nodes.
 - `TestCriticalPathSkipsClosedAndQuarantined`: cyclic fixture → `[AWIT-TEST0005]`; dangling fixture → `[AWIT-TEST0002]`.
 - `TestCriticalPathTieBreak`: diamond A→B→D / A→C→D yields `[A B D]` under both dep declaration orders; equal-length chains A→B and C→D yield `[A B]` (end tie → smaller ID).
 - `TestCriticalPathEmpty`: all-closed graph and empty graph both return an empty **non-nil** slice.
@@ -369,7 +374,8 @@ After this ticket `pkg/graph/critical.go` exists with `func (g *Graph) CriticalP
 - Only `pkg/graph/critical.go` and `pkg/graph/critical_test.go` are added; no other file in the package changes.
 
 ## Out of scope
-- `pkg/prime` rendering of the CRITICAL PATH section and the `awit prime` command — `AWIT-0ND56W3G`.
+
+- `pkg/prime` rendering of the CRITICAL PATH section and the `awit prime` command - `AWIT-0ND56W3G`.
 - `awit next`, `awit list`, `awit validate`, `awit dep`.
 - Changing `Build`, Tarjan, `classify`, `countUnblocks`, `Ready`/`Blocked`/`Quarantined`/`Closed`, `WouldCycle`, `FilterLabels`, or any fixture file.
 - Weighted critical paths (effort estimates); length is always node count.

@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND5743G
-title: 'goreleaser, version embedding, pre-commit hook docs, README agent loop'
+title: "goreleaser, version embedding, pre-commit hook docs, README agent loop"
 brief: >-
   Land .goreleaser.yaml v2 for linux/darwin/windows x amd64/arm64 with CGO_ENABLED=0 and Version ldflags, a tag-triggered release.yml, a two-line pre-commit hook, and a README covering install, commands (including label), the agent loop, status, pre-commit, and docs/schema.md.
 status: closed
@@ -13,15 +13,17 @@ refs:
 ---
 
 ## Summary
+
 After this ticket tagged `v*` pushes build six static binaries (linux, darwin, windows × amd64, arm64) via GoReleaser v2 with `CGO_ENABLED=0` and `-X github.com/eisenwinter/awit/internal/cli.Version={{.Version}}`. `.github/workflows/release.yml` is a new workflow (do not edit `ci.yml`). `go build -ldflags "-X github.com/eisenwinter/awit/internal/cli.Version=v0.0.0-test"` prints `awit v0.0.0-test`. `docs/hooks/pre-commit` is exactly `#!/bin/sh` then `exec awit validate`. `README.md` is the user-facing document: Install, a commands table that includes `label`, the five-step agent loop, Status, Pre-commit, and a Layout section that links `docs/schema.md`. No Go source changes except the ldflags verification build.
 
 ## Context (read first)
-- Guide §1 — module `github.com/eisenwinter/awit`, binary `cmd/awit`, Go `1.27.1` from `go.mod`. Allowed extra deps are urfave and yaml; this ticket does not `go get` anything. `internal/cli.Version` default is `"dev"` (`AWIT-0ND5683G`); ldflags override it.
+
+- Guide §1 - module `github.com/eisenwinter/awit`, binary `cmd/awit`, Go `1.27.1` from `go.mod`. Allowed extra deps are urfave and yaml; this ticket does not `go get` anything. `internal/cli.Version` default is `"dev"` (`AWIT-0ND5683G`); ldflags override it.
 - Guide §3 layout lists `.goreleaser.yaml` and `.github/workflows/ci.yml`. CI already exists (`AWIT-0ND56B3G`). This ticket adds `.goreleaser.yaml` and `.github/workflows/release.yml`. **Do not edit** `ci.yml` jobs (`test`, `lint`).
-- Guide §4.11 — `var Version = "dev"` with comment `-ldflags "-X github.com/eisenwinter/awit/internal/cli.Version=v1.2.3"`. `printVersion` writes `awit %s\n` using `Version`. Do not change `printVersion` or `Version`.
-- Guide §9 — this ticket depends on `AWIT-0ND56B3G` (CI matrix) and `AWIT-0ND5713G` (e2e agent loop). Both must be `status: closed` before you start so the README can describe a working loop.
-- Spec Phase 5 — "Documented pre-commit hook running `awit validate`"; "goreleaser config, version embedding, `README` with the agent loop". Exit criterion: "Tagged binaries for linux/windows/darwin via goreleaser".
-- Spec CLI matrix — thirteen commands including `label`. The README table must list all thirteen plus global flags.
+- Guide §4.11 - `var Version = "dev"` with comment `-ldflags "-X github.com/eisenwinter/awit/internal/cli.Version=v1.2.3"`. `printVersion` writes `awit %s\n` using `Version`. Do not change `printVersion` or `Version`.
+- Guide §9 - this ticket depends on `AWIT-0ND56B3G` (CI matrix) and `AWIT-0ND5713G` (e2e agent loop). Both must be `status: closed` before you start so the README can describe a working loop.
+- Spec Phase 5 - "Documented pre-commit hook running `awit validate`"; "goreleaser config, version embedding, `README` with the agent loop". Exit criterion: "Tagged binaries for linux/windows/darwin via goreleaser".
+- Spec CLI matrix - thirteen commands including `label`. The README table must list all thirteen plus global flags.
 - Spec agent surface loop:
 
   ```text
@@ -37,13 +39,15 @@ After this ticket tagged `v*` pushes build six static binaries (linux, darwin, w
 - Existing `README.md` is a pre-alpha stub. Replace it with the full document in Step 7. Keep the BSD 2-Clause license line and the link to `plan/implementation-guide.md`.
 
 ## Files
+
 - Create: `.goreleaser.yaml`
 - Create: `.github/workflows/release.yml`
 - Create: `docs/hooks/pre-commit`
-- Modify: `README.md` — replace contents with the document in Step 7.
+- Modify: `README.md` - replace contents with the document in Step 7.
 - Modify: none of `internal/cli`, `cmd/awit`, `ci.yml`, `go.mod`.
 
 ## Interfaces
+
 - Consumes (do not change):
   ```go
   // package cli (internal/cli)
@@ -67,7 +71,7 @@ After this ticket tagged `v*` pushes build six static binaries (linux, darwin, w
   /tmp/awit-dev --version
   ```
 
-  Expected: `awit dev`, exit 0. If this fails, stop — the fix belongs to `AWIT-0ND5683G`, not here.
+  Expected: `awit dev`, exit 0. If this fails, stop - the fix belongs to `AWIT-0ND5683G`, not here.
 
   Confirm `Version` is still the default in source:
 
@@ -211,7 +215,7 @@ After this ticket tagged `v*` pushes build six static binaries (linux, darwin, w
   awit v0.0.0-test
   ```
 
-  Exit 0. If you see `awit dev`, the `-X` path is wrong — it must be `github.com/eisenwinter/awit/internal/cli.Version`. If you see `awit version v0.0.0-test`, `printVersion` was overwritten; restore the `AWIT-0ND5683G` hook instead of changing it here.
+  Exit 0. If you see `awit dev`, the `-X` path is wrong - it must be `github.com/eisenwinter/awit/internal/cli.Version`. If you see `awit version v0.0.0-test`, `printVersion` was overwritten; restore the `AWIT-0ND5683G` hook instead of changing it here.
 
 - [ ] **Step 6: Write the failing release-workflow check, then create it.**
 
@@ -350,21 +354,21 @@ After this ticket tagged `v*` pushes build six static binaries (linux, darwin, w
 
   ## Commands
 
-  | Command | Flags | Purpose |
-  | --- | --- | --- |
-  | `awit init` | `--prefix` | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock` |
-  | `awit create <title>` | `--brief`, `-d` deps, `-l` labels, `--assign`, `--id` | Mint a snowflake ID, write a lean item |
-  | `awit list` | `-s` status, `-l` label, `--ready`, `--blocked`, `--quarantined`, `--format` | Index view |
-  | `awit label` | `--state open\|closed\|all`, `--format` | Label vocabulary with usage counts |
-  | `awit show <id>` | `--full`, `--refs-only` | Core ticket or full resolved ref tree |
-  | `awit comment <id> [text]` | `--file <path>`, `--author` | Timestamped comment or attached file; append to `refs` |
-  | `awit update <id>` | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title` | Mutate frontmatter with a minimal diff |
-  | `awit close <id>` | `--reason`, `--author` | Set `closed`, clear `claimed_at`; does not git-commit |
-  | `awit release <id>` | — | Set `open`, clear `assignee` and `claimed_at` |
-  | `awit dep add\|rm <id> <dep>` | — | Edit `deps` with cycle pre-check |
-  | `awit validate` | `--stale-claims` | Integrity report; non-zero exit on `FAIL` |
-  | `awit prime` | `--max-tokens`, `-l` label | Deterministic state graph for prompt injection |
-  | `awit next` | `-l` label, `--claim`, `--no-commit`, `--seed` | Top unblocked item; optional claim |
+  | Command                       | Flags                                                                        | Purpose                                                 |
+  | ----------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------- |
+  | `awit init`                   | `--prefix`                                                                   | Create `.awit/`, `config.yaml`, gitignore `.awit/.lock` |
+  | `awit create <title>`         | `--brief`, `-d` deps, `-l` labels, `--assign`, `--id`                        | Mint a snowflake ID, write a lean item                  |
+  | `awit list`                   | `-s` status, `-l` label, `--ready`, `--blocked`, `--quarantined`, `--format` | Index view                                              |
+  | `awit label`                  | `--state open\|closed\|all`, `--format`                                      | Label vocabulary with usage counts                      |
+  | `awit show <id>`              | `--full`, `--refs-only`                                                      | Core ticket or full resolved ref tree                   |
+  | `awit comment <id> [text]`    | `--file <path>`, `--author`                                                  | Timestamped comment or attached file; append to `refs`  |
+  | `awit update <id>`            | `--status`, `--brief`, `--assign`, `--label`, `--unlabel`, `--title`         | Mutate frontmatter with a minimal diff                  |
+  | `awit close <id>`             | `--reason`, `--author`                                                       | Set `closed`, clear `claimed_at`; does not git-commit   |
+  | `awit release <id>`           | -                                                                            | Set `open`, clear `assignee` and `claimed_at`           |
+  | `awit dep add\|rm <id> <dep>` | -                                                                            | Edit `deps` with cycle pre-check                        |
+  | `awit validate`               | `--stale-claims`                                                             | Integrity report; non-zero exit on `FAIL`               |
+  | `awit prime`                  | `--max-tokens`, `-l` label                                                   | Deterministic state graph for prompt injection          |
+  | `awit next`                   | `-l` label, `--claim`, `--no-commit`, `--seed`                               | Top unblocked item; optional claim                      |
 
   Global flags: `--format compact|table|json`, `--repo <path>` (directory that
   contains `.awit/`), `--no-color` (accepted, no-op). Exit codes: `0` success,
@@ -499,6 +503,7 @@ After this ticket tagged `v*` pushes build six static binaries (linux, darwin, w
     ```
 
 ## Acceptance Criteria
+
 - `.goreleaser.yaml` has `version: 2`, `CGO_ENABLED=0`, `goos: [linux, darwin, windows]`, `goarch: [amd64, arm64]`, and ldflags `-X github.com/eisenwinter/awit/internal/cli.Version={{.Version}}`.
 - `.github/workflows/release.yml` triggers on `push.tags: ["v*"]`, job `goreleaser`, `contents: write`. `.github/workflows/ci.yml` is byte-identical to before this ticket (no goreleaser job added there).
 - `go build -ldflags "-X github.com/eisenwinter/awit/internal/cli.Version=v0.0.0-test" -o /tmp/awit-rel ./cmd/awit && /tmp/awit-rel --version` prints exactly `awit v0.0.0-test`.
@@ -507,9 +512,10 @@ After this ticket tagged `v*` pushes build six static binaries (linux, darwin, w
 - `internal/cli.Version` is still `"dev"` in source. No new Go files. `go test ./...` still passes (no behaviour change).
 
 ## Out of scope
-- Writing `docs/schema.md` or reserving `external:` — `AWIT-0ND5753G`.
-- `pkg/lock` / mutating-command locking — `AWIT-0ND5723G`.
-- `validate --stale-claims` — `AWIT-0ND5733G`.
+
+- Writing `docs/schema.md` or reserving `external:` - `AWIT-0ND5753G`.
+- `pkg/lock` / mutating-command locking - `AWIT-0ND5723G`.
+- `validate --stale-claims` - `AWIT-0ND5733G`.
 - Editing `.github/workflows/ci.yml`, `internal/cli/app.go`, `printVersion`, or `go.mod`.
 - Publishing a real GitHub release in this ticket (the workflow is the deliverable; tagging `v*` is a human action after merge).
 - Homebrew, Docker images, npm wrappers, colour, or extra `goos`/`goarch` values (386, arm, windows/arm).

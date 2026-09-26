@@ -68,8 +68,8 @@ func overviewRows(g *graph.Graph) []row {
 	return rows
 }
 
-// treeRows renders root at depth 0 and its children — via next, ID
-// ascending — recursively. Last children draw "└─ ", others "├─ ";
+// treeRows renders root at depth 0 and its children - via next, ID
+// ascending - recursively. Last children draw "└─ ", others "├─ ";
 // ancestors contribute "│  " or "   ". A node at depth treeDepth with k>0
 // children emits one unselectable "(+k more)" child row instead of
 // recursing; children already on the current path are skipped, so

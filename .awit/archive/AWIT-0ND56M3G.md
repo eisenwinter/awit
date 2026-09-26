@@ -18,29 +18,29 @@ Three commands mutate one item file: `update` patches frontmatter (`nothing to
 update` when no flag is set), `close` sets `closed` and clears `claimed_at`
 (optional `--reason` comment, no git commit), `release` sets `open` and clears
 assignee plus `claimed_at`. `loadItem` and `resolveAuthor` live in `author.go`
-for AWIT-0ND56Y3G. Tests seed with `item.New`+`Save` on `initRepo` — do not
+for AWIT-0ND56Y3G. Tests seed with `item.New`+`Save` on `initRepo` - do not
 call `awit create` (sibling, not a dep).
 
 ## Context (read first)
 
-- **guide §1** — `filepath`, `Error: ` via `report`, exit 0/1/2, Node YAML so
+- **guide §1** - `filepath`, `Error: ` via `report`, exit 0/1/2, Node YAML so
   unchanged keys stay byte-identical.
-- **guide §2 #3** — `close` does **not** git-commit. Do not import `gitx.Commit`.
-- **guide §2 #4** — `--author` verbatim → `AWIT_AGENT` (`agent/` unless value
+- **guide §2 #3** - `close` does **not** git-commit. Do not import `gitx.Commit`.
+- **guide §2 #4** - `--author` verbatim → `AWIT_AGENT` (`agent/` unless value
   contains `/`) → `config.agent_id` (same prefix rule) → `gitx.UserName`
   lowercased, spaces→`-` (no prefix) → `no author; pass --author or set AWIT_AGENT`.
   Empty flag/env/config = unset.
-- **guide §2 keys** — `SetAssignee("")` / `SetClaimedAt(nil)` **delete** the key.
+- **guide §2 keys** - `SetAssignee("")` / `SetClaimedAt(nil)` **delete** the key.
   `update --status closed` also clears `claimed_at`; other statuses leave
   assignee/`claimed_at`. `close` does not clear assignee.
-- **guide §4.3–4.5** — `ParseStatus` (return unchanged), setters, `Load`
+- **guide §4.3–4.5** - `ParseStatus` (return unchanged), setters, `Load`
   (`os.ErrNotExist` or `*item.BrokenError`), `AddComment` (writes, appends
   forward-slash ref, saves), `gitx.UserName`.
-- **guide §4.11 / spec matrix** — `update <id>` `--status --brief --assign
-  --label --unlabel --title`; `close <id>` `--reason --author`; `release <id>`
+- **guide §4.11 / spec matrix** - `update <id>` `--status --brief --assign
+--label --unlabel --title`; `close <id>` `--reason --author`; `release <id>`
   no flags. Register on `newRoot` Commands. Phase-1 exit: `update --status`
   changes exactly one line to `status: in_progress`.
-- **AWIT-0ND56G3G** — `openStore`, `run`, `initRepo`, `readItem`. Do not
+- **AWIT-0ND56G3G** - `openStore`, `run`, `initRepo`, `readItem`. Do not
   redeclare them, nor `parseIDList`/`detectFormat`. This ticket uses
   `splitFlagCSV` for `--label`/`--unlabel`.
 - `loadItem`: missing → `unknown item %s`; `*BrokenError` →
@@ -51,14 +51,14 @@ call `awit create` (sibling, not a dep).
 ## Files
 
 - Create: `internal/cli/author.go`, `update.go`, `close.go`, `release.go`, `update_test.go`
-- Modify: `internal/cli/app.go` — append `updateCmd`, `closeCmd`, `releaseCmd`
+- Modify: `internal/cli/app.go` - append `updateCmd`, `closeCmd`, `releaseCmd`
 
 ## Interfaces
 
 Consumes: `openStore`, `Store.Load/Save/AddComment`, `ParseStatus`, `item.New`,
 setters, `gitx.UserName`, `item.BrokenError`.
 
-Produces (package-private; AWIT-0ND56Y3G calls these — do not rename):
+Produces (package-private; AWIT-0ND56Y3G calls these - do not rename):
 
 ```go
 func loadItem(s *item.Store, id string) (*item.Item, error)
@@ -287,8 +287,8 @@ func TestResolveAuthorPrecedence(t *testing.T) {
 go test ./internal/cli -run 'TestUpdate|TestClose|TestRelease|TestResolveAuthor' -v
 ```
 
-  Expected: `undefined: resolveAuthor` (and friends) —
-  `FAIL github.com/eisenwinter/awit/internal/cli [build failed]`.
+Expected: `undefined: resolveAuthor` (and friends) -
+`FAIL github.com/eisenwinter/awit/internal/cli [build failed]`.
 
 - [ ] **Step 3: Implement helpers and commands.**
 
@@ -337,7 +337,7 @@ func loadItem(s *item.Store, id string) (*item.Item, error) {
 }
 ```
 
-  `internal/cli/update.go`:
+`internal/cli/update.go`:
 
 ```go
 package cli
@@ -433,7 +433,7 @@ func updateAction(_ context.Context, cmd *cli.Command) error {
 }
 ```
 
-  `internal/cli/close.go`:
+`internal/cli/close.go`:
 
 ```go
 package cli
@@ -477,9 +477,9 @@ func closeAction(_ context.Context, cmd *cli.Command) error {
 }
 ```
 
-  `AddComment` already saves. Do not call `gitx.Commit`. Do not clear assignee.
+`AddComment` already saves. Do not call `gitx.Commit`. Do not clear assignee.
 
-  `internal/cli/release.go`:
+`internal/cli/release.go`:
 
 ```go
 package cli
@@ -511,8 +511,8 @@ func releaseAction(_ context.Context, cmd *cli.Command) error {
 }
 ```
 
-  In `newRoot` Commands, append `updateCmd`, `closeCmd`, `releaseCmd`. Keep
-  `initCmd`. Include `createCmd` only if that identifier already exists.
+In `newRoot` Commands, append `updateCmd`, `closeCmd`, `releaseCmd`. Keep
+`initCmd`. Include `createCmd` only if that identifier already exists.
 
 - [ ] **Step 4: Pass and commit.**
 
@@ -520,11 +520,11 @@ func releaseAction(_ context.Context, cmd *cli.Command) error {
 go test ./internal/cli -run 'TestUpdate|TestClose|TestRelease|TestResolveAuthor' -v
 ```
 
-  Expected PASS: `TestUpdateStatusOneLineDiff`, `TestUpdateTitleAndBrief`,
-  `TestUpdateLabelsAddRemove`, `TestUpdateNothing`, `TestUpdateBadStatus`,
-  `TestUpdateUnknownItem`, `TestUpdateBrokenItem`, `TestCloseClearsClaimedAt`,
-  `TestCloseWithReasonWritesComment`, `TestCloseReasonNeedsAuthor` (or SKIP),
-  `TestReleaseClearsAssignee`, `TestResolveAuthorPrecedence`.
+Expected PASS: `TestUpdateStatusOneLineDiff`, `TestUpdateTitleAndBrief`,
+`TestUpdateLabelsAddRemove`, `TestUpdateNothing`, `TestUpdateBadStatus`,
+`TestUpdateUnknownItem`, `TestUpdateBrokenItem`, `TestCloseClearsClaimedAt`,
+`TestCloseWithReasonWritesComment`, `TestCloseReasonNeedsAuthor` (or SKIP),
+`TestReleaseClearsAssignee`, `TestResolveAuthorPrecedence`.
 
 ```bash
 go test ./internal/cli -count=1
@@ -539,14 +539,14 @@ git commit -m "cli: add update, close, release and author resolution"
 go build ./... && go vet ./... && go test ./internal/cli -count=1
 ```
 
-  `status: closed`, comment file with output, ref, `tickets: close AWIT-0ND56M3G`.
+`status: closed`, comment file with output, ref, `tickets: close AWIT-0ND56M3G`.
 
 ## Acceptance Criteria
 
-- `go test ./internal/cli -run TestUpdateStatusOneLineDiff -v` PASS — file
+- `go test ./internal/cli -run TestUpdateStatusOneLineDiff -v` PASS - file
   differs by exactly one line, `status: in_progress` (phase-1 exit criterion).
 - `go test ./internal/cli -run 'TestUpdate|TestClose|TestRelease|TestResolveAuthor' -v`
-  — every test in Step 4 PASSes (`TestCloseReasonNeedsAuthor` may SKIP).
+  - every test in Step 4 PASSes (`TestCloseReasonNeedsAuthor` may SKIP).
 - `close.go` does not import `gitx` or call `Commit`.
 - `release` deletes `assignee` and `claimed_at` keys.
 - `resolveAuthor("Jane Doe", dir, cfg)` → `Jane Doe`; `AWIT_AGENT=claude` →

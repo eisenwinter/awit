@@ -54,7 +54,7 @@ func graphHeadStyle(kind string) lipgloss.Style {
 }
 
 // borderStyle is the single app-wide pane chrome: rounded light, focus
-// carried by border color only (never weight — a weight swap would churn
+// carried by border color only (never weight - a weight swap would churn
 // NO_COLOR goldens on every focus switch).
 func borderStyle(focused bool) lipgloss.Style {
 	var fg lipgloss.TerminalColor = cMuted
@@ -110,7 +110,7 @@ func sanitize(s string, multiline bool) string {
 // styleToast pairs toasts at render time: failures already carry "error: "
 // (kept, styled err); everything else gains an "ok: " prefix (styled ok).
 // Untrusted bytes (e.g. err.Error() text) are sanitized here so the toast
-// slot stays a single clean line; m.toast bytes are untouched — only the
+// slot stays a single clean line; m.toast bytes are untouched - only the
 // frame changes.
 func styleToast(toast string) string {
 	if toast == "" {

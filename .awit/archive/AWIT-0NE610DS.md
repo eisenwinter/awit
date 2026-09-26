@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NE610DS
-title: 'awit archive: move eligible closed items to .awit/archive with collapsed comments'
+title: "awit archive: move eligible closed items to .awit/archive with collapsed comments"
 brief: >-
   Add awit archive [--dry-run]: compute the fixed-point set of closed items with no dependant outside the set, collapse each item's comments into one archive/<id>.md, move --file attachments to archive/<id>/, delete items/<id>.md and comments/<id>/. Never breaks validate.
 status: closed
@@ -54,7 +54,7 @@ then `items/<id>.md` and `comments/<id>/` are deleted. No commit. No
   `Archive`) and §4.6 (`Archivable`) are the signatures. Additive
   only; nothing existing changes.
 - `pkg/graph/graph.go` `Build` lines ~118–137: dangling detection has
-  **no status check** — a closed item with a dep that left `items/`
+  **no status check** - a closed item with a dep that left `items/`
   is quarantined too. That is why the fixed point exists. Do not
   "fix" this in `Build`.
 - `pkg/item/comment.go`: `AddComment` writes
@@ -84,16 +84,16 @@ then `items/<id>.md` and `comments/<id>/` are deleted. No commit. No
 
 ## Files
 
-- Create: `pkg/graph/archivable.go` (or append to `rank.go`) —
+- Create: `pkg/graph/archivable.go` (or append to `rank.go`) -
   `Graph.Archivable`.
 - Create: `pkg/graph/archivable_test.go`
-- Modify: `pkg/item/comment.go` — `Comment` type, `Store.Comments`.
-- Create: `pkg/item/archive.go` — `ArchiveDir`, `ArchivePath`,
+- Modify: `pkg/item/comment.go` - `Comment` type, `Store.Comments`.
+- Create: `pkg/item/archive.go` - `ArchiveDir`, `ArchivePath`,
   `Store.Archive`.
 - Create: `pkg/item/archive_test.go`
-- Create: `internal/cli/archive.go` — `archiveCmd`.
+- Create: `internal/cli/archive.go` - `archiveCmd`.
 - Create: `internal/cli/archive_test.go`
-- Modify: `internal/cli/app.go` — register `archiveCmd`.
+- Modify: `internal/cli/app.go` - register `archiveCmd`.
 - Create: `testdata/fixtures/archive/.awit/…` (see Step 1).
 - Create: `testdata/golden/archive-TEST0004.golden`,
   `testdata/golden/archive-dry-run.golden`.
@@ -138,7 +138,7 @@ then `items/<id>.md` and `comments/<id>/` are deleted. No commit. No
   ```
 
   `Archivable` is pure over the built graph. `Archive` does **not**
-  check eligibility — the command does, via `Archivable`. Keep that
+  check eligibility - the command does, via `Archivable`. Keep that
   split so `Archive` is testable on a single item.
 
 ## Steps
@@ -149,13 +149,13 @@ then `items/<id>.md` and `comments/<id>/` are deleted. No commit. No
   `clean`) and these items (bodies: `## Summary` + one line,
   `## Acceptance Criteria` + one bullet, like `clean`'s `TEST0005`):
 
-  | ID | status | deps | refs |
-  | --- | --- | --- | --- |
-  | `AWIT-TEST0001` | closed | `[]` | `[]` |
-  | `AWIT-TEST0002` | closed | `[AWIT-TEST0001]` | `[]` |
-  | `AWIT-TEST0003` | open | `[AWIT-TEST0002]` | `[]` |
-  | `AWIT-TEST0004` | closed | `[]` | three refs below, block style |
-  | `AWIT-TEST0005` | closed | `[AWIT-TEST0004]` | `[]` |
+  | ID              | status | deps              | refs                          |
+  | --------------- | ------ | ----------------- | ----------------------------- |
+  | `AWIT-TEST0001` | closed | `[]`              | `[]`                          |
+  | `AWIT-TEST0002` | closed | `[AWIT-TEST0001]` | `[]`                          |
+  | `AWIT-TEST0003` | open   | `[AWIT-TEST0002]` | `[]`                          |
+  | `AWIT-TEST0004` | closed | `[]`              | three refs below, block style |
+  | `AWIT-TEST0005` | closed | `[AWIT-TEST0004]` | `[]`                          |
 
   `TEST0004` refs, in this order:
 
@@ -180,7 +180,7 @@ then `items/<id>.md` and `comments/<id>/` are deleted. No commit. No
   Started on the spec; grammar section drafted.
   ```
 
-  `20260916T091500Z-jan.log` (no frontmatter — an attachment):
+  `20260916T091500Z-jan.log` (no frontmatter - an attachment):
 
   ```text
   2026-09-16T09:15:00Z PASS TestHeaderGrammar
@@ -584,7 +584,7 @@ then `items/<id>.md` and `comments/<id>/` are deleted. No commit. No
   Body ends with `\n` already (item template and `Bytes()` guarantee
   it), so `"\n## Comments\n"` yields exactly one blank line before the
   heading. If `Bytes()` output does not end in `\n` for some fixture,
-  add one before the section — the golden in Step 7 pins the result.
+  add one before the section - the golden in Step 7 pins the result.
   Run the Step 4 tests, see pass. Commit
   `item: add Comments and Archive`.
 
@@ -771,7 +771,7 @@ then `items/<id>.md` and `comments/<id>/` are deleted. No commit. No
   ```
 
   The last line runs against this repo's own queue and must exit 0.
-  Do **not** run it without `--dry-run` inside this ticket — archiving
+  Do **not** run it without `--dry-run` inside this ticket - archiving
   the project's tickets is the orchestrator's call.
 
 ## Acceptance Criteria
@@ -779,16 +779,16 @@ then `items/<id>.md` and `comments/<id>/` are deleted. No commit. No
 - [ ] `go test ./pkg/graph -run TestArchivable` → `ok`
 - [ ] `go test ./pkg/item -run 'TestComments|TestArchive'` → `ok`
 - [ ] `go test ./internal/cli -run TestArchive` → `ok` with committed
-  goldens `archive-dry-run.golden` and `archive-TEST0004.golden`
+      goldens `archive-dry-run.golden` and `archive-TEST0004.golden`
 - [ ] `bin/awit --repo testdata/fixtures/archive archive --dry-run` prints exactly the `--dry-run` block from the Summary
 - [ ] On a copy of the `archive` fixture: `awit archive` prints
-  `archived AWIT-TEST0004`, `archived AWIT-TEST0005`, `Archived 2
-  items`; afterwards `items/` holds 0001–0003 only, `archive/` holds
-  `AWIT-TEST0004.md`, `AWIT-TEST0005.md`,
-  `AWIT-TEST0004/20260916T091500Z-jan.log`, `comments/AWIT-TEST0004`
-  is gone, and `awit validate` prints `PASS`
+      `archived AWIT-TEST0004`, `archived AWIT-TEST0005`, `Archived 2
+items`; afterwards `items/` holds 0001–0003 only, `archive/` holds
+      `AWIT-TEST0004.md`, `AWIT-TEST0005.md`,
+      `AWIT-TEST0004/20260916T091500Z-jan.log`, `comments/AWIT-TEST0004`
+      is gone, and `awit validate` prints `PASS`
 - [ ] `awit archive` on a repo with nothing eligible prints
-  `Archived 0 items` and exits 0
+      `Archived 0 items` and exits 0
 - [ ] `go vet ./... && staticcheck ./...` clean on touched packages
 
 ## Out of scope

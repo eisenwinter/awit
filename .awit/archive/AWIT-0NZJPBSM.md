@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NZJPBSM
-title: 'lazy: skeleton — deps, Ops, cursorList, keymap, root Model, view frame, fatal screen'
+title: "lazy: skeleton - deps, Ops, cursorList, keymap, root Model, view frame, fatal screen"
 brief: >-
   Adds the charm v1 dependencies and the internal/lazy package with the Ops seam, a hand-rolled selectable list, the lazygit keymap, the single root Model with tab/focus/mode state, reload, toast, the plain-text layout and the missing-.awit screen, all covered by TTY-free tests.
 status: closed
@@ -10,28 +10,29 @@ refs_base: repo
 refs: []
 assignee: agent/orchestrator
 ---
+
 ## Summary
 
-Foundation for `awit lazy-human`: `go.mod` gains bubbletea/bubbles/lipgloss (v1 line), and `internal/lazy` gets everything the three tabs will plug into — the `Ops` interface (implemented by `internal/cli` in WI-9), `cursorList`, the keymap, the root `Model` (tabs, focus, modes, reload, toast, `act` helper), the frame renderer, the help screen and the fatal screen. Tab contents are placeholders until WI-5..7. Tests use a fake `Ops` over `graph.Build` of in-memory items and compare `View()` against goldens under `internal/lazy/testdata/`.
+Foundation for `awit lazy-human`: `go.mod` gains bubbletea/bubbles/lipgloss (v1 line), and `internal/lazy` gets everything the three tabs will plug into - the `Ops` interface (implemented by `internal/cli` in WI-9), `cursorList`, the keymap, the root `Model` (tabs, focus, modes, reload, toast, `act` helper), the frame renderer, the help screen and the fatal screen. Tab contents are placeholders until WI-5..7. Tests use a fake `Ops` over `graph.Build` of in-memory items and compare `View()` against goldens under `internal/lazy/testdata/`.
 
 ## Context (read first)
 
-- `docs/superpowers/specs/2026-09-24-lazy-human-design.md` — Layout, Keymap, Architecture, Error handling, Testing.
+- `docs/superpowers/specs/2026-09-24-lazy-human-design.md` - Layout, Keymap, Architecture, Error handling, Testing.
 - `docs/superpowers/specs/2026-09-24-lazy-human-plan.md` §D.2 (Ops), §D.6 (Model), §D.7 (cursorList), §D.8 (keymap table), §D.13 (view layout), §J (risks).
-- `docs/design-spec.md` §7 (package layout; `internal/lazy` is new and may import `pkg/*` and the charm modules only — never `internal/cli`).
-- `internal/cli/quarantine_warn.go:25` — footer text `warning: %d items quarantined, run awit validate`.
+- `docs/design-spec.md` §7 (package layout; `internal/lazy` is new and may import `pkg/*` and the charm modules only - never `internal/cli`).
+- `internal/cli/quarantine_warn.go:25` - footer text `warning: %d items quarantined, run awit validate`.
 - Bubble Tea v1: `tea.Model{Init() tea.Cmd; Update(tea.Msg) (tea.Model, tea.Cmd); View() string}`, `tea.KeyMsg` (`.String()` gives "j", "enter", "esc", "tab", " ", "ctrl+c", "up", "down", "pgup", "pgdown"), `tea.WindowSizeMsg`, `tea.Quit`. `bubbles/key`: `key.NewBinding(key.WithKeys(...), key.WithHelp(...))`, `key.Matches(msg, b)`. `bubbles/viewport`: `viewport.New(w, h)`, `SetContent`, `GotoTop`, `Update`, `View`, fields `Width`, `Height`. `bubbles/textinput`: `textinput.New()`, `Focus()`, `Blur()`, `SetValue`, `Value`, `Reset`, `Update`, `View`, `Prompt`.
 - lipgloss under `go test` (stdout not a TTY) renders the Ascii profile: `Bold`/`Reverse` styles produce no escape codes, so goldens are plain text. `TestMain` also sets `NO_COLOR=1` for safety and every golden test asserts no `\x1b` byte.
 
 ## Files
 
-- `go.mod`, `go.sum` — `go get github.com/charmbracelet/bubbletea@v1.3.10 github.com/charmbracelet/bubbles@v1.0.0 github.com/charmbracelet/lipgloss@v1.1.0`; then `go mod tidy`.
-- `internal/lazy/ops.go` — `Ops`.
-- `internal/lazy/list.go` — `row`, `cursorList`.
-- `internal/lazy/keys.go` — `keymap`, `keys`.
-- `internal/lazy/model.go` — `Model`, `Options`, `New`, `Init`, `Update`, `reload`, `act`, `selectedID`.
-- `internal/lazy/view.go` — `View`, header/footer/help/fatal/hints renderers.
-- `internal/lazy/lazy_test.go` — `TestMain`, `fakeOps`, `newFixture`, `press`, `golden`, `-update` flag.
+- `go.mod`, `go.sum` - `go get github.com/charmbracelet/bubbletea@v1.3.10 github.com/charmbracelet/bubbles@v1.0.0 github.com/charmbracelet/lipgloss@v1.1.0`; then `go mod tidy`.
+- `internal/lazy/ops.go` - `Ops`.
+- `internal/lazy/list.go` - `row`, `cursorList`.
+- `internal/lazy/keys.go` - `keymap`, `keys`.
+- `internal/lazy/model.go` - `Model`, `Options`, `New`, `Init`, `Update`, `reload`, `act`, `selectedID`.
+- `internal/lazy/view.go` - `View`, header/footer/help/fatal/hints renderers.
+- `internal/lazy/lazy_test.go` - `TestMain`, `fakeOps`, `newFixture`, `press`, `golden`, `-update` flag.
 - `internal/lazy/list_test.go`, `keys_test.go`, `view_test.go`, `internal/lazy/testdata/*.golden`.
 
 ## Interfaces
@@ -127,3 +128,4 @@ func (m *Model) activeList() *cursorList
 ### 2026-09-24T20:23:47Z jan
 
 implemented
+```

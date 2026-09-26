@@ -9,7 +9,7 @@ import (
 )
 
 // (slots, styles, sanitize, styleToast/styleRow/styleDetail, bordered panes,
-// sticky error toasts) which does not exist yet — this file must FAIL to
+// sticky error toasts) which does not exist yet - this file must FAIL to
 // compile/run before the implementation lands.
 
 // Hostile control sequences must not survive the lazy trust boundary.

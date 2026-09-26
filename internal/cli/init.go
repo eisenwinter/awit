@@ -90,7 +90,7 @@ func seedSkills(cmd *cli.Command, root string) {
 	}
 	// On a terminal the user's Enter ends the prompt line. Anywhere else
 	// nothing echoes, so without this the answer and the next message run
-	// together. Display only — the prompt is asked either way.
+	// together. Display only - the prompt is asked either way.
 	//
 	// format.IsTerminal really answers "is a character device", so stdin
 	// from /dev/null counts as a terminal here and those prompts do run

@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NPYAVT1
-title: 'graph/cli: expose the transitive unblock set'
+title: "graph/cli: expose the transitive unblock set"
 brief: >-
   Unblocks: N is printed by list, next and prime, but the set behind N is printed nowhere, even though reachableUnblocks already walks it and throws it away. Returns that set as graph.ReachableUnblocks and adds an awit show --unblocks view.
 status: closed
@@ -16,24 +16,24 @@ assignee: agent/orchestrator
 `Unblocks: N` appears in `list`, `next` and `prime`, but the set behind `N` is printed
 nowhere. `reachableUnblocks` already walks exactly that set and returns only its length.
 This exports it as `graph.ReachableUnblocks` returning the nodes, and adds
-`awit show <id> --unblocks` — answering "what does finishing this actually release".
+`awit show <id> --unblocks` - answering "what does finishing this actually release".
 
 `--unblocks` is its own view, like `--refs-only`, so no existing golden changes.
 
 ## Context (read first)
 
-- `plan/implementation-guide.md` §1 — global constraints (Linux **and** Windows, deterministic output, stdlib-only tests, commit message format).
-- `pkg/graph/rank.go:44-71` — `countUnblocks` (line 44) and the `reachableUnblocks` BFS (lines 54-71) being widened. `sort` is already imported.
-- `pkg/graph/rank_test.go` — `TestUnblockCountsIgnoreClosedDownstream` shows the construction style: `&item.Item{…}` literals into `Build(items, nil)`. There is no `mkItem`/`buildGraph` helper; do not add one. `slices` is already imported at line 4.
-- `internal/cli/show.go:71-99` — the view dispatch. **The `--format json` branch sits before `refs-only` and `full`**, so the insertion point decides behaviour.
-- `internal/cli/show_full_test.go:157` — asserts `"Error: pass either --full or --refs-only\n"` verbatim. The existing guard must not be touched.
+- `plan/implementation-guide.md` §1 - global constraints (Linux **and** Windows, deterministic output, stdlib-only tests, commit message format).
+- `pkg/graph/rank.go:44-71` - `countUnblocks` (line 44) and the `reachableUnblocks` BFS (lines 54-71) being widened. `sort` is already imported.
+- `pkg/graph/rank_test.go` - `TestUnblockCountsIgnoreClosedDownstream` shows the construction style: `&item.Item{…}` literals into `Build(items, nil)`. There is no `mkItem`/`buildGraph` helper; do not add one. `slices` is already imported at line 4.
+- `internal/cli/show.go:71-99` - the view dispatch. **The `--format json` branch sits before `refs-only` and `full`**, so the insertion point decides behaviour.
+- `internal/cli/show_full_test.go:157` - asserts `"Error: pass either --full or --refs-only\n"` verbatim. The existing guard must not be touched.
 
 ## Files
 
-- `pkg/graph/rank.go` — `reachableUnblocks` → exported `ReachableUnblocks` returning `[]*Node`; `countUnblocks` takes `len()`.
-- `pkg/graph/rank_test.go` — one new test.
-- `internal/cli/show.go` — `--unblocks` flag and view.
-- `internal/cli/show_test.go` — three new tests plus a `mkChain` helper.
+- `pkg/graph/rank.go` - `reachableUnblocks` → exported `ReachableUnblocks` returning `[]*Node`; `countUnblocks` takes `len()`.
+- `pkg/graph/rank_test.go` - one new test.
+- `internal/cli/show.go` - `--unblocks` flag and view.
+- `internal/cli/show_test.go` - three new tests plus a `mkChain` helper.
 
 ## Interfaces
 
@@ -74,7 +74,7 @@ func TestReachableUnblocksReturnsTheCountedSet(t *testing.T) {
 }
 ```
 
-- [ ] Run `go test ./pkg/graph/ -run TestReachableUnblocks -v` — see it FAIL: `undefined: ReachableUnblocks`
+- [ ] Run `go test ./pkg/graph/ -run TestReachableUnblocks -v` - see it FAIL: `undefined: ReachableUnblocks`
 - [ ] Replace `reachableUnblocks` at `pkg/graph/rank.go:54-71` with:
 
 ```go
@@ -105,7 +105,7 @@ func ReachableUnblocks(start *Node) []*Node {
 ```
 
 - [ ] At `rank.go:50` inside `countUnblocks`, set `n.UnblockCount = len(ReachableUnblocks(n))`
-- [ ] Run `go test ./pkg/graph/ -v` — PASS, every existing unblock-count assertion unchanged; only the return type moved
+- [ ] Run `go test ./pkg/graph/ -v` - PASS, every existing unblock-count assertion unchanged; only the return type moved
 - [ ] Append to `internal/cli/show_test.go`:
 
 ```go
@@ -166,7 +166,7 @@ func TestShowUnblocksRejectsCombinedViews(t *testing.T) {
 }
 ```
 
-- [ ] Run `go test ./internal/cli/ -run TestShowUnblocks -v` — see it FAIL: `flag provided but not defined: -unblocks`
+- [ ] Run `go test ./internal/cli/ -run TestShowUnblocks -v` - see it FAIL: `flag provided but not defined: -unblocks`
 - [ ] Add to the `showCmd` `Flags` slice in `internal/cli/show.go`:
 
 ```go
@@ -188,7 +188,7 @@ func TestShowUnblocksRejectsCombinedViews(t *testing.T) {
 	}
 ```
 
-  **The anchor is not negotiable.** `showOne`'s dispatch order is:
+**The anchor is not negotiable.** `showOne`'s dispatch order is:
 
 ```
 :71  n := g.Nodes[id]
@@ -199,16 +199,16 @@ func TestShowUnblocksRejectsCombinedViews(t *testing.T) {
 :99  defaultView
 ```
 
-  The JSON branch sits **before** `refsOnly`/`full`. Placed anywhere after line 82,
-  `--unblocks --format json` silently emits the `showJSON` envelope instead of the row
-  array — and none of the three tests above would catch it, since none use `--format json`.
-  Two details follow: `refsOnly`/`full` are not bound until lines 77-78, so the guard reads
-  `cmd.Bool(…)` directly; and the guard carries the `Error: ` prefix inline to match the
-  existing guard at line 80, which **must not** be folded into, because
-  `show_full_test.go:157` asserts its exact string.
+The JSON branch sits **before** `refsOnly`/`full`. Placed anywhere after line 82,
+`--unblocks --format json` silently emits the `showJSON` envelope instead of the row
+array - and none of the three tests above would catch it, since none use `--format json`.
+Two details follow: `refsOnly`/`full` are not bound until lines 77-78, so the guard reads
+`cmd.Bool(…)` directly; and the guard carries the `Error: ` prefix inline to match the
+existing guard at line 80, which **must not** be folded into, because
+`show_full_test.go:157` asserts its exact string.
 
-- [ ] Run `go test ./internal/cli/ -run TestShow -v` — PASS, existing show tests included
-- [ ] Run `go test ./... && go vet ./...` — PASS
+- [ ] Run `go test ./internal/cli/ -run TestShow -v` - PASS, existing show tests included
+- [ ] Run `go test ./... && go vet ./...` - PASS
 - [ ] Commit: `cli/show: add --unblocks listing the transitive unblock set`
 
 ## Acceptance Criteria
@@ -218,7 +218,7 @@ func TestShowUnblocksRejectsCombinedViews(t *testing.T) {
 - `awit show <id> --unblocks --full` exits 2.
 - `awit show <id> --unblocks --format json` emits a bare entry array, not the `showJSON` envelope.
 - `go test ./pkg/graph/ -v` passes with every pre-existing unblock-count assertion unchanged.
-- `show_full_test.go:157` still passes — its guard string is untouched.
+- `show_full_test.go:157` still passes - its guard string is untouched.
 
 Intended edge cases, no test required: `show <broken-file-id> --unblocks` prints the
 broken-file view and ignores the flag (broken resolution returns before line 71); a
@@ -229,7 +229,6 @@ quarantined start node still lists its downstream set.
 - `--unblocks` on `list` or `next`.
 - Any change to `UnblockCount` semantics or to ranking.
 
-
 ## Comments
 
 ### 2026-09-21T13:56:27Z agent/orchestrator
@@ -238,4 +237,4 @@ ReachableUnblocks exported from the counting BFS; show --unblocks lists the tran
 
 ### 2026-09-21T13:56:27Z agent/orchestrator
 
-Implemented by UnblocksWorker (TDD: both red steps observed, then green; go test ./... and vet clean; smoke: --unblocks --format json bare entry array, not the showJSON envelope). Reviewed by reviewer agent: SATISFIED, zero findings — view anchored before the JSON branch, refs-only flag restoration exact, guard string untouched, gofmt clean.
+Implemented by UnblocksWorker (TDD: both red steps observed, then green; go test ./... and vet clean; smoke: --unblocks --format json bare entry array, not the showJSON envelope). Reviewed by reviewer agent: SATISFIED, zero findings - view anchored before the JSON branch, refs-only flag restoration exact, guard string untouched, gofmt clean.

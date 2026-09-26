@@ -5,7 +5,7 @@
 Build **mealvoter**: a backend service in Node.js that lets a group vote,
 live, on which meal they want next week.
 
-The menu is fixed — the same list of meals is on offer every week. What
+The menu is fixed - the same list of meals is on offer every week. What
 changes each week is which one wins the vote.
 
 ## Requirements
@@ -28,7 +28,7 @@ changes each week is which one wins the vote.
 
 ## Out of scope
 
-No real authentication — a simple voter identifier supplied by the caller is
+No real authentication - a simple voter identifier supplied by the caller is
 enough. No external database server; keep persistence local to the service.
 No deployment, container, or CI configuration.
 

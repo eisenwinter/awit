@@ -51,8 +51,8 @@ func labelAction(_ context.Context, cmd *cli.Command) error {
 // still reports actual use (advisory vocabulary: schema.md). Used undeclared labels count; unused
 // declared names do not. state is one of open|closed|all and was validated
 // by the caller: "open" counts every status except closed, "closed" only
-// closed, "all" everything. Graph quarantine is irrelevant here — a
-// parseable item with a dangling dep still carries its labels — and
+// closed, "all" everything. Graph quarantine is irrelevant here - a
+// parseable item with a dangling dep still carries its labels - and
 // unparseable files are not in items at all, so they never count. Rows
 // sort by count descending, then label ascending, so the output is
 // deterministic.

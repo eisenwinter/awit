@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND56K3G
-title: 'awit show (default view, quarantine flag)'
+title: "awit show (default view, quarantine flag)"
 brief: >-
   Implement `awit show <id>` with the default view: header line, status with readiness, quarantine faults, deps, assignee, brief, ref count, and the verbatim body. Broken files render an unparseable view with exit 0; unknown IDs exit 1. JSON renders the entry plus body.
 status: closed
@@ -27,10 +27,10 @@ tests run green, one against a committed golden file.
 
 ## Context (read first)
 
-- Guide §4.7 — `format.Entry` fields (`ID`, `Title`, `Brief`, `Status`,
+- Guide §4.7 - `format.Entry` fields (`ID`, `Title`, `Brief`, `Status`,
   `State`, `Labels`, `Deps`, `Assignee`, `Unblocks`, `Faults`) and
   `format.Line`. No new format code in this ticket.
-- Guide §4.11 — `Main`, `openStore`, error contract. `detectFormat(cmd)`
+- Guide §4.11 - `Main`, `openStore`, error contract. `detectFormat(cmd)`
   lives in `create.go` (AWIT-0ND56H3G, closed); consume it, do not
   redefine it.
 - **AWIT-0ND56J3G** owns `loadGraph` + `toEntry` in `internal/cli`. If
@@ -43,7 +43,7 @@ tests run green, one against a committed golden file.
 - Helpers already present (do not redeclare): `openStore` (AWIT-0ND56G3G),
   `run`, `copyFixture`, `golden`, `readItem` (helpers_test.go),
   `item.Broken` (`ID`, `Path`, `Reason`, `Detail`).
-- Fixture titles come from AWIT-0ND56N3G — copy them verbatim into the
+- Fixture titles come from AWIT-0ND56N3G - copy them verbatim into the
   golden file, do not paraphrase:
   - `AWIT-TEST0001`: `Implement OAuth2 bearer token extraction`,
     brief `Fix header parsing so URL-safe bearer tokens authenticate.`,
@@ -75,7 +75,7 @@ tests run green, one against a committed golden file.
 - Create: `internal/cli/show.go`
 - Create: `internal/cli/show_test.go`
 - Create: `testdata/golden/show-clean.golden`
-- Modify: `internal/cli/app.go` — register `showCmd` in the root
+- Modify: `internal/cli/app.go` - register `showCmd` in the root
   command's `Commands` list (one line).
 
 ## Interfaces
@@ -251,7 +251,7 @@ tests run green, one against a committed golden file.
   FAIL	github.com/eisenwinter/awit/internal/cli [build failed]
   ```
 
-  (or `undefined: showCmd` once helpers exist — either red counts; do
+  (or `undefined: showCmd` once helpers exist - either red counts; do
   not skip it.)
 
 - [ ] **Step 3: Implement `show.go`.**
@@ -387,7 +387,6 @@ tests run green, one against a committed golden file.
   `internal/cli/app.go`, add `showCmd` to the root `Commands` slice.
 
   Details that matter:
-
   - `status: %s (%s)`: status word is the raw status (`open`,
     `in_progress`, `closed`); the parenthesised word is the graph state
     (`ready`, `blocked`, `closed`), except quarantined nodes print
@@ -454,7 +453,7 @@ tests run green, one against a committed golden file.
 
 ## Acceptance Criteria
 
-- `go test ./internal/cli -run 'TestShow' -count=1 -v` — all five tests
+- `go test ./internal/cli -run 'TestShow' -count=1 -v` - all five tests
   PASS; `go test ./internal/cli -count=1` stays green.
 - On a copy of the `clean` fixture, `awit show AWIT-TEST0001` prints
   `testdata/golden/show-clean.golden` byte-for-byte.

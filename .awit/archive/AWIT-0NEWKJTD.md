@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NEWKJTD
-title: 'init: offer to seed the driving-awit skill into detected agent dirs'
+title: "init: offer to seed the driving-awit skill into detected agent dirs"
 brief: >-
   awit init leaves a fresh repo without the driving-awit skill, so every agent that lands in it has to be taught the CLI by hand. After this work item init detects .claude, .omp, .opencode, .agents and .pi, asks once per directory it found, and writes the embedded skill to <dir>/skills/driving-awit/SKILL.md.
 status: closed
@@ -24,15 +24,15 @@ not the discipline that keeps the graph truthful.
 After this work item `init` scans the repo root for known agent directories, in
 this fixed order:
 
-| Directory    | Seeds                                          |
-| ------------ | ---------------------------------------------- |
-| `.claude`    | `.claude/skills/driving-awit/SKILL.md`         |
-| `.omp`       | `.omp/skills/driving-awit/SKILL.md`            |
-| `.opencode`  | `.opencode/skills/driving-awit/SKILL.md`       |
-| `.agents`    | `.agents/skills/driving-awit/SKILL.md`         |
-| `.pi`        | `.pi/skills/driving-awit/SKILL.md`             |
+| Directory   | Seeds                                    |
+| ----------- | ---------------------------------------- |
+| `.claude`   | `.claude/skills/driving-awit/SKILL.md`   |
+| `.omp`      | `.omp/skills/driving-awit/SKILL.md`      |
+| `.opencode` | `.opencode/skills/driving-awit/SKILL.md` |
+| `.agents`   | `.agents/skills/driving-awit/SKILL.md`   |
+| `.pi`       | `.pi/skills/driving-awit/SKILL.md`       |
 
-Only directories that already exist are considered — `init` never creates an
+Only directories that already exist are considered - `init` never creates an
 agent directory, because their presence is the signal that the tool is in
 use. For each hit it asks once; on yes it writes the skill rendered for that
 tool. The order is fixed so prompts, output and tests are deterministic.
@@ -47,34 +47,34 @@ not gitignore them.
 
 ## Context (read first)
 
-- `internal/cli/init.go` — the command as it stands: validates `--prefix`,
+- `internal/cli/init.go` - the command as it stands: validates `--prefix`,
   resolves `--repo`, calls `item.Init`, prints one line.
-- `pkg/item/store.go` `Init` / `ensureGitignore` — what init creates today,
+- `pkg/item/store.go` `Init` / `ensureGitignore` - what init creates today,
   and `ErrExists` when `.awit/` is already there.
-- `internal/cli/comment.go` `readStdinText` — the established pattern for
+- `internal/cli/comment.go` `readStdinText` - the established pattern for
   "is this an interactive terminal", via `format.IsTerminal`. Prompting must
   reuse it, not reinvent TTY detection.
-- `internal/cli/app.go` `Main(args, stdin, stdout, stderr)` — stdin is
+- `internal/cli/app.go` `Main(args, stdin, stdout, stderr)` - stdin is
   already plumbed to `cmd.Root().Reader`, so prompts are testable by handing
   `Main` a `strings.Reader`.
-- `.omp/skills/driving-awit/SKILL.md` — the content being seeded. After this work
+- `.omp/skills/driving-awit/SKILL.md` - the content being seeded. After this work
   item it is generated output, not hand-maintained.
 - `plan/implementation-guide.md` §4 (interfaces), §5 (testing rules), §6
   (work item format), and the work item index table.
 
 ## Files
 
-- Create: `internal/skill/skill.go` — targets, rendering, detection.
-- Create: `internal/skill/assets/driving-awit.body.md` — the skill body
+- Create: `internal/skill/skill.go` - targets, rendering, detection.
+- Create: `internal/skill/assets/driving-awit.body.md` - the skill body
   (everything below the frontmatter), embedded with `go:embed`. Single
   source of truth.
-- Create: `internal/skill/skill_test.go` — render determinism, the
+- Create: `internal/skill/skill_test.go` - render determinism, the
   dogfood test (below), detection order.
-- Modify: `internal/cli/init.go` — `--skills`, `--no-skills`, `--force`,
+- Modify: `internal/cli/init.go` - `--skills`, `--no-skills`, `--force`,
   detection, prompting, per-target write, output lines.
-- Modify: `internal/cli/init_test.go` — prompt accept/decline,
+- Modify: `internal/cli/init_test.go` - prompt accept/decline,
   non-interactive default, existing-file skip, `--force`, flag conflict.
-- Modify: `.omp/skills/driving-awit/SKILL.md` — becomes generated; its
+- Modify: `.omp/skills/driving-awit/SKILL.md` - becomes generated; its
   body must match `assets/driving-awit.body.md` byte for byte.
 - Docs, all listed under **Documentation changes** below.
 
@@ -111,24 +111,24 @@ func Render(t Target) []byte
 for every tool, so the only variable is a leading YAML block. Concatenation
 is deterministic, diffable and needs no template engine. If a tool ever needs
 body variation, promote the body file to a `text/template` and give `Target`
-a data struct — the signature above does not have to change.
+a data struct - the signature above does not have to change.
 
 **Frontmatter dialects are an open question.** `.claude` and `.omp` are known
 (`name` + `description`, as in the current file). `.opencode`, `.agents` and
 `.pi` must be confirmed against each tool's own docs in Step 1. Until
 confirmed, they take the `name` + `description` shape, and any that turns out
-to differ gets its own literal — that is precisely what `Target.Frontmatter`
+to differ gets its own literal - that is precisely what `Target.Frontmatter`
 is for. If a tool turns out not to read `skills/<name>/SKILL.md` at all, drop
 it from `Targets()` and say so in a comment rather than seeding a file it
 will ignore.
 
 CLI surface on `init`:
 
-| Flag          | Effect                                                        |
-| ------------- | ------------------------------------------------------------- |
-| `--skills`    | Seed every detected target without asking.                    |
-| `--no-skills` | Skip detection entirely; never prompt.                        |
-| `--force`     | Overwrite an existing `SKILL.md` instead of skipping it.      |
+| Flag          | Effect                                                   |
+| ------------- | -------------------------------------------------------- |
+| `--skills`    | Seed every detected target without asking.               |
+| `--no-skills` | Skip detection entirely; never prompt.                   |
+| `--force`     | Overwrite an existing `SKILL.md` instead of skipping it. |
 
 `--skills` together with `--no-skills` is a usage error (exit 2), matching
 the `--full` / `--refs-only` precedent in `show`.
@@ -140,7 +140,7 @@ Prompting rules:
   seed; they print one hint line naming `--skills`. This keeps `init`
   scriptable and keeps every existing init test green without changes.
 - One prompt per detected directory: `seed driving-awit skill into
-  .claude/skills/? [y/N]`. Empty answer means no.
+.claude/skills/? [y/N]`. Empty answer means no.
 - An existing target file is skipped with a line saying so, and is not
   prompted for, unless `--force`.
 - Seeding failures never fail `init`: `.awit/` is already created by then,
@@ -177,33 +177,33 @@ Prompting rules:
 
 ## Documentation changes
 
-Required, not optional — the command table is the contract users read first.
+Required, not optional - the command table is the contract users read first.
 
-- `README.md:33` — the `awit init` row: flags become
+- `README.md:33` - the `awit init` row: flags become
   `--prefix`, `--skills`, `--no-skills`, `--force`; purpose gains "offer to
   seed the driving-awit skill into detected agent dirs". If the row gets
   unwieldy, add a short prose paragraph under **Commands** listing the five
   detected directories and stating that `init` never creates one.
-- `plan/awit-implementation-plan.md:170` — the same row in the command
+- `plan/awit-implementation-plan.md:170` - the same row in the command
   table (the Human/Agent column stays `Human`).
-- `plan/awit-implementation-plan.md:54` — the invariants sentence currently
+- `plan/awit-implementation-plan.md:54` - the invariants sentence currently
   ends "`init` gitignores only `.awit/.lock`". Extend it: init may also
   write agent skill files outside `.awit/`, and those are committed, never
   gitignored.
-- `plan/awit-implementation-plan.md` phase 5 checklist — add this work
+- `plan/awit-implementation-plan.md` phase 5 checklist - add this work
   item's entry.
-- `plan/implementation-guide.md` §4 — add the `internal/skill` signatures
+- `plan/implementation-guide.md` §4 - add the `internal/skill` signatures
   above, so the package is contract, not incidental.
 - `plan/implementation-guide.md` file layout (the `init.go create.go …`
-  line, ~:78) — add `internal/skill/`.
-- `plan/implementation-guide.md` §5 — a testing note: commands that prompt
+  line, ~:78) - add `internal/skill/`.
+- `plan/implementation-guide.md` §5 - a testing note: commands that prompt
   are tested by handing `Main` a `strings.Reader`; prompts must be gated on
   `format.IsTerminal` so the suite never blocks on a read.
-- `plan/implementation-guide.md` work item index table (~:632) — add
-  `AWIT-0NEWKJTD | init: seed driving-awit skill | — | phase5, p1`.
-- `docs/schema.md:176` — the paragraph on what `init` writes: list the
+- `plan/implementation-guide.md` work item index table (~:632) - add
+  `AWIT-0NEWKJTD | init: seed driving-awit skill | - | phase5, p1`.
+- `docs/schema.md:176` - the paragraph on what `init` writes: list the
   seeded skill paths and state they live outside `.awit/` and are committed.
-- `.omp/skills/driving-awit/SKILL.md` — two changes. The
+- `.omp/skills/driving-awit/SKILL.md` - two changes. The
   "`.awit/.lock` is never committed. `awit init` gitignores it" bullet gains
   a sentence that `init` can also seed this skill into detected agent dirs.
   And a note that the file is generated from
@@ -236,14 +236,14 @@ Required, not optional — the command table is the contract users read first.
 ## Out of scope
 
 - **Seeding into an already-initialized repo.** `item.Init` returns
-  `ErrExists`, so `awit init` refuses to run where `.awit/` exists — which
+  `ErrExists`, so `awit init` refuses to run where `.awit/` exists - which
   means this feature never reaches any repo that already uses awit,
   including this one. The dogfood test above is what keeps the committed
   copy honest in the meantime. A follow-up work item should add the retrofit
   path (`awit skill seed`, or letting `init` continue into seeding when
   `.awit/` already exists); file it, do not widen this work item.
 - Creating an agent directory that does not exist. Presence is the signal.
-- Seeding anything other than `driving-awit` — no skill registry, no
+- Seeding anything other than `driving-awit` - no skill registry, no
   `--skill <name>`, no per-tool skill sets.
 - Updating a previously seeded skill in place (diff/merge). `--force`
   overwrites wholesale; anything smarter is a separate work item.
@@ -258,7 +258,7 @@ Three suggestions on the shape of this ticket, from writing it.
 On the retrofit gap (Out of scope, first bullet): I think it is the more
 important half of the feature, not a footnote. item.Init refuses when
 .awit/ exists, so an init-only implementation reaches exactly the repos
-that have no tickets yet — never this one, and never any team that
+that have no tickets yet - never this one, and never any team that
 adopted awit before this shipped. The dogfood test keeps the committed
 .omp copy honest, but nobody else gets the skill. Worth deciding
 deliberately whether the follow-up lands in the same release rather than
@@ -266,11 +266,12 @@ discovering it after v0.1.0.
 
 On the frontmatter dialects: Step 1 is written as research that gates the
 rest, and it should stay that way. The risk is not that a dialect differs
-— Target.Frontmatter absorbs that — it is that a tool does not use the
-skills/<name>/SKILL.md convention at all. Seeding a file such a tool
-never reads is worse than seeding nothing, because it looks like
-onboarding succeeded. If a target cannot be confirmed, drop it from
-Targets() and leave a comment saying why, rather than guessing.
+
+- Target.Frontmatter absorbs that - it is that a tool does not use the
+  skills/<name>/SKILL.md convention at all. Seeding a file such a tool
+  never reads is worse than seeding nothing, because it looks like
+  onboarding succeeded. If a target cannot be confirmed, drop it from
+  Targets() and leave a comment saying why, rather than guessing.
 
 On the prompt: consider --dry-run printing the paths it would write.
 Interactive prompting is the one part of this that cannot be exercised
@@ -287,11 +288,11 @@ the test harness.
 Step 1 (the gate) resolved against each tool's own documentation. All
 five conventions confirmed as <dir>/skills/<name>/SKILL.md:
 
-  .claude    Claude Code
-  .omp       already in use here
-  .opencode  also reads .claude/skills and .agents/skills
-  .agents    the cross-client convention
-  .pi        also reads .agents/skills
+.claude Claude Code
+.omp already in use here
+.opencode also reads .claude/skills and .agents/skills
+.agents the cross-client convention
+.pi also reads .agents/skills
 
 The finding that matters: the dialects have converged. Every one requires
 name + description and ignores unknown keys, so one frontmatter block

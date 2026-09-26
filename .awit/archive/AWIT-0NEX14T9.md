@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NEX14T9
-title: 'skill: driving-awit misstates author resolution for comment and claim'
+title: "skill: driving-awit misstates author resolution for comment and claim"
 brief: >-
   The driving-awit skill claims comment and next --claim both fail with 'Error: no author' when AWIT_AGENT is unset. Neither is true: comment silently falls back to git user.name and signs agent work with the human's name, and claim fails with a different message, 'no agent identity'. An agent that forgets the export is never told.
 status: closed
@@ -37,12 +37,12 @@ in neither.
 So with `AWIT_AGENT` unset:
 
 - `awit comment <id> "…"` **succeeds**. It falls through to git
-  `user.name`, lowercased with spaces hyphenated, used **verbatim — no
+  `user.name`, lowercased with spaces hyphenated, used **verbatim - no
   `agent/` prefix**. Reproduced on this work item's parent while writing it:
   the comment was filed as author `jan`, the repo owner, for work an agent
   did.
 - `awit next --claim` **fails**, but with `no agent identity; pass --agent
-  or set AWIT_AGENT` — not `no author`. An agent that learned the string
+or set AWIT_AGENT` - not `no author`. An agent that learned the string
   `Error: no author` from the skill will not match it.
 
 The implementation is not the bug. `plan/implementation-guide.md:42` and
@@ -52,14 +52,14 @@ it correctly too. Only the skill is wrong.
 
 ## Context (read first)
 
-- `internal/cli/author.go` `resolveAuthor` — the comment chain, including
+- `internal/cli/author.go` `resolveAuthor` - the comment chain, including
   the git fallback and the `withAgentPrefix` asymmetry.
-- `pkg/config/config.go:90` `Agent` — the claim chain, no git fallback.
-- `internal/cli/next.go:99` — the `no agent identity` error text.
-- `plan/implementation-guide.md:42` — decision 4, the intended contract.
+- `pkg/config/config.go:90` `Agent` - the claim chain, no git fallback.
+- `internal/cli/next.go:99` - the `no agent identity` error text.
+- `plan/implementation-guide.md:42` - decision 4, the intended contract.
   This is the source of truth; the skill must be corrected to match it,
   not the other way round.
-- `docs/schema.md:150` — the comment `author` field, already correct.
+- `docs/schema.md:150` - the comment `author` field, already correct.
 
 ## Why this is p1 and blocks AWIT-0NEWKJTD
 
@@ -75,14 +75,14 @@ guarantees the opposite.
 
 ## Files
 
-- Modify: `.omp/skills/driving-awit/SKILL.md` — the Setup paragraph
+- Modify: `.omp/skills/driving-awit/SKILL.md` - the Setup paragraph
   (line 19) and the escalation-ladder row (line 112). If AWIT-0NEWKJTD has
   already moved the body to `internal/skill/assets/driving-awit.body.md`,
   edit it there and regenerate.
 
 ## Interfaces
 
-None. Documentation only — no Go signature changes, no behaviour change.
+None. Documentation only - no Go signature changes, no behaviour change.
 
 ## Steps
 
@@ -95,7 +95,7 @@ None. Documentation only — no Go signature changes, no behaviour change.
 - [ ] Replace the escalation-ladder row `Error: no author` with
       `Error: no agent identity` (the string `next --claim` actually
       prints), same remedy.
-- [ ] Check the rest of the skill for the same conflation — the Vocabulary
+- [ ] Check the rest of the skill for the same conflation - the Vocabulary
       table's `assignee` row and the Quick reference table both assume
       identity is always `agent/<name>`.
 - [ ] Re-read `plan/implementation-guide.md:42` against the final text,
@@ -118,7 +118,7 @@ None. Documentation only — no Go signature changes, no behaviour change.
 - Changing `resolveAuthor` or `Config.Agent`. The behaviour is the
   documented decision; only the skill is wrong.
 - Warning on stderr when the git fallback is used. Defensible, and it
-  would make the silent misattribution visible — but it is a behaviour
+  would make the silent misattribution visible - but it is a behaviour
   change to a shipped contract and belongs in its own work item with its own
   argument.
 - Unifying the two chains into one.
@@ -130,11 +130,11 @@ None. Documentation only — no Go signature changes, no behaviour change.
 Found while exercising the comment command for the first time, not by
 reading the code. The sequence, so it is reproducible:
 
-  $ ./bin/awit comment AWIT-0NEWKJTD "probe"      # AWIT_AGENT unset
-  ../comments/AWIT-0NEWKJTD/20260918T121927Z-jan.md
+$ ./bin/awit comment AWIT-0NEWKJTD "probe" # AWIT_AGENT unset
+../comments/AWIT-0NEWKJTD/20260918T121927Z-jan.md
 
 Expected per the skill: Error: no author. Got: exit 0 and a comment
-signed jan. That is the whole bug in three lines — the failure mode the
+signed jan. That is the whole bug in three lines - the failure mode the
 skill promises is the one case that cannot happen.
 
 One caveat on the Out of scope note about warning on stderr. I left it
@@ -142,7 +142,7 @@ out deliberately, but it is the only fix that reaches an agent already
 running with a stale skill in some other repo. Documentation corrects
 future readers; a warning corrects the run in progress. If the stderr
 warning is ever picked up, it should say which name it fell back to, not
-just that it fell back — "no AWIT_AGENT set, filing as jan" is
+just that it fell back - "no AWIT_AGENT set, filing as jan" is
 actionable, "no agent identity configured" is not.
 
 Also worth checking during the fix: the skill's Setup block is where an

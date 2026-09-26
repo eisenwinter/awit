@@ -106,19 +106,19 @@ func TestFilterLabels(t *testing.T) {
 		t.Fatalf("filter p1 = %v, want [0001]", nodeIDs(p1))
 	}
 
-	// AND across groups: auth AND p0 — 0001 has auth, 0004 has p0, nobody has both.
+	// AND across groups: auth AND p0 - 0001 has auth, 0004 has p0, nobody has both.
 	both := FilterLabels(g.Order, [][]string{{"auth"}, {"p0"}})
 	if len(both) != 0 {
 		t.Fatalf("filter auth AND p0 = %v, want empty", nodeIDs(both))
 	}
 
-	// OR within a group: auth OR db — 0001 (auth) and 0002 (db).
+	// OR within a group: auth OR db - 0001 (auth) and 0002 (db).
 	or := FilterLabels(g.Order, [][]string{{"auth", "db"}})
 	if !slices.Equal(nodeIDs(or), []string{"AWIT-TEST0001", "AWIT-TEST0002"}) {
 		t.Fatalf("filter auth OR db = %v, want [0001 0002]", nodeIDs(or))
 	}
 
-	// AND auth AND p1 — 0001 has both.
+	// AND auth AND p1 - 0001 has both.
 	and := FilterLabels(g.Order, [][]string{{"auth"}, {"p1"}})
 	if !slices.Equal(nodeIDs(and), []string{"AWIT-TEST0001"}) {
 		t.Fatalf("filter auth AND p1 = %v, want [0001]", nodeIDs(and))

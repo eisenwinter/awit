@@ -240,7 +240,7 @@ func createAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	// State is reported ready without building the graph — deliberate v1;
+	// State is reported ready without building the graph - deliberate v1;
 	// true state is `awit list`.
 	return format.WriteOne(cmd.Root().Writer, f, format.Entry{
 		ID:       it.ID,

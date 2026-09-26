@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NZJPBSG
-title: 'cli: lazy-human command, lazyOps, parity tests, docs'
+title: "cli: lazy-human command, lazyOps, parity tests, docs"
 brief: >-
   Registers awit lazy-human, implements lazy.Ops over the store with the extracted CLI primitives so every row, detail and byte matches the CLI, proves parity against list/show/prime/next on the fixtures, and documents the command.
 status: closed
@@ -10,6 +10,7 @@ refs_base: repo
 refs: []
 assignee: agent/orchestrator
 ---
+
 ## Summary
 
 The last piece: `internal/cli/lazy.go` defines the `lazy-human` command (`--agent` flag, `AWIT_AGENT` source), boots `tea.Program` with the root writer/reader, and implements `lazy.Ops` as `lazyOps{s, agent, now}` using `loadGraph`, `toEntry`/`format.Line`, `showFull`, `validateText`, `checkOne`, `loadItem`, `refuseClaim`, `resolveAuthor`, `s.Config.Agent` and the WI-3 primitives under `s.Lock(5s)`. Tests compare against the CLI on `testdata/fixtures/clean` and `archive`: filter parity vs `list`, detail vs `show --full`, overview vs `prime`, queue vs `prime` READY, and on-disk bytes vs `close --no-push`, `block`, `unblock`, `release --no-push`, `next --claim --commit=false`. Docs gain the command.
@@ -17,21 +18,21 @@ The last piece: `internal/cli/lazy.go` defines the `lazy-human` command (`--agen
 ## Context (read first)
 
 - Design spec "Architecture", "Error handling", "Acceptance"; plan §D.2, §D.14, §F, §G.
-- `internal/cli/app.go:96-152` — register `lazyHumanCmd` after `nextCmd`; `openStore` precedence.
-- `internal/cli/next.go:181-185,261-287` — identity error string `no agent identity; pass --agent or set AWIT_AGENT`; `refuseClaim`.
-- `internal/cli/close.go:52-59` — author only when a reason is given.
-- `internal/cli/external.go:145-166` — `checkOne(ctx, it, login) ExternalCheckRow`; the text line shapes at 109-131.
-- `internal/cli/helpers_test.go` — `run`, `copyFixture`, `readItem`; `pkg/item` `Store.Comments`.
+- `internal/cli/app.go:96-152` - register `lazyHumanCmd` after `nextCmd`; `openStore` precedence.
+- `internal/cli/next.go:181-185,261-287` - identity error string `no agent identity; pass --agent or set AWIT_AGENT`; `refuseClaim`.
+- `internal/cli/close.go:52-59` - author only when a reason is given.
+- `internal/cli/external.go:145-166` - `checkOne(ctx, it, login) ExternalCheckRow`; the text line shapes at 109-131.
+- `internal/cli/helpers_test.go` - `run`, `copyFixture`, `readItem`; `pkg/item` `Store.Comments`.
 - Bubble Tea v1: `tea.NewProgram(model, tea.WithInput(io.Reader), tea.WithOutput(io.Writer), tea.WithAltScreen(), tea.WithContext(ctx)).Run()` returns `(tea.Model, error)`.
 
 ## Files
 
-- `internal/cli/lazy.go` — command, action, `lazyOps`.
-- `internal/cli/app.go` — one line in `Commands`.
-- `internal/cli/lazy_test.go` — parity, bytes, refusals, registration, quit smoke.
-- `docs/design-spec.md` — §5 row after `next`; §7 map line for `internal/lazy/`; §7 closing sentence.
-- `README.md` — `## Commands` row after `awit next`.
-- `docs/usage.md` — `## Browsing interactively` section before `## Command reference`; reference row.
+- `internal/cli/lazy.go` - command, action, `lazyOps`.
+- `internal/cli/app.go` - one line in `Commands`.
+- `internal/cli/lazy_test.go` - parity, bytes, refusals, registration, quit smoke.
+- `docs/design-spec.md` - §5 row after `next`; §7 map line for `internal/lazy/`; §7 closing sentence.
+- `README.md` - `## Commands` row after `awit next`.
+- `docs/usage.md` - `## Browsing interactively` section before `## Command reference`; reference row.
 
 ## Interfaces
 
@@ -63,3 +64,4 @@ type lazyOps struct {
 ### 2026-09-24T21:52:13Z jan
 
 implemented
+```

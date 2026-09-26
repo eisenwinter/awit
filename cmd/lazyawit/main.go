@@ -1,4 +1,4 @@
-// Command lazyawit is the human TUI over .awit — the former "awit lazy-human"
+// Command lazyawit is the human TUI over .awit - the former "awit lazy-human"
 // as its own binary, so agents holding only awit have no TUI code path.
 package main
 

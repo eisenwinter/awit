@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND5703G
-title: 'awit show --full / --refs-only'
+title: "awit show --full / --refs-only"
 brief: >-
   Extend `awit show` with `--refs-only` (one `<ref> -> <abs> (<N> bytes)` line per ref) and `--full` (default view plus delimited ref bodies). Item refs render the target's default view without recursion; missing files render `[missing]` and never fail. JSON `--full` adds a refs array to the entry.
 status: closed
@@ -29,12 +29,12 @@ fixture.
 
 ## Context (read first)
 
-- **AWIT-0ND56K3G** — `show.go` as built there: `showCmd`,
+- **AWIT-0ND56K3G** - `show.go` as built there: `showCmd`,
   `defaultView(n)`, `brokenView`, `showJSON{Entry, Body}`, unknown-ID
   and broken-file handling. Must be `status: closed` before you start.
   Reuse `defaultView` for item refs; extend `showJSON`, do not replace
   it.
-- **AWIT-0ND56Z3G** — `pkg/resolver`, closed. Exact API to consume:
+- **AWIT-0ND56Z3G** - `pkg/resolver`, closed. Exact API to consume:
 
   ```go
   type Resolved struct {
@@ -52,8 +52,9 @@ fixture.
   `path` names a `.md` file directly inside `itemsDir`, following
   `..` elements (so `AWIT-TEST0002.md` qualifies; `../../docs/spec.md`
   and `../comments/<id>/x.md` do not). Existence is the caller's
-  concern — check `Err == nil` first, then `IsItemRef`.
-- Guide §1 — refs print with forward slashes exactly as written in
+  concern - check `Err == nil` first, then `IsItemRef`.
+
+- Guide §1 - refs print with forward slashes exactly as written in
   frontmatter (`Resolved.Ref`); only `Resolved.Path` carries OS
   separators.
 - The `loop` fixture (AWIT-0ND56N3G): `AWIT-TEST0001`
@@ -66,18 +67,18 @@ fixture.
   `detectFormat`, `run`, `copyFixture`, `readItem`. `Store.ItemsDir()`
   gives the items directory for `Resolve`/`IsItemRef` (from
   AWIT-0ND56E3G; if the accessor is named differently there, use the
-  real name — the path is `<root>/.awit/items`).
+  real name - the path is `<root>/.awit/items`).
 - The copied fixture root IS the repo root (the directory containing
   `.awit/`), which is what `item.Open(repo)` takes. Tests that mutate
-  refs open the store with `item.Open(dir)` and `Save` — no new
+  refs open the store with `item.Open(dir)` and `Save` - no new
   production APIs for tests.
 
 ## Files
 
-- Modify: `internal/cli/show.go` — add `--full` / `--refs-only` flags,
+- Modify: `internal/cli/show.go` - add `--full` / `--refs-only` flags,
   ref rendering, JSON refs array.
 - Create: `internal/cli/show_full_test.go`
-- Modify: `internal/cli/show_test.go` — only if a shared helper needs
+- Modify: `internal/cli/show_test.go` - only if a shared helper needs
   extracting (prefer a private helper in `show.go`); do not rewrite the
   K3G tests.
 
@@ -196,7 +197,7 @@ fixture.
   func TestShowFullItemRefNoRecursion(t *testing.T) {
       dir := copyFixture(t, "loop")
       // 0003 refs 0002 (an item); 0002 refs nothing. A recursive
-      // renderer would also expand 0001's spec ref — assert it does not.
+      // renderer would also expand 0001's spec ref - assert it does not.
       it := readItem(t, dir, "AWIT-TEST0003")
       it.SetRefs([]string{"AWIT-TEST0002.md"})
       saveItem(t, dir, it)
@@ -282,7 +283,7 @@ fixture.
   ```
 
   (urfave reports unknown flags as an error through `Main`; the exact
-  wording may differ — any non-zero exit naming the missing flag is the
+  wording may differ - any non-zero exit naming the missing flag is the
   red. Do not skip it.)
 
 - [ ] **Step 3: Extend `show.go`.**
@@ -324,9 +325,8 @@ fixture.
   }
   ```
 
-  Add `Refs []showRefJSON \`json:"refs,omitempty"\`` to `showJSON`.
-  (`omitempty` on a nil slice keeps the K3G JSON byte-identical when
-  `--full` is off.) New code:
+  Add `Refs []showRefJSON \`json:"refs,omitempty"\``to`showJSON`.
+(`omitempty`on a nil slice keeps the K3G JSON byte-identical when`--full` is off.) New code:
 
   ```go
   // showRefJSON is one resolved ref for --format json --full.
@@ -427,19 +427,18 @@ fixture.
   ```
 
   Details that matter:
-
   - `defaultView` ends with the body plus exactly one `\n`, so the
     first `===== REF` header starts on a fresh line with no blank line
     between the body and the header.
   - Block content always ends in `\n`, so every `===== END REF`
     marker is on its own line. An empty (0-byte) file contributes one
     blank line inside its block.
-  - `[missing]` has no reason suffix — `Resolve` errors are usually
+  - `[missing]` has no reason suffix - `Resolve` errors are usually
     `ENOENT`; printing the raw `*PathError` would leak OS-specific
     wording into assertions and break Windows CI.
   - Item-ref match is by stem ID against live graph nodes first
     (`g.Nodes[id]`), so an item ref always shows current state, not a
-    stale disk copy. `IsItemRef` takes `(itemsDir, r.Path)` — the
+    stale disk copy. `IsItemRef` takes `(itemsDir, r.Path)` - the
     ABSOLUTE resolved path, not the raw ref.
   - `--refs-only` on an item with no refs prints nothing and exits 0.
   - `--full` on an item with no refs prints exactly `defaultView`.
@@ -474,7 +473,7 @@ fixture.
   ok  	github.com/eisenwinter/awit/internal/cli
   ```
 
-  Then the whole package stays green (K3G JSON must be byte-identical —
+  Then the whole package stays green (K3G JSON must be byte-identical -
   `refs,omitempty` with nil slice guarantees it):
 
   ```bash
@@ -502,7 +501,7 @@ fixture.
 ## Acceptance Criteria
 
 - `go test ./internal/cli -run 'TestShowRefsOnly|TestShowFull' -count=1 -v`
-  — all six tests PASS; `go test ./internal/cli -count=1` stays green.
+  - all six tests PASS; `go test ./internal/cli -count=1` stays green.
 - On a copy of the `loop` fixture,
   `awit show --refs-only AWIT-TEST0001` prints exactly
   `../../docs/spec.md -> <abs> (<N> bytes)` with the real size.

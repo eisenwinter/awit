@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NPYAWT8
-title: 'cli/create: add --body and --body-file'
+title: "cli/create: add --body and --body-file"
 brief: >-
   create can only take its body from config.template or the built-in skeleton, so a filled-in body must be written by hand afterwards. Adds --body and --body-file, mutually exclusive and resolved before the lock and the mint.
 status: closed
@@ -23,17 +23,17 @@ nothing.
 
 ## Context (read first)
 
-- `plan/implementation-guide.md` §1 — global constraints; §5 — why flags are detected by **value**, never `cmd.IsSet` (the command tree is reused across `Main` calls, so `hasBeenSet` sticks).
-- `internal/cli/create.go:172` — where the body is resolved today.
-- `internal/cli/create.go:212` — `if body != nil { it.SetBody(body) }`; unchanged by this item, a nil body still falls through to `item.New`'s default.
-- `internal/cli/create_test.go` — existing convention: pass `--id AWIT-TEST0001` for a deterministic ID and put the title **last**. No output scraping needed.
+- `plan/implementation-guide.md` §1 - global constraints; §5 - why flags are detected by **value**, never `cmd.IsSet` (the command tree is reused across `Main` calls, so `hasBeenSet` sticks).
+- `internal/cli/create.go:172` - where the body is resolved today.
+- `internal/cli/create.go:212` - `if body != nil { it.SetBody(body) }`; unchanged by this item, a nil body still falls through to `item.New`'s default.
+- `internal/cli/create_test.go` - existing convention: pass `--id AWIT-TEST0001` for a deterministic ID and put the title **last**. No output scraping needed.
 - Depends on `readTemplateBody` and `validateBodyBytes` from the `awit template` item.
 
 ## Files
 
-- `internal/cli/template.go` — append `resolveBodyFlags`; add `io` to imports.
-- `internal/cli/create.go` — two flags after `brief`, body resolution ahead of the lock.
-- `internal/cli/create_test.go` — five new tests.
+- `internal/cli/template.go` - append `resolveBodyFlags`; add `io` to imports.
+- `internal/cli/create.go` - two flags after `brief`, body resolution ahead of the lock.
+- `internal/cli/create_test.go` - five new tests.
 
 ## Interfaces
 
@@ -129,7 +129,7 @@ func TestCreateBodyRefusesConflictMarkers(t *testing.T) {
 }
 ```
 
-- [ ] Run `go test ./internal/cli/ -run TestCreateBody -v` — see it FAIL: `flag provided but not defined: -body`
+- [ ] Run `go test ./internal/cli/ -run TestCreateBody -v` - see it FAIL: `flag provided but not defined: -body`
 - [ ] Append to `internal/cli/template.go`, adding `io` to its imports:
 
 ```go
@@ -188,12 +188,12 @@ func resolveBodyFlags(cmd *cli.Command) ([]byte, error) {
 	}
 ```
 
-  and move the `resolveBodyFlags` call **above** `s.Lock` and the mint. Resulting order in
-  `createAction`: parse external mapping → `openStore` → `resolveBodyFlags` →
-  `noteWalkedUp` → `s.Lock` → `readTemplateBody` (only when body is nil) → mint.
+and move the `resolveBodyFlags` call **above** `s.Lock` and the mint. Resulting order in
+`createAction`: parse external mapping → `openStore` → `resolveBodyFlags` →
+`noteWalkedUp` → `s.Lock` → `readTemplateBody` (only when body is nil) → mint.
 
-- [ ] Run `go test ./internal/cli/ -run TestCreate -v` — PASS, every pre-existing create test included
-- [ ] Verify the round trip by hand (POSIX shell assumed; on Windows substitute a build path): build the binary, `awit init --no-skills` in a temp dir, then `awit template > body.md`, `awit create "A" --brief "x" --body-file body.md`, `awit create "B" --brief "x"` — both items must carry identical bodies. A mismatch means `item.DefaultBody` and what `template` prints have drifted
+- [ ] Run `go test ./internal/cli/ -run TestCreate -v` - PASS, every pre-existing create test included
+- [ ] Verify the round trip by hand (POSIX shell assumed; on Windows substitute a build path): build the binary, `awit init --no-skills` in a temp dir, then `awit template > body.md`, `awit create "A" --brief "x" --body-file body.md`, `awit create "B" --brief "x"` - both items must carry identical bodies. A mismatch means `item.DefaultBody` and what `template` prints have drifted
 - [ ] Commit: `cli/create: add --body and --body-file`
 
 ## Acceptance Criteria
@@ -207,9 +207,8 @@ func resolveBodyFlags(cmd *cli.Command) ([]byte, error) {
 
 ## Out of scope
 
-- `update --body` — its own work item.
+- `update --body` - its own work item.
 - Making `--body ""` mean "empty body". It is indistinguishable from unset and falls through to `config.template`; this is a documented limit, recorded in the guide by the docs work item.
-
 
 ## Comments
 
@@ -219,4 +218,4 @@ create takes the body from --body or --body-file, mutually exclusive, resolved b
 
 ### 2026-09-21T14:08:30Z agent/orchestrator
 
-Implemented by CreateBodyWorker (TDD red then green; 37 create tests pass; go test ./... && go vet ./... clean; hand round-trip template > body-file identical). Reviewed by reviewer agent: SATISFIED zero findings — resolveBodyFlags before lock/mint (usage error mints nothing), value-based flag detection, no residue of worker's mid-session edit mishap, gofmt clean, scratch-binary smoke of stdin/- and mutual-exclusion exit 2.
+Implemented by CreateBodyWorker (TDD red then green; 37 create tests pass; go test ./... && go vet ./... clean; hand round-trip template > body-file identical). Reviewed by reviewer agent: SATISFIED zero findings - resolveBodyFlags before lock/mint (usage error mints nothing), value-based flag detection, no residue of worker's mid-session edit mishap, gofmt clean, scratch-binary smoke of stdin/- and mutual-exclusion exit 2.

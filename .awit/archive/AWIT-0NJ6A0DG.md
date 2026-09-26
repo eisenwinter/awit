@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NJ6A0DG
-title: 'external: route body checks and local-first state pushes to GitLab'
+title: "external: route body checks and local-first state pushes to GitLab"
 brief: >-
   Extend existing external checks, explicit body repair, and local-first state delivery to linked GitLab issues. Preserve Gitea output, exit, warning, locking, and offline contracts while using glab's verified body/state operations.
 status: closed
@@ -9,6 +9,7 @@ labels: [phase5, p1]
 refs_base: repo
 refs: []
 ---
+
 ## Summary
 
 Route existing check, push-body, and post-save state-push workflows by tracker. Keep local content/state canonical, retain exact output schemas and warnings, and prove mixed-tracker behavior without changing Gitea rows.
@@ -63,14 +64,14 @@ Behavior:
   warning: <id> saved locally; external state push failed: <reason>; retry with awit update <id> --status <status>
   ```
 
-- `--no-push` returns before metadata validation, either executable lookup, configuration lookup, auth, or network—even for malformed metadata. No new login/config flags; `--tea-login` remains meaningful only for Gitea.
+- `--no-push` returns before metadata validation, either executable lookup, configuration lookup, auth, or network-even for malformed metadata. No new login/config flags; `--tea-login` remains meaningful only for Gitea.
 - Keep same-checkout locking guarantees; do not claim coordination across clones or make automatic retries.
 
 ## Steps
 
-- [ ] **RED — add `TestExternalCheckGitLab`, `TestExternalCheckMixedTrackers`, and `TestExternalPushBodyGitLab`.** Use temporary repositories with both portable stubs. Cover match/drift/error aggregation, stable ordering/JSON purity/exit status, null/byte-edge bodies, invalid metadata, wrong identity, duplicate-link refusal, harmless cross-tracker equal-iid links, and local byte preservation. Record remote title/labels/state before and after body writes.
+- [ ] **RED - add `TestExternalCheckGitLab`, `TestExternalCheckMixedTrackers`, and `TestExternalPushBodyGitLab`.** Use temporary repositories with both portable stubs. Cover match/drift/error aggregation, stable ordering/JSON purity/exit status, null/byte-edge bodies, invalid metadata, wrong identity, duplicate-link refusal, harmless cross-tracker equal-iid links, and local byte preservation. Record remote title/labels/state before and after body writes.
 - [ ] **Run RED:** `go test ./internal/cli -run 'ExternalCheckGitLab|ExternalCheckMixedTrackers|ExternalPushBodyGitLab' -count=1 -v`; show GitLab rows currently route through tea or fail.
-- [ ] **RED — add `TestExternalStateGitLab` cases and `TestExternalPushBodyGitLabQuickActionRefusal`.** Mirror observable D4 cases: all triggers, same-status retry, non-trigger mutations, missing glab/auth/HTTP/schema failures, malformed metadata, no-push with both tools hidden, local-save failure, preserved reason/claim behavior, and warning/exit 0 after remote failure. Assert `/close` body push exits 1, produces no PUT, preserves local/remote bytes and state, and emits safe-format guidance.
+- [ ] **RED - add `TestExternalStateGitLab` cases and `TestExternalPushBodyGitLabQuickActionRefusal`.** Mirror observable D4 cases: all triggers, same-status retry, non-trigger mutations, missing glab/auth/HTTP/schema failures, malformed metadata, no-push with both tools hidden, local-save failure, preserved reason/claim behavior, and warning/exit 0 after remote failure. Assert `/close` body push exits 1, produces no PUT, preserves local/remote bytes and state, and emits safe-format guidance.
 
   ```go
   code, _, stderr := run(t, "--repo", repo, "update", "GL-STATE", "--status", "closed")
@@ -80,10 +81,11 @@ Behavior:
   ```
 
   In the remote-failure subtest also load the item and assert local closed plus the one retry warning; in the successful subtest read the stub’s remote issue and assert wire `closed`.
+
 - [ ] **Run RED:** `go test ./internal/cli -run 'ExternalStateGitLab|ExternalPushBodyGitLabQuickActionRefusal' -count=1 -v`.
-- [ ] **GREEN — switch reads to `getExternalIssue`, add the two write-dispatch helpers, and route the existing post-save helper.** Preserve output structs, warning text, trigger points, local-first ordering, and lock lifetime. Keep teax behavior untouched.
+- [ ] **GREEN - switch reads to `getExternalIssue`, add the two write-dispatch helpers, and route the existing post-save helper.** Preserve output structs, warning text, trigger points, local-first ordering, and lock lifetime. Keep teax behavior untouched.
 - [ ] **Run GREEN:** `go test ./internal/cli ./internal/glabx ./internal/teax -run 'ExternalCheck|ExternalPushBody|ExternalState|Glab|Tea' -count=1 -v`. Run the temporary-directory/disposable-issue CLI scenario below and record exact outcomes.
-- [ ] **Finish paired user guidance and regenerate the embedded skill copy.** Explain GitLab auth prerequisite, both URL shapes, subgroup keys, raw file transport without LF adaptation, strict quick-action refusal—including conservative fenced matches—and unchanged no-push/retry behavior. Hand evidence to the orchestrator for commit and final project-wide validation.
+- [ ] **Finish paired user guidance and regenerate the embedded skill copy.** Explain GitLab auth prerequisite, both URL shapes, subgroup keys, raw file transport without LF adaptation, strict quick-action refusal-including conservative fenced matches-and unchanged no-push/retry behavior. Hand evidence to the orchestrator for commit and final project-wide validation.
 
 ## Acceptance Criteria
 
@@ -104,6 +106,7 @@ Behavior:
   ```
 
   Initial and post-push checks report MATCH. Verify GitLab transitions closed→opened and both explicit in_progress commands deliver reopen; local state remains in_progress. No new commit is created. Inspect the remote through host-scoped glab GET, not a production HTTP client.
+
 - In the temporary repo, make an explicit body-only local edit to create safe drift, preserving frontmatter. Check exits 1/DRIFT; push-body then check produces MATCH. Repeat representative no-LF/CRLF/multiple-LF cases and confirm title/labels/state unchanged. Use `Item.Body()`/decoded JSON for byte comparisons.
 - Replace the local body with an unsafe column-zero slash-command example. `awit --repo "$R" external push-body GL-SMOKE` exits 1 with the refusal guidance; both local body and every remote field remain unchanged. Restore the temporary local body explicitly; never auto-rewrite it in production.
 - Portable temporary-repo tests demonstrate: mixed tracker rows keep their exact output contracts; broken remote auth still saves close/release locally and emits exactly the retry warning; repairing the scripted auth and `update --status <current>` retries without a second close reason; `--no-push` works with neither binary available and performs no configuration/auth calls.
@@ -117,8 +120,6 @@ Behavior:
 ## Out of scope
 
 Inbound synchronization, automatic body pushing, title/label synchronization, remote issue creation, MRs, login management, queues/retries, daemon, distributed locking, or any change to Gitea output/auth/LF behavior.
-
-
 
 ## Comments
 

@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND56A3G
-title: 'pkg/config: config.yaml load, write, agent resolution'
+title: "pkg/config: config.yaml load, write, agent resolution"
 brief: >-
   Implement pkg/config: load and atomically write config.yaml, a Duration type that round-trips Go duration strings, Default/Load/Write, WriteAtomic for later Store.Save reuse, and Agent resolution (flag then AWIT_AGENT then agent_id) with no prefixing.
 status: closed
@@ -13,11 +13,13 @@ refs:
 ---
 
 ## Summary
-After this ticket `pkg/config/config.go` and `pkg/config/atomic.go` exist with every signature in guide §4.2 copied verbatim. `Load` reads `awitDir/config.yaml`, rejects a missing prefix with `config: prefix is required`, and fills a zero `stale_claim` with 2h. `Write` encodes YAML at indent 2 and calls `WriteAtomic`. `WriteAtomic` is `os.CreateTemp(dir, ".tmp-*")`, write, `Close`, `Chmod 0o644`, `Rename`, and `Remove` the temp on failure — ticket `AWIT-0ND56E3G` will call it from `Store.Save`. `Agent` is flag → `AWIT_AGENT` → `AgentID` → `""` and never prepends `agent/`. No CLI, no item store, no git.
+
+After this ticket `pkg/config/config.go` and `pkg/config/atomic.go` exist with every signature in guide §4.2 copied verbatim. `Load` reads `awitDir/config.yaml`, rejects a missing prefix with `config: prefix is required`, and fills a zero `stale_claim` with 2h. `Write` encodes YAML at indent 2 and calls `WriteAtomic`. `WriteAtomic` is `os.CreateTemp(dir, ".tmp-*")`, write, `Close`, `Chmod 0o644`, `Rename`, and `Remove` the temp on failure - ticket `AWIT-0ND56E3G` will call it from `Store.Save`. `Agent` is flag → `AWIT_AGENT` → `AgentID` → `""` and never prepends `agent/`. No CLI, no item store, no git.
 
 ## Context (read first)
-- Guide §4.2 `pkg/config` — copy the signatures; do not rename. `FileName`, `Config`, `Duration`, `Default`, `Load`, `Write`, `WriteAtomic`, `Agent` are the whole public surface.
-- Guide §1: allowed dependency `gopkg.in/yaml.v3` (CLI skeleton AWIT-0ND5683G already `go get`s it; if this ticket is implemented first, `go get gopkg.in/yaml.v3` yourself). Stdlib otherwise. **Never hardcode `/`** — `filepath.Join`. Every file write is temp-then-rename in the **same** directory. Must pass on Linux **and** Windows (`os.Rename` will not replace an existing file on Windows — remove the destination and retry).
+
+- Guide §4.2 `pkg/config` - copy the signatures; do not rename. `FileName`, `Config`, `Duration`, `Default`, `Load`, `Write`, `WriteAtomic`, `Agent` are the whole public surface.
+- Guide §1: allowed dependency `gopkg.in/yaml.v3` (CLI skeleton AWIT-0ND5683G already `go get`s it; if this ticket is implemented first, `go get gopkg.in/yaml.v3` yourself). Stdlib otherwise. **Never hardcode `/`** - `filepath.Join`. Every file write is temp-then-rename in the **same** directory. Must pass on Linux **and** Windows (`os.Rename` will not replace an existing file on Windows - remove the destination and retry).
 - Guide §1 tests: `testing` only, table-driven, `t.TempDir()` for the filesystem. No golden files.
 - Guide §2 decision 4 (comment author source): `--author` → `AWIT_AGENT` → `config.agent_id` → git name. **`Config.Agent` does not add `agent/`**. Prefixing happens later in the comment/claim tickets. This method returns the raw string.
 - Spec `plan/awit-implementation-plan.md` §Data model: `config.yaml` holds `prefix`, optional `default_labels`, `stale_claim` (duration, default `2h`), and `agent_id` (overridden by `AWIT_AGENT`).
@@ -29,13 +31,15 @@ After this ticket `pkg/config/config.go` and `pkg/config/atomic.go` exist with e
 - `Agent(flag)`: if `flag != ""` return it; else if `os.Getenv("AWIT_AGENT") != ""` return that; else return `c.AgentID` (possibly `""`). No trimming, no prefixing, no git lookup.
 
 ## Files
+
 - Create: `pkg/config/config.go`
 - Create: `pkg/config/atomic.go`
 - Create: `pkg/config/config_test.go`
-- Modify: `go.mod` / `go.sum` only if `gopkg.in/yaml.v3` is not yet a requirement (see Step 3). Do not run `go mod tidy` — it may drop `github.com/urfave/cli/v3` if the CLI skeleton has not imported it yet.
+- Modify: `go.mod` / `go.sum` only if `gopkg.in/yaml.v3` is not yet a requirement (see Step 3). Do not run `go mod tidy` - it may drop `github.com/urfave/cli/v3` if the CLI skeleton has not imported it yet.
 - Fixtures/golden: none. Every test writes YAML into `t.TempDir()`.
 
 ## Interfaces
+
 - Consumes: `gopkg.in/yaml.v3`. No other awit package.
 - Produces (verbatim from guide §4.2):
 
@@ -68,7 +72,7 @@ func (c Config) Agent(flag string) string
 ## Steps
 
 - [ ] **Step 1: Write the failing tests.**
-  Create `pkg/config/config_test.go`. Do not create `config.go` / `atomic.go` yet.
+      Create `pkg/config/config_test.go`. Do not create `config.go` / `atomic.go` yet.
 
 ```go
 package config
@@ -234,22 +238,28 @@ func TestWriteAtomicBadDir(t *testing.T) {
 ```
 
 - [ ] **Step 2: Run it, see it fail to compile.**
+
   ```bash
   go test ./pkg/config -run TestLoad -v
   ```
+
   Expected failure (`config.go` does not exist):
+
   ```text
   # github.com/eisenwinter/awit/pkg/config [github.com/eisenwinter/awit/pkg/config.test]
   pkg/config/config_test.go: undefined: Load
   FAIL	github.com/eisenwinter/awit/pkg/config [build failed]
   ```
+
   The compiler will also list `FileName`, `Default`, `WriteAtomic`, `Config`. That is the red step.
 
 - [ ] **Step 3: Implement `WriteAtomic`, `Duration`, `Default`, `Load`, `Write`, `Agent`.**
-  If `go test` later reports `cannot find package "gopkg.in/yaml.v3"`:
+      If `go test` later reports `cannot find package "gopkg.in/yaml.v3"`:
+
   ```bash
   go get gopkg.in/yaml.v3
   ```
+
   Do **not** run `go mod tidy`.
 
   Create `pkg/config/atomic.go`:
@@ -301,7 +311,7 @@ func WriteAtomic(path string, data []byte) error {
 }
 ```
 
-  Create `pkg/config/config.go`:
+Create `pkg/config/config.go`:
 
 ```go
 package config
@@ -400,19 +410,23 @@ func (c Config) Agent(flag string) string {
 }
 ```
 
-  Notes that must survive `gofmt`:
-  - `UnmarshalYAML` takes `*yaml.Node` (yaml.v3), not the old `func(any) error` callback.
-  - `MarshalYAML` must emit `2h` for `2*time.Hour` or `TestWriteThenLoadRoundTrip` fails on the exact-bytes pin. Returning `time.Duration(d).String()` raw yields `2h0m0s`.
-  - `Load` does not wrap the `os.ReadFile` error — `errors.Is(..., os.ErrNotExist)` has to work.
-  - `Write` field order is the struct order: `prefix`, `default_labels` (omitempty), `stale_claim`, `agent_id` (omitempty). That is why `Default("AWIT").Write` is exactly `prefix: AWIT\nstale_claim: 2h\n`.
-  - `CreateTemp` pattern is `".tmp-*"` (leading dot). `Chmod 0o644` after `Close`, before `Rename`.
-  - `Agent` never returns `"agent/"+x`.
+Notes that must survive `gofmt`:
+
+- `UnmarshalYAML` takes `*yaml.Node` (yaml.v3), not the old `func(any) error` callback.
+- `MarshalYAML` must emit `2h` for `2*time.Hour` or `TestWriteThenLoadRoundTrip` fails on the exact-bytes pin. Returning `time.Duration(d).String()` raw yields `2h0m0s`.
+- `Load` does not wrap the `os.ReadFile` error - `errors.Is(..., os.ErrNotExist)` has to work.
+- `Write` field order is the struct order: `prefix`, `default_labels` (omitempty), `stale_claim`, `agent_id` (omitempty). That is why `Default("AWIT").Write` is exactly `prefix: AWIT\nstale_claim: 2h\n`.
+- `CreateTemp` pattern is `".tmp-*"` (leading dot). `Chmod 0o644` after `Close`, before `Rename`.
+- `Agent` never returns `"agent/"+x`.
 
 - [ ] **Step 4: Run Load tests, see them pass.**
+
   ```bash
   go test ./pkg/config -run TestLoad -v
   ```
+
   Expected:
+
   ```text
   === RUN   TestLoadDefaults
   --- PASS: TestLoadDefaults (0.00s)
@@ -425,19 +439,25 @@ func (c Config) Agent(flag string) string {
   PASS
   ok  	github.com/eisenwinter/awit/pkg/config	0.00s
   ```
+
   Commit:
+
   ```bash
   gofmt -l pkg/config
   git add pkg/config
   git commit -m "config: load yaml with prefix and stale_claim defaults"
   ```
+
   (`gofmt -l` must print nothing. If you `go get`'d yaml.v3 in this ticket, `git add go.mod go.sum` too.)
 
 - [ ] **Step 5: Run Write, Agent and WriteAtomic tests, see them pass.**
+
   ```bash
   go test ./pkg/config -run 'TestWrite|TestAgent' -v
   ```
+
   Expected:
+
   ```text
   === RUN   TestWriteThenLoadRoundTrip
   --- PASS: TestWriteThenLoadRoundTrip (0.00s)
@@ -459,25 +479,30 @@ func (c Config) Agent(flag string) string {
   PASS
   ok  	github.com/eisenwinter/awit/pkg/config	0.00s
   ```
-  If `TestWriteThenLoadRoundTrip` fails with `stale_claim: 2h0m0s`, the MarshalYAML compacting is missing. If it fails with a leading `---` document marker, you used a multi-doc encoder setting — `Encode` once and `Close` is enough. If `TestWriteAtomicReplaces` fails on Windows with `cannot replace`, the `os.Remove`+retry path is missing.
+
+  If `TestWriteThenLoadRoundTrip` fails with `stale_claim: 2h0m0s`, the MarshalYAML compacting is missing. If it fails with a leading `---` document marker, you used a multi-doc encoder setting - `Encode` once and `Close` is enough. If `TestWriteAtomicReplaces` fails on Windows with `cannot replace`, the `os.Remove`+retry path is missing.
   Commit:
+
   ```bash
   git add pkg/config
   git commit -m "config: atomic write and agent resolution"
   ```
 
 - [ ] **Step 6: Run the whole package, build and vet.**
+
   ```bash
   go test ./pkg/config -v
   go build ./...
   go vet ./pkg/config
   gofmt -l pkg/config
   ```
+
   Expected: nine tests PASS (`TestLoadDefaults`, `TestLoadMissingPrefix`, `TestLoadMissingFile`, `TestLoadInvalidDuration`, `TestWriteThenLoadRoundTrip`, `TestWritePreservesAgentAndLabels`, `TestAgentResolution` with seven subtests, `TestWriteAtomicReplaces`, `TestWriteAtomicBadDir`), then `ok  	github.com/eisenwinter/awit/pkg/config`; `go build` and `go vet` print nothing and exit `0`; `gofmt -l` prints nothing.
 
 - [ ] **Step 7: Close ticket.**
   - Set `status: closed` in the frontmatter of `.awit/items/AWIT-0ND56A3G.md`.
   - Create `.awit/comments/AWIT-0ND56A3G/<YYYYMMDDTHHMMSSZ>-<author>.md` (UTC stamp):
+
     ```markdown
     ---
     author: agent/claude
@@ -498,6 +523,7 @@ func (c Config) Agent(flag string) string {
     $ gofmt -l pkg/config
     (no output)
     ```
+
   - Append the ref `../comments/AWIT-0ND56A3G/<file>.md` to this ticket's `refs` list (forward slashes, block style, after the two plan refs).
   - Commit:
     ```bash
@@ -506,6 +532,7 @@ func (c Config) Agent(flag string) string {
     ```
 
 ## Acceptance Criteria
+
 - `go test ./pkg/config -v` → all nine tests `PASS`, final line `ok  	github.com/eisenwinter/awit/pkg/config`, exit code `0`.
 - `go test ./pkg/config -run TestLoadDefaults -v` → `PASS`; file `prefix: AWIT\n` loads with `StaleClaim == 2h`.
 - `go test ./pkg/config -run TestLoadMissingPrefix -v` → `PASS`; error string is exactly `config: prefix is required`.
@@ -520,11 +547,12 @@ func (c Config) Agent(flag string) string {
 - `WriteAtomic` is exported from `pkg/config` for `AWIT-0ND56E3G`: `grep -c '^func WriteAtomic' pkg/config/atomic.go` → `1`.
 
 ## Out of scope
-- `item.Store.Save` / `Store.Open` / `Init` writing `config.yaml` on `awit init` — `AWIT-0ND56E3G` and `AWIT-0ND56G3G`. They **call** `WriteAtomic` / `Default` / `Load` / `Write`; they do not reimplement them.
-- `AWIT_WORKER` parsing — `AWIT-0ND5693G` (`id.Worker`).
-- Prepending `agent/` to identities — `AWIT-0ND56Y3G` (comment author) and `AWIT-0ND56X3G` (`next --claim`). `Config.Agent` returns the raw value.
-- `git config user.name` fallback — `internal/gitx.UserName` (`AWIT-0ND56C3G`) and the CLI author chain.
+
+- `item.Store.Save` / `Store.Open` / `Init` writing `config.yaml` on `awit init` - `AWIT-0ND56E3G` and `AWIT-0ND56G3G`. They **call** `WriteAtomic` / `Default` / `Load` / `Write`; they do not reimplement them.
+- `AWIT_WORKER` parsing - `AWIT-0ND5693G` (`id.Worker`).
+- Prepending `agent/` to identities - `AWIT-0ND56Y3G` (comment author) and `AWIT-0ND56X3G` (`next --claim`). `Config.Agent` returns the raw value.
+- `git config user.name` fallback - `internal/gitx.UserName` (`AWIT-0ND56C3G`) and the CLI author chain.
 - CLI flags `--agent` / `--author`, urfave wiring, `internal/cli`.
-- Lock files, flock, `pkg/lock` — `AWIT-0ND5723G`.
-- Stale-claim *checking* (`validate --stale-claims`) — `AWIT-0ND5733G`. This ticket only stores the duration.
+- Lock files, flock, `pkg/lock` - `AWIT-0ND5723G`.
+- Stale-claim _checking_ (`validate --stale-claims`) - `AWIT-0ND5733G`. This ticket only stores the duration.
 - Colour, formatters, golden files.

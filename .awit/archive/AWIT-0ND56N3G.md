@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND56N3G
-title: 'pkg/graph Build: nodes, edges, dangling, broken carry-through + fixtures'
+title: "pkg/graph Build: nodes, edges, dangling, broken carry-through + fixtures"
 brief: >-
   Implement pkg/graph Build: one Node per item, ID-sorted Order, Deps/Unblocks wiring, dangling-dep faults, and carry-through of Broken files into g.Broken and g.Faults. Land every testdata/fixtures tree from guide §8. Cycle detection, classify, and unblock counts are empty seams called in that order.
 status: closed
@@ -13,12 +13,14 @@ refs:
 ---
 
 ## Summary
-After this ticket `pkg/graph/graph.go` exists with types `Fault`, `Node`, `Graph`, node methods `Quarantined` / `DepIDs` / `OpenDepIDs`, and `Build`. `Build` creates one node per parsed item, sorts `Order` by ID, wires resolved `Deps`/`Unblocks`, quarantines unresolved deps, carries every `item.Broken` into `g.Broken` and `g.Faults`, then calls `g.detectCycles(); g.classify(); g.countUnblocks()` in that order. Those three methods have empty bodies — they are seams, not stubs; later tickets replace the bodies without changing the call site. All eight guide-§8 fixture trees are committed under `testdata/fixtures/`. Cycle SCCs, ready/blocked classification, unblock counts, `WouldCycle`, `FilterLabels`, and `CriticalPath` are not implemented here.
+
+After this ticket `pkg/graph/graph.go` exists with types `Fault`, `Node`, `Graph`, node methods `Quarantined` / `DepIDs` / `OpenDepIDs`, and `Build`. `Build` creates one node per parsed item, sorts `Order` by ID, wires resolved `Deps`/`Unblocks`, quarantines unresolved deps, carries every `item.Broken` into `g.Broken` and `g.Faults`, then calls `g.detectCycles(); g.classify(); g.countUnblocks()` in that order. Those three methods have empty bodies - they are seams, not stubs; later tickets replace the bodies without changing the call site. All eight guide-§8 fixture trees are committed under `testdata/fixtures/`. Cycle SCCs, ready/blocked classification, unblock counts, `WouldCycle`, `FilterLabels`, and `CriticalPath` are not implemented here.
 
 ## Context (read first)
-- Guide §4.6 `pkg/graph` — exact exported types and `Build` signature. Copy them. Do not rename fields.
-- Guide §1: module `github.com/eisenwinter/awit`; stdlib plus `pkg/item` only in this package; tests are `testing` stdlib, table-driven, no extra deps; never hardcode `/` in filesystem paths — use `path/filepath`.
-- Guide §2 unblock count / quarantine: quarantined nodes are excluded from `next`; this ticket only *marks* them by putting `Fault` values on `Node.Faults` (and on `g.Faults`). `UnblockCount` stays 0 until the countUnblocks seam is filled.
+
+- Guide §4.6 `pkg/graph` - exact exported types and `Build` signature. Copy them. Do not rename fields.
+- Guide §1: module `github.com/eisenwinter/awit`; stdlib plus `pkg/item` only in this package; tests are `testing` stdlib, table-driven, no extra deps; never hardcode `/` in filesystem paths - use `path/filepath`.
+- Guide §2 unblock count / quarantine: quarantined nodes are excluded from `next`; this ticket only _marks_ them by putting `Fault` values on `Node.Faults` (and on `g.Faults`). `UnblockCount` stays 0 until the countUnblocks seam is filled.
 - Guide §4.3 `item.Reason` constants used here: `ReasonParse`, `ReasonConflict`, `ReasonIDMismatch`, `ReasonDuplicate`, `ReasonDangling`. `ReasonCycle` is not produced in this ticket.
 - Guide §4.3 `Broken`: `ID` is the filename stem, `Path` is absolute, `Detail` is the human sentence from the store.
 - Guide §4.4 `item.Open(repoRoot)` opens `repoRoot/.awit`; `LoadAll() ([]*Item, []Broken, error)` never errors on a bad file. Tests load fixtures with `item.Open` then `LoadAll` then `graph.Build`.
@@ -29,6 +31,7 @@ After this ticket `pkg/graph/graph.go` exists with types `Fault`, `Node`, `Graph
 - Seams: `detectCycles`, `classify`, `countUnblocks` are package-private methods with **empty bodies**. Call them a seam in comments. Do not panic, do not TODO, do not leave them undeclared.
 
 ## Files
+
 - Create: `pkg/graph/graph.go`
 - Create: `pkg/graph/graph_test.go`
 - Create: `.gitattributes` (or append the one line if the file already exists)
@@ -65,7 +68,9 @@ After this ticket `pkg/graph/graph.go` exists with types `Fault`, `Node`, `Graph
 - Create: `testdata/fixtures/loop/docs/spec.md`
 
 ## Interfaces
+
 - Consumes (already implemented by `AWIT-0ND56E3G` / `AWIT-0ND56D3G`, do not reimplement):
+
   ```go
   package item
 
@@ -102,7 +107,9 @@ After this ticket `pkg/graph/graph.go` exists with types `Fault`, `Node`, `Graph
       Detail string
   }
   ```
+
 - Produces (verbatim from guide §4.6, this ticket):
+
   ```go
   package graph
 
@@ -135,6 +142,7 @@ After this ticket `pkg/graph/graph.go` exists with types `Fault`, `Node`, `Graph
 
   func Build(items []*item.Item, broken []item.Broken) *Graph
   ```
+
 - Produces (package-private, this ticket):
   ```go
   func (g *Graph) detectCycles()  // empty seam; AWIT-0ND56P3G replaces the body
@@ -460,7 +468,7 @@ After this ticket `pkg/graph/graph.go` exists with types `Fault`, `Node`, `Graph
   - File parses as an open item depending on AWIT-TEST0001
   ```
 
-  `testdata/fixtures/conflicted/.awit/items/AWIT-TEST0001.md` (the `<<<<<<< ` / `=======` / `>>>>>>> ` lines are load-bearing; a line must *start* with those bytes including the space after `<<<<<<< `; quoted markers below insert U+200B after the first character so this ticket is not quarantined):
+  `testdata/fixtures/conflicted/.awit/items/AWIT-TEST0001.md` (the `<<<<<<< ` / `=======` / `>>>>>>> ` lines are load-bearing; a line must _start_ with those bytes including the space after `<<<<<<< `; quoted markers below insert U+200B after the first character so this ticket is not quarantined):
 
   ```markdown
   ---
@@ -1290,18 +1298,20 @@ After this ticket `pkg/graph/graph.go` exists with types `Fault`, `Node`, `Graph
   `gofmt -l pkg/graph` must print nothing.
 
 ## Acceptance Criteria
+
 - `go test ./pkg/graph -count=1` passes.
 - `Build` of the clean fixture yields 6 nodes; `Order` is ID-ascending; `0003.Deps` is `[0001]`; `0001.Unblocks` contains `0003` and `0004`.
 - `Build` of the dangling fixture quarantines `0001` with exactly one `DANGLING DEP` fault, Detail `AWIT-TEST0001 depends on unknown AWIT-TEST9999`, Fix `awit dep rm AWIT-TEST0001 AWIT-TEST9999`. `0002` is a non-quarantined node whose `Deps` points at `0001`.
 - A hand-built item whose dep ID is in `broken` gets Detail `depends on quarantined <dep>` and Fix `fix <dep> first`.
-- `Build` of conflicted / id-mismatch / parse-error copies `Broken` into `g.Broken` and `g.Faults` with Fix `resolve the git conflict in <path>`, `rename the file or fix the id: key`, and `edit the frontmatter until \`awit validate\` passes` respectively. Duplicate-id yields two `DUPLICATE ID` faults, Fix `rename one of the files`, skipped on case-insensitive FS.
+- `Build` of conflicted / id-mismatch / parse-error copies `Broken` into `g.Broken` and `g.Faults` with Fix `resolve the git conflict in <path>`, `rename the file or fix the id: key`, and `edit the frontmatter until \`awit validate\` passes`respectively. Duplicate-id yields two`DUPLICATE ID`faults, Fix`rename one of the files`, skipped on case-insensitive FS.
 - `g.Faults` is ordered by Reason then joined IDs (`TestFaultsSorted`).
 - `Build` calls `detectCycles`, `classify`, `countUnblocks` in that order. Those three methods have empty bodies in this ticket.
 - All eight fixture trees from guide §8 exist with the bytes in Step 1, including `testdata/fixtures/loop/docs/spec.md` and `.gitattributes` `testdata/fixtures/conflicted/** -merge`.
 
 ## Out of scope
-- Filling `detectCycles` (Tarjan / `ReasonCycle`) — `AWIT-0ND56P3G`.
-- Filling `classify` / `countUnblocks`, and adding `Ready` / `Blocked` / `Quarantined` / `Closed` / `WouldCycle` / `FilterLabels` — `AWIT-0ND56Q3G`.
-- `CriticalPath` — `AWIT-0ND56V3G`.
+
+- Filling `detectCycles` (Tarjan / `ReasonCycle`) - `AWIT-0ND56P3G`.
+- Filling `classify` / `countUnblocks`, and adding `Ready` / `Blocked` / `Quarantined` / `Closed` / `WouldCycle` / `FilterLabels` - `AWIT-0ND56Q3G`.
+- `CriticalPath` - `AWIT-0ND56V3G`.
 - CLI commands (`dep`, `validate`, `prime`, `next`, `list`).
 - Changing `pkg/item` or fixture IDs away from `AWIT-TEST000N`.

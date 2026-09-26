@@ -15,7 +15,7 @@ assignee: agent/orchestrator
 
 Dogfood find: `bin/awit validate` on this repo reports `FAIL ... [CONFLICT MARKERS]` for `.awit/items/AWIT-0ND56N3G.md`, because that closed ticket's body quotes the load-bearing `<<<<<<< HEAD` / `=======` / `>>>>>>> branch-b` bytes of the `conflicted` test fixture (ticket lines ~465-476). `HasConflictMarkers` (`pkg/item/frontmatter.go`) trims space then matches, so fenced/indented quotes trip it. The queue is healthy; the detector cannot tell quoted bytes from a real conflict.
 
-Decide one: (a) make the detector fence-aware (ignore markers inside fenced code blocks) — changes quarantine semantics, needs guide §4-adjacent design care; or (b) establish a ticket-text convention (e.g. break markers with zero-width/interpolated text when quoting fixtures) and scrub 56N3G's body. Either way, `awit validate` on this repo must end PASS.
+Decide one: (a) make the detector fence-aware (ignore markers inside fenced code blocks) - changes quarantine semantics, needs guide §4-adjacent design care; or (b) establish a ticket-text convention (e.g. break markers with zero-width/interpolated text when quoting fixtures) and scrub 56N3G's body. Either way, `awit validate` on this repo must end PASS.
 
 ## Acceptance Criteria
 

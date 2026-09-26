@@ -83,7 +83,7 @@ func pickNext(cands []*graph.Node, seed int64) *graph.Node {
 // nothing.
 //
 // The command tree is reused across Main calls, so "was the flag passed?"
-// is decided by value alone — an empty --commit value means unset — never
+// is decided by value alone - an empty --commit value means unset - never
 // by cmd.IsSet, whose hasBeenSet sticks to reused flags.
 func commitPolicy(cmd *cli.Command, cfg config.Config) (bool, error) {
 	raw := cmd.String("commit")
@@ -225,8 +225,8 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-// nextNode resolves the positional form of next — canonical id, alias, or
-// external key — through the same helper every command uses. Exact [key]
+// nextNode resolves the positional form of next - canonical id, alias, or
+// external key - through the same helper every command uses. Exact [key]
 // remains a lookup, never a rerank. A broken file that could not become an
 // item refuses like a quarantined node; anything else unknown keeps the
 // existing "unknown item" string.

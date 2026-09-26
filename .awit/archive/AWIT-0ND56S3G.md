@@ -13,13 +13,15 @@ refs:
 ---
 
 ## Summary
+
 After this ticket `internal/cli/validate.go` registers `awit validate`. The command loads the graph, prints one `[REASON] detail` line plus an indented `fix:` line for every entry in `g.Faults`, and otherwise prints `PASS  N items, 0 quarantined`. Item count is `len(g.Order)+len(g.Broken)`. Quarantined count is `len(g.Quarantined())+len(g.Broken)`. WARNs for a missing brief or a brief with more than three sentences never change the exit code. Exit 1 if and only if `len(g.Faults) > 0`. `--format json` prints an array of `{reason, ids, detail, fix}`. Do not register `--stale-claims`.
 
 ## Context (read first)
-- Guide §1 — `Error: ` via `report`, exit 0/1/2, `filepath`, tests call `Main` through `run` with `--repo`.
-- Guide §4.6 — `graph.Build`, `Graph.Faults`, `Graph.Broken`, `Graph.Order`, `Graph.Quarantined`, `Fault{Reason, IDs, Detail, Fix}`. Print faults in `g.Faults` order (already sorted by Reason then IDs).
-- Guide §4.11 — `openStore`. `loadGraph` belongs to AWIT-0ND56J3G; this ticket may land first, so define it if absent (exact code in Step 3).
-- Guide §4.3 — `item.Reason` strings are `PARSE ERROR`, `CONFLICT MARKERS`, `ID MISMATCH`, `DUPLICATE ID`, `DANGLING DEP`, `CYCLE`.
+
+- Guide §1 - `Error: ` via `report`, exit 0/1/2, `filepath`, tests call `Main` through `run` with `--repo`.
+- Guide §4.6 - `graph.Build`, `Graph.Faults`, `Graph.Broken`, `Graph.Order`, `Graph.Quarantined`, `Fault{Reason, IDs, Detail, Fix}`. Print faults in `g.Faults` order (already sorted by Reason then IDs).
+- Guide §4.11 - `openStore`. `loadGraph` belongs to AWIT-0ND56J3G; this ticket may land first, so define it if absent (exact code in Step 3).
+- Guide §4.3 - `item.Reason` strings are `PARSE ERROR`, `CONFLICT MARKERS`, `ID MISMATCH`, `DUPLICATE ID`, `DANGLING DEP`, `CYCLE`.
 - Guide §8 / AWIT-0ND56N3G fixtures (already on disk). Fault text this command must echo:
   - dangling: Detail `AWIT-TEST0001 depends on unknown AWIT-TEST9999`, Fix `awit dep rm AWIT-TEST0001 AWIT-TEST9999`. 2 items, 1 quarantined.
   - cyclic (AWIT-0ND56P3G): two CYCLE faults, triangle Detail `AWIT-TEST0001 -> AWIT-TEST0002 -> AWIT-TEST0003 -> AWIT-TEST0001` Fix `awit dep rm AWIT-TEST0001 AWIT-TEST0002 (break the cycle)`; self Detail `AWIT-TEST0004 -> AWIT-TEST0004` Fix `awit dep rm AWIT-TEST0004 AWIT-TEST0004 (break the cycle)`. 5 items, 4 quarantined.
@@ -34,6 +36,7 @@ After this ticket `internal/cli/validate.go` registers `awit validate`. The comm
 - Two spaces after `PASS`/`FAIL`/`WARN`. Always the word `items` (including `1 items`).
 
 ## Files
+
 - Create: `internal/cli/validate.go`
 - Create: `internal/cli/validate_test.go`
 - Create: `testdata/golden/validate_clean.golden`
@@ -42,9 +45,10 @@ After this ticket `internal/cli/validate.go` registers `awit validate`. The comm
 - Create: `testdata/golden/validate_conflicted.golden`
 - Create: `testdata/golden/validate_id-mismatch.golden`
 - Create: `testdata/golden/validate_parse-error.golden`
-- Modify: `internal/cli/app.go` — append `validateCmd` to `newRoot`'s `Commands` slice. Keep every command already there.
+- Modify: `internal/cli/app.go` - append `validateCmd` to `newRoot`'s `Commands` slice. Keep every command already there.
 
 ## Interfaces
+
 - Consumes:
   ```go
   func openStore(cmd *cli.Command) (*item.Store, error)
@@ -103,7 +107,7 @@ After this ticket `internal/cli/validate.go` registers `awit validate`. The comm
     fix: awit dep rm AWIT-TEST0001 AWIT-TEST9999
   ```
 
-  `testdata/golden/validate_conflicted.golden` — the Fix path is replaced with the literal `PATH` by the test before comparison (trailing newline):
+  `testdata/golden/validate_conflicted.golden` - the Fix path is replaced with the literal `PATH` by the test before comparison (trailing newline):
 
   ```text
   FAIL  2 items, 1 quarantined
@@ -119,7 +123,7 @@ After this ticket `internal/cli/validate.go` registers `awit validate`. The comm
     fix: rename the file or fix the id: key
   ```
 
-  `testdata/golden/validate_parse-error.golden` — the Detail is replaced with the literal `DETAIL` by the test (trailing newline):
+  `testdata/golden/validate_parse-error.golden` - the Detail is replaced with the literal `DETAIL` by the test (trailing newline):
 
   ```text
   FAIL  1 items, 1 quarantined
@@ -348,7 +352,7 @@ After this ticket `internal/cli/validate.go` registers `awit validate`. The comm
   go test ./internal/cli -run 'TestValidate|TestSentenceCount' -v
   ```
 
-  Expected: `undefined: sentenceCount` (and `validate` unknown command if the identifier is unused) —
+  Expected: `undefined: sentenceCount` (and `validate` unknown command if the identifier is unused) -
 
   ```text
   # github.com/eisenwinter/awit/internal/cli [github.com/eisenwinter/awit/internal/cli.test]
@@ -358,7 +362,7 @@ After this ticket `internal/cli/validate.go` registers `awit validate`. The comm
 
 - [ ] **Step 3: Implement `validate.go` and register the command.**
 
-  If `loadGraph` is not already in the package, add it to `internal/cli/app.go` (or to `validate.go` — one definition only):
+  If `loadGraph` is not already in the package, add it to `internal/cli/app.go` (or to `validate.go` - one definition only):
 
   ```go
   func loadGraph(s *item.Store) (*graph.Graph, error) {
@@ -485,7 +489,7 @@ After this ticket `internal/cli/validate.go` registers `awit validate`. The comm
   }
   ```
 
-  In `newRoot`, append `validateCmd` to `Commands`. Keep every existing command. Do not add a `--stale-claims` flag. Do not redeclare `loadGraph` if AWIT-0ND56J3G already defined it — the function body above must match.
+  In `newRoot`, append `validateCmd` to `Commands`. Keep every existing command. Do not add a `--stale-claims` flag. Do not redeclare `loadGraph` if AWIT-0ND56J3G already defined it - the function body above must match.
 
 - [ ] **Step 4: Run it, see it pass, commit.**
 
@@ -495,7 +499,7 @@ After this ticket `internal/cli/validate.go` registers `awit validate`. The comm
 
   Expected: every `TestValidateGoldens/<fixture>` PASS, `TestValidateJSON` PASS, `TestValidateJSONClean` PASS, `TestValidateWarnMissingBrief` PASS, `TestValidateWarnLongBrief` PASS, `TestValidateWarnDoesNotChangeFailExit` PASS, `TestValidateNoStaleClaimsFlag` PASS, both `TestSentenceCount*` PASS.
 
-  If `validate_parse-error.golden` fails only on the Detail line, replace `DETAIL` is already done by the test — a remaining mismatch means the FAIL header or Fix line is wrong; fix the command, not the golden.
+  If `validate_parse-error.golden` fails only on the Detail line, replace `DETAIL` is already done by the test - a remaining mismatch means the FAIL header or Fix line is wrong; fix the command, not the golden.
 
   ```bash
   go test ./internal/cli -count=1
@@ -513,7 +517,8 @@ After this ticket `internal/cli/validate.go` registers `awit validate`. The comm
   Set `status: closed` on this file, write `.awit/comments/AWIT-0ND56S3G/<YYYYMMDDTHHMMSSZ>-<author>.md` with the acceptance output, append that ref, commit `tickets: close AWIT-0ND56S3G`.
 
 ## Acceptance Criteria
-- `go test ./internal/cli -run 'TestValidate|TestSentenceCount' -v` — all PASS.
+
+- `go test ./internal/cli -run 'TestValidate|TestSentenceCount' -v` - all PASS.
 - Clean fixture: stdout is exactly `PASS  6 items, 0 quarantined\n`, exit 0.
 - Dangling fixture: exit 1, compact matches `validate_dangling.golden`; json is a one-element array with `reason` `DANGLING DEP`, `ids` `[AWIT-TEST0001]`, the N3G detail/fix.
 - Cyclic fixture: exit 1, two `[CYCLE]` blocks in the P3G order, `FAIL  5 items, 4 quarantined`.
@@ -524,4 +529,5 @@ After this ticket `internal/cli/validate.go` registers `awit validate`. The comm
 - `gofmt -l internal/cli/validate.go internal/cli/validate_test.go` prints nothing.
 
 ## Out of scope
+
 - `--stale-claims` (AWIT-0ND5733G). Locking. `prime` / `next` / `list`. Changing `pkg/graph` fault text. Registering any flag on `validateCmd`.

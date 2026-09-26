@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NHDC5DZ
-title: 'config: control claim commits with commit and explicit overrides'
+title: "config: control claim commits with commit and explicit overrides"
 brief: >-
   Support commit:false as the repository default for claim commits while keeping explicit per-invocation overrides. Retain --no-commit compatibility but recommend config or --commit=false for new workflows.
 status: closed
@@ -9,6 +9,7 @@ labels: [phase5, p1]
 refs_base: repo
 refs: []
 ---
+
 ## Summary
 
 Add optional `.awit/config.yaml` `commit: false`. Default remains true. Only `next --claim` consumes this setting.
@@ -27,7 +28,7 @@ Add optional `.awit/config.yaml` `commit: false`. Default remains true. Only `ne
 ## Interfaces
 
 ```go
-// Config.Commit *bool `yaml:"commit,omitempty"` — nil means true.
+// Config.Commit *bool `yaml:"commit,omitempty"` - nil means true.
 func (c Config) ShouldCommit() bool
 ```
 
@@ -56,7 +57,6 @@ func (c Config) ShouldCommit() bool
 ## Out of scope
 
 A global auto-commit mode, changing Git commit messages, config controlling network access, removing --no-commit in this release.
-
 
 ## Comments
 

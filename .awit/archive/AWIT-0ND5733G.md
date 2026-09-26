@@ -1,6 +1,6 @@
 ---
 id: AWIT-0ND5733G
-title: 'validate --stale-claims'
+title: "validate --stale-claims"
 brief: >-
   Add `--stale-claims` to `awit validate`: `in_progress` items whose `claimed_at` is older than `config.stale_claim` (or missing) print a `WARN [STALE CLAIM]` line with an `awit release` fix hint. Warnings never change the exit code. Includes `humanDuration` and an overridable `now` for tests.
 status: closed
@@ -39,7 +39,7 @@ tests run green, including a golden for the warn case.
 
 ## Context (read first)
 
-- **AWIT-0ND56S3G** — `internal/cli/validate.go` as built there: the
+- **AWIT-0ND56S3G** - `internal/cli/validate.go` as built there: the
   `validate` command, report writer, FAIL/WARN vocabulary, and exit-code
   logic. Must be `status: closed` before you start. Read it first and
   match its conventions exactly:
@@ -51,18 +51,18 @@ tests run green, including a golden for the warn case.
     code path.
   - Reuse the base flag set; only ADD `--stale-claims` (bool).
 - **AWIT-0ND56S3G is being implemented concurrently.** Do not
-  reimplement `validate` — wait for it to land if needed. If S3G
+  reimplement `validate` - wait for it to land if needed. If S3G
   already declares a package-level `now`, reuse it instead of declaring
   a second one. If S3G's fix-hint line for WARNs differs from
   `  fix: <cmd>` (two spaces), follow S3G and update the golden and the
-  assertions below to match — but the `WARN  [STALE CLAIM] ...` first
+  assertions below to match - but the `WARN  [STALE CLAIM] ...` first
   line is normative regardless.
-- The clock is `var now = time.Now()` — an evaluated `time.Time`
+- The clock is `var now = time.Now()` - an evaluated `time.Time`
   value, NOT a func. Tests assign a plain value (`now = fixed`) and
   restore it with `t.Cleanup`. Do not "improve" it into
   `var now = time.Now` (func value): the test helper below would not
   compile against that shape.
-- Guide §4.2 — `Config.StaleClaim` is `config.Duration`
+- Guide §4.2 - `Config.StaleClaim` is `config.Duration`
   (`time.Duration` underneath); default `2h`. Render the limit with
   `%s` over `time.Duration(cfg.StaleClaim)` (`2h`, `30m`).
 - Fixture fact (AWIT-0ND56N3G): `clean` `AWIT-TEST0006` is
@@ -77,7 +77,7 @@ tests run green, including a golden for the warn case.
 
 ## Files
 
-- Modify: `internal/cli/validate.go` — `--stale-claims` flag, stale
+- Modify: `internal/cli/validate.go` - `--stale-claims` flag, stale
   scan, `humanDuration`, `var now`.
 - Create: `internal/cli/validate_stale_test.go`
 - Create: `testdata/golden/validate-stale-claims.golden`
@@ -143,7 +143,7 @@ tests run green, including a golden for the warn case.
 
   func TestValidateStaleWithinLimit(t *testing.T) {
       dir := copyFixture(t, "clean")
-      // claimed 14:32:05Z; now is 1h59m later — inside the 2h limit.
+      // claimed 14:32:05Z; now is 1h59m later - inside the 2h limit.
       pinNow(t, "2026-09-17T16:31:05Z")
       code, stdout, _ := run(t, "--repo", dir, "validate", "--stale-claims")
       if code != 0 {
@@ -224,10 +224,10 @@ tests run green, including a golden for the warn case.
   ```
 
   Create `testdata/golden/validate-stale-claims.golden` as an empty
-  file for now — Step 4 regenerates it and you verify the content
+  file for now - Step 4 regenerates it and you verify the content
   before committing. The committed golden MUST contain the exact
   `WARN  [STALE CLAIM] AWIT-TEST0006 claimed by agent/claude 3h12m ago
-  (limit 2h)` + fix lines.
+(limit 2h)` + fix lines.
 
 - [ ] **Step 2: Run them, see them fail.**
 
@@ -244,15 +244,14 @@ tests run green, including a golden for the warn case.
   ```
 
   (If `validate --stale-claims` already parses but does nothing, the
-  red is instead `stdout missing stale warning` — either counts; do
+  red is instead `stdout missing stale warning` - either counts; do
   not skip it.)
 
 - [ ] **Step 3: Implement the flag, scan, and duration.**
 
   In `internal/cli/validate.go`:
-
   1. Add the package-level clock (only if S3G did not already declare
-     `now` — reuse theirs if present):
+     `now` - reuse theirs if present):
 
      ```go
      // now is the clock for stale-claim ages; tests overwrite it.
@@ -276,7 +275,7 @@ tests run green, including a golden for the warn case.
      }
      ```
 
-     `g` is the already-loaded graph, `s` the already-open store —
+     `g` is the already-loaded graph, `s` the already-open store -
      introduce no new opens. The exit-code logic below stays untouched.
 
   4. Add the pure helpers at the bottom of the same file:
@@ -328,18 +327,17 @@ tests run green, including a golden for the warn case.
      }
      ```
 
-     An empty assignee prints as empty (`claimed by  3h12m ago`) —
+     An empty assignee prints as empty (`claimed by  3h12m ago`) -
      that is honest (the file really has no assignee) and the fixture
      always carries `agent/claude`, so the golden pins the readable
      form. Do not invent a fallback word.
 
   Details that matter:
-
   - Strictly `age > limit`: exactly-at-limit is fresh
     (`TestValidateStaleWithinLimit` pins 1h59m < 2h; equality stays
     quiet by the same rule).
   - `limit` renders via `time.Duration.String` through `%s`
-    (`2h`, `30m`) — never a custom format.
+    (`2h`, `30m`) - never a custom format.
   - `g.Order` is ID-ascending (AWIT-0ND56N3G), so multi-stale output is
     deterministic with no extra sort.
   - WARN lines never touch the exit code: the command returns nil
@@ -355,7 +353,7 @@ tests run green, including a golden for the warn case.
 
   `TestValidateStaleClaimsWarn` fails on the empty golden first
   (`got` vs `want` empty). Regenerate it the same way every golden in
-  this repo is made — set the package `update` flag (helpers_test.go,
+  this repo is made - set the package `update` flag (helpers_test.go,
   AWIT-0ND56G3G) and re-run only this test:
 
   ```bash
@@ -393,7 +391,7 @@ tests run green, including a golden for the warn case.
 ## Acceptance Criteria
 
 - `go test ./internal/cli -run 'TestValidateStale|TestHumanDuration' -count=1 -v`
-  — all five tests PASS; `go test ./internal/cli -count=1` stays green.
+  - all five tests PASS; `go test ./internal/cli -count=1` stays green.
 - `awit validate --stale-claims` on `clean` with the clock pinned to
   `2026-09-17T17:44:05Z` prints
   `WARN  [STALE CLAIM] AWIT-TEST0006 claimed by agent/claude 3h12m ago (limit 2h)`
@@ -407,7 +405,7 @@ tests run green, including a golden for the warn case.
   `in progress with no claimed_at (limit 2h)` with the release fix,
   exit 0.
 - `humanDuration` pins `0m 45m 59m 1h0m 3h12m 47h5m 2d0h 2d3h`.
-- Plain `awit validate` (no flag) output is byte-identical to S3G's —
+- Plain `awit validate` (no flag) output is byte-identical to S3G's -
   this ticket adds lines only under `--stale-claims`.
 - `gofmt -l internal/cli` prints nothing.
 

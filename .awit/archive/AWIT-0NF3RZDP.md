@@ -15,12 +15,13 @@ assignee: agent/orchestrator
 
 `awit --help` names commands but teaches no workflow. Evidence: LongCat-2.0
 playground run (`/tmp/longcat/browserfetch`, 2026-09-18) ran `init`, filed 6
-tickets via `create`, built the site — and never transitioned one ticket (all
+tickets via `create`, built the site - and never transitioned one ticket (all
 stayed open). A default-model run guessed `update --status doing` before
 finding `in_progress`: `--status string` names no valid values.
 Three boring fixes, one help surface, no new flag (direction revised per
-reviews: teach `next --claim`, not `update --status` — a claim sets
+reviews: teach `next --claim`, not `update --status` - a claim sets
 `in_progress` by itself, so the weak model never needs `update`):
+
 1. Top-level `--help` gains a `TYPICAL SESSION` block in urfave's house shape
    (uppercase header, 3-space indent, ≤80 cols): create → prime →
    next --claim → show --full → comment → close. Header carries
@@ -41,10 +42,11 @@ reviews: teach `next --claim`, not `update --status` — a claim sets
 
 Statuses verified against `pkg/item/reason.go`: `open`, `in_progress`,
 `closed`. Note `ParseStatus` already errors with
-`unknown status %q (open|in_progress|closed)` — the gap is flag help and
+`unknown status %q (open|in_progress|closed)` - the gap is flag help and
 workflow, not parsing.
 
 Top-level `--help` session block:
+
 ```
 TYPICAL SESSION:
    awit create "Title"        file tickets first, before writing code
@@ -57,6 +59,7 @@ TYPICAL SESSION:
 `set status (open, in_progress, closed); use in_progress while working`
 
 `list` footer, shown only while open items exist:
+
 ```
 Note: open items remain. Run "awit next" for a ready one, then
 "awit update <id> --status in_progress" while working and "awit close <id>" when done.
@@ -71,6 +74,7 @@ follows the plan's agent loop (prime → next --claim → show --full →
 comment → close).
 
 Top-level `--help` session block:
+
 ```
 Typical session:
   awit create "Title" --brief "..."   file work items first
@@ -96,6 +100,7 @@ working". (3) footer teaches `next --claim`, drops harder words.
 
 Session block (`TYPICAL SESSION (set AWIT_AGENT first):`, 3-space indent,
 max 75 cols):
+
 ```
 TYPICAL SESSION (set AWIT_AGENT first):
    awit create "Title" --brief "..."   file work items before you code
@@ -109,17 +114,19 @@ TYPICAL SESSION (set AWIT_AGENT first):
 `--status` usage: ``set status: `open`, in_progress or closed``
 
 `list` footer to stderr (bare commands, house `Note: ` prefix):
+
 ```
 Note: 3 open, 1 in_progress. Claim a ready item with awit next --claim;
 close it with awit close <id> when the work is done.
 ```
+
 Drop zero counts; count only printed rows (so `list -s closed` stays
 footer-free).
 
 Advisories for implementer: footer to stderr keeps `--format json`
 parseable and golden files untouched; `next.go:26` `--claim` usage should
 gain `(needs --agent or AWIT_AGENT)`; did-you-mean needs only the
-suggestion — `ParseStatus` already lists values.
+suggestion - `ParseStatus` already lists values.
 
 ## Comments
 

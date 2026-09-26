@@ -46,16 +46,16 @@ external_push: false
 template: .awit/templates/workitem.md
 ```
 
-| Key | Required | Rules |
-| --- | --- | --- |
-| `prefix` | yes | `[A-Z][A-Z0-9]{1,7}`; missing → load error `config: prefix is required` |
-| `default_labels` | no | strings; merged first-wins into `awit create -l` |
-| `labels` | no | advisory vocabulary. Missing or empty disables warnings. Entries must be nonempty, with no leading/trailing whitespace or control characters; duplicates are deduplicated in memory; matching is case-sensitive. `create`/`update` warn on unknown names they introduce but still store them (exit 0). Not an allowlist |
-| `stale_claim` | no | Go duration (`2h`, `90m`). Missing/zero → `2h` |
-| `agent_id` | no | raw identity; `AWIT_AGENT` overrides; `--author` overrides both |
-| `commit` | no | bool; repository default for `next --claim` git commits. Absent → `true`. `next --commit=true\|false` overrides per invocation; `--no-commit` (deprecated) equals `--commit=false`. Only `next --claim` reads it — never pushing, never another command. Independent of `external_push` |
-| `external_push` | no | bool; repository default for automatic linked-issue state pushes from `close`, `release`, and explicit `update --status`. Absent → `true`. `--push=true\|false` overrides per invocation; true `--no-push` equals `--push=false`; `--no-push=false` is neutral. Does not govern `external push-body`, import, or `external check`. Independent of `commit` |
-| `template` | no | repo-root-relative forward-slash path to a body-only Markdown file. `create` and `awit template` read the file. Absolute paths, backslashes, and lexical escape above the repo root fail `Load`. Missing/unreadable/directory/non-UTF-8/conflict-marker files fail `create` (exit 1, no item) and `awit template` (exit 1). Empty file → empty body. Absent/empty keeps the default skeleton. `import` ignores it |
+| Key              | Required | Rules                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prefix`         | yes      | `[A-Z][A-Z0-9]{1,7}`; missing → load error `config: prefix is required`                                                                                                                                                                                                                                                                                                                                           |
+| `default_labels` | no       | strings; merged first-wins into `awit create -l`                                                                                                                                                                                                                                                                                                                                                                  |
+| `labels`         | no       | advisory vocabulary. Missing or empty disables warnings. Entries must be nonempty, with no leading/trailing whitespace or control characters; duplicates are deduplicated in memory; matching is case-sensitive. `create`/`update` warn on unknown names they introduce but still store them (exit 0). Not an allowlist                                                                                           |
+| `stale_claim`    | no       | Go duration (`2h`, `90m`). Missing/zero → `2h`                                                                                                                                                                                                                                                                                                                                                                    |
+| `agent_id`       | no       | raw identity; `AWIT_AGENT` overrides; `--author` overrides both                                                                                                                                                                                                                                                                                                                                                   |
+| `commit`         | no       | bool; repository default for `next --claim` git commits. Absent → `true`. `next --commit=true\|false` overrides per invocation; `--no-commit` (deprecated) equals `--commit=false`. Only `next --claim` reads it - never pushing, never another command. Independent of `external_push`                                                                                                                           |
+| `external_push`  | no       | bool; repository default for automatic linked-issue state pushes from `close`, `release`, and explicit `update --status`. Absent → `true`. `--push=true\|false` overrides per invocation; true `--no-push` equals `--push=false`; `--no-push=false` is neutral. Does not govern `external push-body`, import, or `external check`. Independent of `commit`                                                        |
+| `template`       | no       | repo-root-relative forward-slash path to a body-only Markdown file. `create` and `awit template` read the file. Absolute paths, backslashes, and lexical escape above the repo root fail `Load`. Missing/unreadable/directory/non-UTF-8/conflict-marker files fail `create` (exit 1, no item) and `awit template` (exit 1). Empty file → empty body. Absent/empty keeps the default skeleton. `import` ignores it |
 
 Unknown keys in `config.yaml` are not part of v1; `Load` decodes into a
 struct and extra keys are dropped on the next `Write`. Do not put
@@ -93,29 +93,29 @@ refs: []
 
 ### Required keys
 
-| Key | Type | Rules |
-| --- | --- | --- |
-| `id` | string | `PREFIX-` plus 8 Crockford chars. Must equal the filename stem |
-| `title` | string | Non-empty |
-| `status` | enum | `open`, `in_progress`, `closed`. Stored lifecycle; ready/blocked eligibility is derived, with an optional stored manual hold (see Manual blocks) |
+| Key      | Type   | Rules                                                                                                                                            |
+| -------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`     | string | `PREFIX-` plus 8 Crockford chars. Must equal the filename stem                                                                                   |
+| `title`  | string | Non-empty                                                                                                                                        |
+| `status` | enum   | `open`, `in_progress`, `closed`. Stored lifecycle; ready/blocked eligibility is derived, with an optional stored manual hold (see Manual blocks) |
 
 Missing required keys or an unknown status → parse error → quarantine
 `PARSE ERROR`.
 
 ### Optional known keys
 
-| Key | Type | Rules |
-| --- | --- | --- |
-| `brief` | string | One to three sentences. `create` requires `--brief`; `import` derives it from the remote title (else the body's first sentence, capped at 240 code points) unless given explicitly. `validate` warns when missing or longer; an item that cannot be briefed that tightly should be split. Written as a folded scalar (`>-`) when it contains a newline or exceeds 80 bytes |
-| `deps` | list of ids | Unknown id → `DANGLING DEP` on this item. Written flow style `[a, b]` |
-| `labels` | list of strings | Free-form. `p0`–`p4` recommended for priority. Flow style. Optional `config.yaml` `labels` is advisory only — unknown names warn on `create`/`update` and still store |
-| `assignee` | string | `human/<name>` or `agent/<id>`. Omitted when empty. Deleted by `release`; kept by `close` as the audit trail |
-| `claimed_at` | RFC3339 UTC | Seconds precision. Set by `--claim`; deleted by `release` and `close`; input to `validate --stale-claims` |
-| `refs_base` | string | `repo` or omitted. Omitted means historical `.awit/items/`-relative refs. Invalid types/values are parse errors |
-| `refs` | list of paths | Forward slashes. Block style. Always present, `[]` when empty. Relative to the repo root when `refs_base: repo`, else `.awit/items/` |
-| `external` | mapping | Optional Gitea or GitLab issue link (see below). Missing is valid |
-| `alias` | string | Optional human alias (see below). Missing is valid |
-| `blocked_reason` | string | Optional manual hold (see Manual blocks). Missing or removed means unblocked |
+| Key              | Type            | Rules                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `brief`          | string          | One to three sentences. `create` requires `--brief`; `import` derives it from the remote title (else the body's first sentence, capped at 240 code points) unless given explicitly. `validate` warns when missing or longer; an item that cannot be briefed that tightly should be split. Written as a folded scalar (`>-`) when it contains a newline or exceeds 80 bytes |
+| `deps`           | list of ids     | Unknown id → `DANGLING DEP` on this item. Written flow style `[a, b]`                                                                                                                                                                                                                                                                                                      |
+| `labels`         | list of strings | Free-form. `p0`–`p4` recommended for priority. Flow style. Optional `config.yaml` `labels` is advisory only - unknown names warn on `create`/`update` and still store                                                                                                                                                                                                      |
+| `assignee`       | string          | `human/<name>` or `agent/<id>`. Omitted when empty. Deleted by `release`; kept by `close` as the audit trail                                                                                                                                                                                                                                                               |
+| `claimed_at`     | RFC3339 UTC     | Seconds precision. Set by `--claim`; deleted by `release` and `close`; input to `validate --stale-claims`                                                                                                                                                                                                                                                                  |
+| `refs_base`      | string          | `repo` or omitted. Omitted means historical `.awit/items/`-relative refs. Invalid types/values are parse errors                                                                                                                                                                                                                                                            |
+| `refs`           | list of paths   | Forward slashes. Block style. Always present, `[]` when empty. Relative to the repo root when `refs_base: repo`, else `.awit/items/`                                                                                                                                                                                                                                       |
+| `external`       | mapping         | Optional Gitea or GitLab issue link (see below). Missing is valid                                                                                                                                                                                                                                                                                                          |
+| `alias`          | string          | Optional human alias (see below). Missing is valid                                                                                                                                                                                                                                                                                                                         |
+| `blocked_reason` | string          | Optional manual hold (see Manual blocks). Missing or removed means unblocked                                                                                                                                                                                                                                                                                               |
 
 New items written by `awit create` use key order
 `id, title, brief, status, deps, labels, refs_base, refs` and omit empty
@@ -125,7 +125,7 @@ New items written by `awit create` use key order
 
 A short human handle set by `create`/`update --alias` or `import --alias`
 (`update --clear-alias` removes it). Grammar:
-`[A-Za-z][A-Za-z0-9._-]{0,127}` — no whitespace, slash or `#`, and never
+`[A-Za-z][A-Za-z0-9._-]{0,127}` - no whitespace, slash or `#`, and never
 anything shaped like a canonical ID. Uniqueness is case-insensitive across
 active parseable items but is not enforced at write time: duplicate
 hand-edited aliases make alias lookup fail with the matching canonical IDs
@@ -139,7 +139,7 @@ A `blocked_reason` is a durable local hold: a healthy non-closed item that
 carries one is `Blocked` regardless of its dependencies, so a `blocked`
 tracker label with zero open deps is representable without a new status,
 a new quarantine category, or graph edges. Labels alone never hold an
-item — a zero-dependency item with only a `blocked` label stays ready.
+item - a zero-dependency item with only a `blocked` label stays ready.
 Because that label is a classic failure point, `create`, `update`, and
 `import` print one stderr line when a non-closed item without a manual
 block newly receives the exact label `blocked`:
@@ -159,7 +159,7 @@ selectable while its declaration is unreadable.
 Eligibility vs structure: readiness requires both no manual block and all
 deps satisfied; clearing the reason restores readiness only when the deps
 permit. Edges, cycle detection, unblock counts, the critical path, and
-archive eligibility are unchanged — held nodes stay structural, exactly
+archive eligibility are unchanged - held nodes stay structural, exactly
 like dep-blocked nodes today.
 
 Lifecycle: `awit block <id> --reason "<obstacle and release condition>"`
@@ -182,8 +182,8 @@ Every command that takes an item argument (`show`, `list`, `next`,
 (exact, case-sensitive, always wins), an alias (case-insensitive), or an
 external key `owner/repo#<n>` (GitLab subgroups: `group/sub/project#127`)
 or bare `#<n>` matched against valid `external:` metadata (the bare form
-must be unique). Ambiguity — including the same repo and number on two
-trackers or hosts — is an error listing the matching canonical IDs;
+must be unique). Ambiguity - including the same repo and number on two
+trackers or hosts - is an error listing the matching canonical IDs;
 unknown keys error as `unknown item <key>` and never become filesystem
 paths. There is no new lookup syntax and no tracker prefix on the key;
 aliases and canonical IDs disambiguate.
@@ -234,19 +234,19 @@ local `open` and wire `closed` to `closed`; that conversion is remote
 integration, not YAML parsing.
 
 GitLab transport and auth (wrapper contract, `internal/glabx`, qualified
-against glab 1.118.0): glab is pre-authenticated by the operator — awit
+against glab 1.118.0): glab is pre-authenticated by the operator - awit
 never logs in, selects logins, reads tokens, or writes configuration, and
 only the named non-secret settings (`subfolder`, `api_host`,
 `api_protocol`) are ever read. The effective installation subfolder for
 the link host decides the repo segments (`GITLAB_SUBFOLDER` wins inside
 glab); contradictory `api_host`/`api_protocol`/subfolder overrides fail
 instead of targeting another instance. Every request is host-scoped
-(`--hostname` carries the bare link host — glab rejects host:port there —
+(`--hostname` carries the bare link host - glab rejects host:port there -
 with one `%2F`-encoded project segment). Description writes travel
 byte-exact: the transport file holds exactly the body, no line-ending is
 added or stripped, and delivery needs 2xx, verified identity, and
 `bytes.Equal` on the returned/read-back description. A body with any
-column-zero `/lowercase` line is refused before any mutation — GitLab
+column-zero `/lowercase` line is refused before any mutation - GitLab
 would execute it as a quick action instead of storing it, even inside
 fenced code blocks, which awit does not exempt and never rewrites around.
 
@@ -268,7 +268,7 @@ display only a valid link (`gitea owner/repo#127` or
 `awit import <issue-url> [--brief <summary>] [--alias X] [--tea-login name]`
 creates an item from an existing Gitea issue through `tea` or GitLab issue
 through `glab`. GitLab is recognized only by the `/-/issues/` or
-`/-/work_items/` URL shape — never by host — and both spellings of the
+`/-/work_items/` URL shape - never by host - and both spellings of the
 same issue are one identity. The item is a one-time snapshot: Gitea
 `number` or GitLab `iid` as `external.id`, the decoded body/description
 byte-exact, remote labels first-seen exact-name deduplicated (local
@@ -295,8 +295,8 @@ empty; pass --brief`) before minting.
 
 `awit external check [key] [--tea-login name]` compares the raw local
 body bytes (`Item.Body()`: every byte after the frontmatter closing
-fence) against the linked issue body — Gitea through `tea`, GitLab
-through `glab` — and nothing else: frontmatter, title, labels, comments,
+fence) against the linked issue body - Gitea through `tea`, GitLab
+through `glab` - and nothing else: frontmatter, title, labels, comments,
 and remote state are ignored, so any whitespace, line-ending,
 final-newline, or leading-blank-line difference is drift. `--tea-login`
 is Gitea-only and ignored for GitLab. The command is read-only: no local
@@ -315,7 +315,7 @@ local-canonical repair: it pushes the local body bytes to the linked
 issue and nothing else (no title, label, state, local-content, or history
 change). The push holds the store lock until the bounded request
 completes, refuses ambiguous duplicate external links, and verifies the
-remote took the exact bytes — against the write response, or a GET of the
+remote took the exact bytes - against the write response, or a GET of the
 same issue when the response omits the body. A mismatch is an error,
 never success. Gitea requires a 2xx status (tea exits zero on HTTP
 errors, so the `--include` status line is authoritative); GitLab requires
@@ -333,7 +333,7 @@ archive). `--tea-login` is Gitea-only and ignored for GitLab. Automatic
 pushes follow `.awit/config.yaml` `external_push:` (omitted → true);
 `--push=true|false` overrides per invocation (true `--no-push` equals
 `--push=false`; `--no-push=false` is neutral). The local
-item is saved first — keeping close's reason comment and claim-clearing —
+item is saved first - keeping close's reason comment and claim-clearing -
 then the push runs under the held store lock with the bounded subprocess
 deadline (Gitea: `tea api --login <login> --repo <owner/repo> --include
 -X PATCH -f state=<open|closed> repos/<owner>/<repo>/issues/<n>`; GitLab:
@@ -387,7 +387,7 @@ bytes. `create` seeds:
 
 (leading newline after the fence) when `template` is unset. When
 `template:` names a file, `create` copies those bytes exactly as the
-body — no extra leading newline — and does not parse them as frontmatter.
+body - no extra leading newline - and does not parse them as frontmatter.
 An empty template file is an empty body. Conflict marker lines
 (`<<<<<<< `, `=======`, `>>>>>>> `) anywhere in the file quarantine
 the item as `CONFLICT MARKERS`; a template containing them is refused
@@ -417,12 +417,12 @@ created: 2026-09-17T14:32:05Z
 Research notes go here.
 ```
 
-| Key | Rules |
-| --- | --- |
-| `author` | As resolved: `--author` verbatim, or `AWIT_AGENT` / `agent_id` with `agent/` prefix, or git `user.name` |
-| `created` | RFC3339 UTC, seconds |
+| Key       | Rules                                                                                                   |
+| --------- | ------------------------------------------------------------------------------------------------------- |
+| `author`  | As resolved: `--author` verbatim, or `AWIT_AGENT` / `agent_id` with `agent/` prefix, or git `user.name` |
+| `created` | RFC3339 UTC, seconds                                                                                    |
 
-`--file` copies the source bytes verbatim — no frontmatter is added.
+`--file` copies the source bytes verbatim - no frontmatter is added.
 
 After a comment or attachment is written, existing refs are normalized to
 the repo-root base and the item's `refs` gains a forward-slash entry
@@ -430,12 +430,12 @@ the repo-root base and the item's `refs` gains a forward-slash entry
 
 ## Filenames
 
-| Kind | Pattern |
-| --- | --- |
-| Item | `<id>.md` in `items/` |
-| Comment | `<YYYYMMDDTHHMMSSZ>-<sanitised-author>.md` |
+| Kind       | Pattern                                                                     |
+| ---------- | --------------------------------------------------------------------------- |
+| Item       | `<id>.md` in `items/`                                                       |
+| Comment    | `<YYYYMMDDTHHMMSSZ>-<sanitised-author>.md`                                  |
 | Attachment | `<YYYYMMDDTHHMMSSZ>-<sanitised-author><ext>` keeping the original extension |
-| Collision | `-2`, `-3`, … immediately before the extension |
+| Collision  | `-2`, `-3`, … immediately before the extension                              |
 
 Author sanitising: strip one leading `agent/`, lowercase, map runes
 outside `[a-z0-9._-]` to `-`, collapse `--`, trim `-`, empty → `anon`.
@@ -452,8 +452,8 @@ mutating commands. `awit init` appends `.awit/.lock` to the repo
 
 ## Seeded agent skills
 
-`awit init` also looks for agent directories in the repo root — `.claude`,
-`.omp`, `.opencode`, `.agents`, `.pi`, in that order — and offers to write
+`awit init` also looks for agent directories in the repo root - `.claude`,
+`.omp`, `.opencode`, `.agents`, `.pi`, in that order - and offers to write
 `<dir>/skills/driving-awit/SKILL.md` into each one it finds. It never
 creates an agent directory; their presence is the signal that the tool is
 in use. `--skills` seeds every detected directory without asking,
@@ -469,7 +469,7 @@ They are project config and are meant to be committed; unlike `.awit/.lock`,
 These are not extra keys; they are reasons a file fails to become a
 healthy item: `PARSE ERROR`, `CONFLICT MARKERS`, `ID MISMATCH`,
 `DUPLICATE ID`, `DANGLING DEP`, `CYCLE`. Invalid `external:` metadata is
-none of these — it is a `validate` WARN only. A malformed
+none of these - it is a `validate` WARN only. A malformed
 `blocked_reason` (wrong type, empty content, control characters,
 duplicate key) is a `PARSE ERROR`, not a new category: the hold fails
 closed and the item is never selectable until the declaration is readable.

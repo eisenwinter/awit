@@ -4,7 +4,8 @@ title: End-to-end agent loop test on the loop fixture
 brief: >-
   Add internal/cli/e2e_test.go that drives the five-step agent loop against the loop fixture inside a real git repo: prime, next --claim, show --full, comment, close, then drain 0002 and 0003 until next exits 1.
 status: closed
-deps: [AWIT-0ND56W3G, AWIT-0ND56X3G, AWIT-0ND56Y3G, AWIT-0ND5703G, AWIT-0ND56M3G]
+deps:
+  [AWIT-0ND56W3G, AWIT-0ND56X3G, AWIT-0ND56Y3G, AWIT-0ND5703G, AWIT-0ND56M3G]
 labels: [phase4, p0]
 refs_base: repo
 refs:
@@ -13,17 +14,19 @@ refs:
 ---
 
 ## Summary
+
 After this ticket `internal/cli/e2e_test.go` exists and nothing else is added. The test copies `testdata/fixtures/loop`, turns it into a git repository (skip when `git` is not installed), and runs the agent loop: `prime` (golden start), `next --claim --agent claude --seed 7` (0001), `show --full` (spec text), `comment` then `show --refs-only` (2 refs), `close`, `prime` after close, `validate` PASS, claim/close 0002 and 0003, final `next` exit 1, `prime` with READY (0) BLOCKED (0) and no CRITICAL PATH, `validate` PASS, two `prime` runs byte-identical. No production files change.
 
 ## Context (read first)
-- Guide §5 — command tests call `Main` through `run` / `copyFixture`. Always pass `--repo`. This ticket only creates `e2e_test.go` plus two goldens.
+
+- Guide §5 - command tests call `Main` through `run` / `copyFixture`. Always pass `--repo`. This ticket only creates `e2e_test.go` plus two goldens.
 - Guide §8 `loop` fixture (AWIT-0ND56N3G, already on disk):
   - `AWIT-TEST0001` open, no deps, labels `auth,p1`, title `Implement OAuth2 bearer token extraction`, refs `[../../docs/spec.md]`, UnblockCount 2, Ready.
   - `AWIT-TEST0002` open, deps `[0001]`, labels `auth`, title `Add E2E auth tests`, UnblockCount 1, Blocked.
   - `AWIT-TEST0003` open, deps `[0002]`, labels `p0`, title `Rotate API tokens`, UnblockCount 0, Blocked.
   - `docs/spec.md` at the fixture root (copied by `copyFixture` because it copies the whole `testdata/fixtures/loop` tree). Body contains `URL-safe base64 alphabet` and `invalid_token`.
   - Critical path: `0001 -> 0002 -> 0003`.
-- Spec §Agent surface `awit prime` (AWIT-0ND56W3G implements this exact layout). Warnings omitted when empty. Ready compact lines. Blocked lines are `[ID] Title <- depIDs`. Critical path is IDs joined by ` -> `. Empty CRITICAL PATH section is omitted; READY/BLOCKED headers still print with count 0.
+- Spec §Agent surface `awit prime` (AWIT-0ND56W3G implements this exact layout). Warnings omitted when empty. Ready compact lines. Blocked lines are `[ID] Title <- depIDs`. Critical path is IDs joined by `->`. Empty CRITICAL PATH section is omitted; READY/BLOCKED headers still print with count 0.
 - `next --claim` (AWIT-0ND56X3G): `--agent claude` → assignee `agent/claude`; `--seed 7`; commits `awit: claim <id>` because the e2e dir is a git repo. Do **not** pass `--no-commit`.
 - `show --full` / `--refs-only` (AWIT-0ND5703G): flags **before** the id (`show --full AWIT-TEST0001`) because urfave/cli v3 stops flag parsing at the first positional. `--full` stdout contains the spec file bytes. `--refs-only` after one comment lists two refs: `../../docs/spec.md` and a `../comments/AWIT-TEST0001/...` path.
 - `comment` (AWIT-0ND56Y3G): `comment --author claude AWIT-TEST0001 ...`. `close` (AWIT-0ND56M3G) does **not** git-commit.
@@ -33,12 +36,14 @@ After this ticket `internal/cli/e2e_test.go` exists and nothing else is added. T
 - Two `prime` runs on identical state must be `bytes.Equal` (guide §5 determinism test, applied to the drained graph).
 
 ## Files
+
 - Create: `internal/cli/e2e_test.go`
 - Create: `testdata/golden/e2e_prime_start.golden`
 - Create: `testdata/golden/e2e_prime_after_0001.golden`
 - Modify: none. Do not add a command. Do not edit `app.go`.
 
 ## Interfaces
+
 - Consumes (all already implemented by deps; this ticket only calls them through `Main`):
   ```go
   func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int
@@ -59,7 +64,7 @@ After this ticket `internal/cli/e2e_test.go` exists and nothing else is added. T
 
 - [ ] **Step 1: Write goldens and the failing test.**
 
-  `testdata/golden/e2e_prime_start.golden` — spec §Agent surface applied to the N3G loop fixture (trailing newline, no GRAPH WARNINGS section):
+  `testdata/golden/e2e_prime_start.golden` - spec §Agent surface applied to the N3G loop fixture (trailing newline, no GRAPH WARNINGS section):
 
   ```text
   === READY (1) ===
@@ -73,7 +78,7 @@ After this ticket `internal/cli/e2e_test.go` exists and nothing else is added. T
   AWIT-TEST0001 -> AWIT-TEST0002 -> AWIT-TEST0003
   ```
 
-  `testdata/golden/e2e_prime_after_0001.golden` — after 0001 is closed, 0002 is Ready (UnblockCount 1), 0003 still blocked on 0002:
+  `testdata/golden/e2e_prime_after_0001.golden` - after 0001 is closed, 0002 is Ready (UnblockCount 1), 0003 still blocked on 0002:
 
   ```text
   === READY (1) ===
@@ -86,7 +91,7 @@ After this ticket `internal/cli/e2e_test.go` exists and nothing else is added. T
   AWIT-TEST0002 -> AWIT-TEST0003
   ```
 
-  If AWIT-0ND56W3G's renderer emits these bytes with a different blank-line convention, the golden comparison will fail — fix the renderer or this golden so they agree with the spec block above. Do not weaken the test to `strings.Contains` for the start/after goldens.
+  If AWIT-0ND56W3G's renderer emits these bytes with a different blank-line convention, the golden comparison will fail - fix the renderer or this golden so they agree with the spec block above. Do not weaken the test to `strings.Contains` for the start/after goldens.
 
   Create `internal/cli/e2e_test.go`:
 
@@ -255,7 +260,7 @@ After this ticket `internal/cli/e2e_test.go` exists and nothing else is added. T
   go test ./internal/cli -run TestAgentLoop -v
   ```
 
-  Expected: the test is compiled (deps are closed so `prime` / `next` / `show` / `comment` / `close` / `validate` exist). It fails because this file was just added and the first assertion that does not match current behaviour is a red, **or** — if every command already works — this is the first time the loop is wired together and a missing `docs/spec.md` copy / claim commit / prime blank line will fail. If `git` is missing the test SKIPs; that is not a pass of the loop. On a machine with git, a typical first red is a golden mismatch or `unknown command` if a dep was not actually closed.
+  Expected: the test is compiled (deps are closed so `prime` / `next` / `show` / `comment` / `close` / `validate` exist). It fails because this file was just added and the first assertion that does not match current behaviour is a red, **or** - if every command already works - this is the first time the loop is wired together and a missing `docs/spec.md` copy / claim commit / prime blank line will fail. If `git` is missing the test SKIPs; that is not a pass of the loop. On a machine with git, a typical first red is a golden mismatch or `unknown command` if a dep was not actually closed.
 
   Do not skip Step 2. If the test SKIPs, install git or run on the Linux CI image; do not delete the skip.
 
@@ -293,6 +298,7 @@ After this ticket `internal/cli/e2e_test.go` exists and nothing else is added. T
   Set `status: closed` on this file, write `.awit/comments/AWIT-0ND5713G/<YYYYMMDDTHHMMSSZ>-<author>.md` with the acceptance output, append that ref, commit `tickets: close AWIT-0ND5713G`.
 
 ## Acceptance Criteria
+
 - `go test ./internal/cli -run TestAgentLoop -v` PASS (SKIP only when git is absent).
 - Start `prime` bytes equal `e2e_prime_start.golden`.
 - `next --claim --agent claude --seed 7` claims `AWIT-TEST0001`, git subject `awit: claim AWIT-TEST0001`.
@@ -306,4 +312,5 @@ After this ticket `internal/cli/e2e_test.go` exists and nothing else is added. T
 - No file under `internal/cli/` other than `e2e_test.go` is created or modified. `gofmt -l internal/cli/e2e_test.go` prints nothing.
 
 ## Out of scope
+
 - Implementing `prime`, `next`, `show --full`, `comment`, `close`, or `validate`. Changing the loop fixture. Adding a lock around the loop. Windows-specific git config beyond `user.name` / `user.email`.

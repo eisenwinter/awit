@@ -14,7 +14,7 @@ assignee: agent/orchestrator
 ## Summary
 
 Evidence: same Kimi run, transcript line 22 ("The close output didn't show,
-but fine") after `update --status in_progress`, whose output was empty —
+but fine") after `update --status in_progress`, whose output was empty -
 only the chained `comment` printed its ref path. Silent success reads as a
 no-op to a weak model.
 

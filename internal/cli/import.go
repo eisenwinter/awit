@@ -37,7 +37,7 @@ awit block <id> --reason "..." for a local manual block.`,
 
 // parseIssueURL turns an issue URL into a Gitea or GitLab external mapping.
 // GitLab is recognized only by the explicit /-/issues/ or /-/work_items/
-// path shape — never by host — and other /-/ resources are refused before
+// path shape - never by host - and other /-/ resources are refused before
 // the Gitea branch. GitLab prefix resolution is delegated to glabx.
 func parseIssueURL(ctx context.Context, raw string) (item.External, error) {
 	bad := func() (item.External, error) {
@@ -336,7 +336,7 @@ func validateImportCandidate(it *item.Item) error {
 // refuseDuplicateImport enforces import identity under the store lock: the
 // same tracker + normalized installation base + repo + issue number may
 // exist at most once across active items and archived item files. A file
-// that cannot be inspected — including invalid external metadata — refuses
+// that cannot be inspected - including invalid external metadata - refuses
 // the import instead of claiming uniqueness. Missing external metadata is
 // not a match. Archived items remain excluded from the graph; this scan is
 // an import-identity guard only.

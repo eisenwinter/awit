@@ -63,8 +63,8 @@ func run(ctx context.Context, args ...string) (stdout, stderr []byte, err error)
 }
 
 // diag renders subprocess diagnostics: the exit error plus trimmed stderr.
-// stdout — which may carry response headers or, from a misbehaving tea,
-// token material — is never forwarded.
+// stdout - which may carry response headers or, from a misbehaving tea,
+// token material - is never forwarded.
 func diag(op string, stderr []byte, err error) error {
 	msg := strings.TrimSpace(string(stderr))
 	if len(msg) > 300 {
@@ -326,7 +326,7 @@ func transportFile(body []byte) (path string, cleanup func(), err error) {
 // exactly the provided bytes. It never touches title, labels, or state.
 // A 2xx status is required (tea exits zero on HTTP errors), the response
 // must confirm the issue number (and installation, when it carries a URL),
-// and the remote body must equal the pushed bytes — verified against the
+// and the remote body must equal the pushed bytes - verified against the
 // PATCH response, or with a GET of the same issue when the response omits
 // the body. A mismatch is an error, never success.
 func (c *Client) SetBody(ctx context.Context, number int64, body []byte) error {
@@ -393,7 +393,7 @@ func (c *Client) verifyBody(ctx context.Context, number int64, want, respBody []
 // title, labels, or body. A 2xx status is required (tea exits zero on HTTP
 // errors), the response must confirm the issue number (and installation,
 // when it carries a URL), and the remote state must equal the pushed
-// state — verified against the PATCH response, or with a GET of the same
+// state - verified against the PATCH response, or with a GET of the same
 // issue when the response omits the state. A mismatch is an error, never
 // success. The remote is never read to decide what to write.
 func (c *Client) SetState(ctx context.Context, number int64, state string) error {

@@ -1,6 +1,6 @@
 ---
 id: AWIT-0NPYAVTA
-title: 'cli: add the template command'
+title: "cli: add the template command"
 brief: >-
   awit has no way to print the work item body template, so an agent must read the guide to learn which sections are required. Adds awit template, printing the config.yaml template: bytes or the built-in skeleton, and promotes readCreateTemplate to a shared readTemplateBody.
 status: closed
@@ -18,24 +18,24 @@ inside `create`, so an agent learns the required section list from guide §6 pro
 all. `awit template` writes those exact bytes to stdout, making a
 template → fill → `create --body-file` loop possible.
 
-Read-only: builds no graph, so it prints no `warning: N items quarantined` line — the same
+Read-only: builds no graph, so it prints no `warning: N items quarantined` line - the same
 silence rule `label` follows. Ignores `--format`; it emits a document, not rows.
 
 ## Context (read first)
 
-- `plan/implementation-guide.md` §1 — global constraints: Linux **and** Windows, no hardcoded `/`, temp-then-rename writes, stderr `Error: ` prefix, exit `0`/`1`/`2`, stdlib-only table-driven tests, commit message `<scope>: <imperative summary>`.
-- `internal/cli/create.go:254-278` — `readCreateTemplate`, the function being moved and renamed. Its one caller is `create.go:172`.
-- `pkg/item/item.go:237` — `body: []byte("\n## Summary\n\n## Acceptance Criteria\n\n")`, the literal to export.
-- `internal/cli/label.go` — precedent for a command that builds no graph and stays silent.
+- `plan/implementation-guide.md` §1 - global constraints: Linux **and** Windows, no hardcoded `/`, temp-then-rename writes, stderr `Error: ` prefix, exit `0`/`1`/`2`, stdlib-only table-driven tests, commit message `<scope>: <imperative summary>`.
+- `internal/cli/create.go:254-278` - `readCreateTemplate`, the function being moved and renamed. Its one caller is `create.go:172`.
+- `pkg/item/item.go:237` - `body: []byte("\n## Summary\n\n## Acceptance Criteria\n\n")`, the literal to export.
+- `internal/cli/label.go` - precedent for a command that builds no graph and stays silent.
 - Test helpers already in `internal/cli/helpers_test.go`: `run`, `runStdin`, `initRepo`, `copyFixture`, `readItem`, `golden`.
 
 ## Files
 
-- `pkg/item/item.go` — add `const DefaultBody`, use it in `New` at line 237.
-- `internal/cli/template.go` — new: `templateCmd`, `readTemplateBody`, `validateBodyBytes`.
-- `internal/cli/template_test.go` — new.
-- `internal/cli/create.go` — delete lines 254-278, repoint line 172, drop three imports.
-- `internal/cli/app.go:129-149` — register `templateCmd` after `labelCmd`.
+- `pkg/item/item.go` - add `const DefaultBody`, use it in `New` at line 237.
+- `internal/cli/template.go` - new: `templateCmd`, `readTemplateBody`, `validateBodyBytes`.
+- `internal/cli/template_test.go` - new.
+- `internal/cli/create.go` - delete lines 254-278, repoint line 172, drop three imports.
+- `internal/cli/app.go:129-149` - register `templateCmd` after `labelCmd`.
 
 ## Interfaces
 
@@ -130,7 +130,7 @@ func writeConfigTemplate(t *testing.T, repo, rel string) {
 }
 ```
 
-- [ ] Run `go test ./internal/cli/ -run TestTemplate -v` — see it FAIL: no `template` command is registered, so urfave exits 2
+- [ ] Run `go test ./internal/cli/ -run TestTemplate -v` - see it FAIL: no `template` command is registered, so urfave exits 2
 - [ ] In `pkg/item/item.go`, add above `New` and use it at line 237 (`body: []byte(DefaultBody)`):
 
 ```go
@@ -222,10 +222,10 @@ func readTemplateBody(root, rel string) ([]byte, error) {
 ```
 
 - [ ] Delete `readCreateTemplate` from `internal/cli/create.go` (lines 254-278) and change its one call site at line 172 to `body, err := readTemplateBody(s.Root, s.Config.Template)`
-- [ ] Remove `path`, `path/filepath` and `unicode/utf8` from `create.go` imports — they appear only at lines 258, 259 and 271, all inside the moved function. `os` **stays**: `detectFormat` at line 139 uses `*os.File` at lines 140-141
+- [ ] Remove `path`, `path/filepath` and `unicode/utf8` from `create.go` imports - they appear only at lines 258, 259 and 271, all inside the moved function. `os` **stays**: `detectFormat` at line 139 uses `*os.File` at lines 140-141
 - [ ] Add `templateCmd,` to the `Commands` slice in `internal/cli/app.go`, after `labelCmd` (line 147)
-- [ ] Run `go test ./internal/cli/ -run TestTemplate -v` — see all four PASS
-- [ ] Run `go test ./... && go vet ./...` — PASS. `create`'s existing template error strings are byte-identical because `validateBodyBytes("template "+rel, …)` reproduces them exactly
+- [ ] Run `go test ./internal/cli/ -run TestTemplate -v` - see all four PASS
+- [ ] Run `go test ./... && go vet ./...` - PASS. `create`'s existing template error strings are byte-identical because `validateBodyBytes("template "+rel, …)` reproduces them exactly
 - [ ] Commit: `cli/template: add template command printing the body template`
 
 ## Acceptance Criteria
@@ -233,14 +233,13 @@ func readTemplateBody(root, rel string) ([]byte, error) {
 - `awit template` in a repo without `template:` writes exactly `"\n## Summary\n\n## Acceptance Criteria\n\n"` to stdout, nothing to stderr, exit 0.
 - `awit template` with `template:` set writes that file's bytes verbatim.
 - `awit template` whose `template:` names a missing file exits 1, writes nothing to stdout, and names the path on stderr.
-- `awit template` against the `cyclic` fixture writes nothing to stderr — it builds no graph.
+- `awit template` against the `cyclic` fixture writes nothing to stderr - it builds no graph.
 - `go test ./... && go vet ./...` passes on Linux and Windows.
 
 ## Out of scope
 
 - `awit template <name>` for multiple named templates. One `template:` key today; YAGNI.
 - Any change to what `create` writes when no template is configured.
-
 
 ## Comments
 

@@ -124,7 +124,7 @@ func TestQuarantineWarningCleanRepoStaysSilent(t *testing.T) {
 
 // TestQuarantineWarningDepDoubleLoadWarnsOnce: dep add/rm load the graph
 // twice (pre-check plus the post-write printCompact reload). The warning
-// fires once, at the initial-load boundary only — even when the reload
+// fires once, at the initial-load boundary only - even when the reload
 // would compute a different count.
 func TestQuarantineWarningDepDoubleLoadWarnsOnce(t *testing.T) {
 	t.Run("add", func(t *testing.T) {
@@ -140,7 +140,7 @@ func TestQuarantineWarningDepDoubleLoadWarnsOnce(t *testing.T) {
 	})
 	t.Run("rm", func(t *testing.T) {
 		// Removing 0001's dep on 0002 breaks the triangle, so the
-		// printCompact reload would count 1, not 4 — it must stay silent.
+		// printCompact reload would count 1, not 4 - it must stay silent.
 		dir := copyFixture(t, "cyclic")
 		code, _, stderr := run(t, "--repo", dir, "--format", "compact",
 			"dep", "rm", "AWIT-TEST0001", "AWIT-TEST0002")
@@ -170,7 +170,7 @@ func TestQuarantineWarningValidateKeepsFailExit(t *testing.T) {
 }
 
 // TestQuarantineWarningShowForms: every show form goes through one graph
-// load — a clean item inside a quarantined repo and a broken file both get
+// load - a clean item inside a quarantined repo and a broken file both get
 // exactly one warning.
 func TestQuarantineWarningShowForms(t *testing.T) {
 	t.Run("clean item in quarantined repo", func(t *testing.T) {

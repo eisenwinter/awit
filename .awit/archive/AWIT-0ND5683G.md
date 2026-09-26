@@ -22,7 +22,7 @@ After this ticket `go build ./...` produces a working `awit` binary that answers
 (`0` success, `1` expected non-success, `2` usage error). `SplitLabels` is
 implemented because later commands parse repeated `-l` flags with it.
 
-No subcommands exist yet — `awit init`, `awit list`, … are added by later
+No subcommands exist yet - `awit init`, `awit list`, … are added by later
 tickets, which only append to the root command's `Commands` slice. No store,
 no graph, no YAML reading happens here.
 
@@ -30,34 +30,34 @@ no graph, no YAML reading happens here.
 
 Read these before writing code:
 
-- **guide §1 Global constraints** — module path `github.com/eisenwinter/awit`,
+- **guide §1 Global constraints** - module path `github.com/eisenwinter/awit`,
   Go 1.27.1, only `github.com/urfave/cli/v3` and `gopkg.in/yaml.v3` as
   dependencies, `go vet` clean on Linux and Windows, commit after every green
   step with `<scope>: <imperative summary>`.
-- **guide §1 exit codes** — `0` success, `1` expected non-success, `2` usage
+- **guide §1 exit codes** - `0` success, `1` expected non-success, `2` usage
   error. Errors go to stderr prefixed `Error: `.
-- **guide §2, row "CLI package layout"** — commands live in `internal/cli/`,
+- **guide §2, row "CLI package layout"** - commands live in `internal/cli/`,
   one file per command; `cmd/awit/main.go` is three lines.
-- **guide §2, row 1 "Multiple `-l` flags"** — AND across flags, OR within a
+- **guide §2, row 1 "Multiple `-l` flags"** - AND across flags, OR within a
   flag; parsed into `[][]string` by `cli.SplitLabels`.
-- **guide §3 Repository layout** — `internal/cli/app.go` holds the root
+- **guide §3 Repository layout** - `internal/cli/app.go` holds the root
   command, global flags, `Main()` and the helpers.
-- **guide §4.11 `internal/cli`** — the exact signatures of `Main`, `Version`
+- **guide §4.11 `internal/cli`** - the exact signatures of `Main`, `Version`
   and `SplitLabels`. Copy them verbatim; do not rename.
-- **guide §5 Testing conventions** — stdlib `testing` only, table-driven,
+- **guide §5 Testing conventions** - stdlib `testing` only, table-driven,
   command tests call `Main([]string{...}, strings.NewReader(""), &out, &errb)`,
   helpers live in `internal/cli/helpers_test.go`.
-- **spec "CLI command matrix"** (`plan/awit-implementation-plan.md`) — the
+- **spec "CLI command matrix"** (`plan/awit-implementation-plan.md`) - the
   thirteen commands that will hang off this root, and the line
   "Global flags: `--format`, `--repo <path>`, `--no-color`".
-- **guide §2, row "`--repo` semantics"** — `--repo` is the directory that
-  *contains* `.awit/`. This ticket only declares the flag; resolution belongs
+- **guide §2, row "`--repo` semantics"** - `--repo` is the directory that
+  _contains_ `.awit/`. This ticket only declares the flag; resolution belongs
   to `openStore` in AWIT-0ND56G3G.
-- **guide §1, `--no-color`** — accepted and a deliberate no-op so scripts
+- **guide §1, `--no-color`** - accepted and a deliberate no-op so scripts
   written today keep working. Do not implement colour.
 
 Facts about urfave/cli v3 that this ticket depends on (verified against the
-library source — do not re-derive them, just use them):
+library source - do not re-derive them, just use them):
 
 1. `func (cmd *Command) Run(ctx context.Context, osArgs []string) error`.
    `osArgs[0]` is the program name, so pass
@@ -78,7 +78,7 @@ library source — do not re-derive them, just use them):
    is `Local: true`), so `awit list --repo /x` parses even though `--repo` is
    declared on the root. Read them with `cmd.Root().String("repo")`.
 6. If `Command.ExitErrHandler` is nil, urfave calls `cli.HandleExitCoder`,
-   which prints to the *package-level* `cli.ErrWriter` (`os.Stderr`, not our
+   which prints to the _package-level_ `cli.ErrWriter` (`os.Stderr`, not our
    stream) and then calls `os.Exit`. That would kill the test process, so the
    root **must** set `ExitErrHandler` to a no-op and let `Main` do the
    reporting. `handleExitCoder` always delegates to the root command, so one
@@ -86,11 +86,11 @@ library source — do not re-derive them, just use them):
 7. `cli.ExitCoder` is `interface { error; ExitCode() int }`; `cli.Exit(msg, n)`
    returns one, and its `Error()` is exactly `msg`.
 8. `Command.OnUsageError` is consulted on the command whose flags failed to
-   parse and is *not* inherited, so `Main` installs the same handler on the
+   parse and is _not_ inherited, so `Main` installs the same handler on the
    root and, recursively, on every registered subcommand.
 
-**Naming note, read twice:** the package is `package cli` *and* it imports
-`github.com/urfave/cli/v3` as `cli`. This is legal Go — a package never refers
+**Naming note, read twice:** the package is `package cli` _and_ it imports
+`github.com/urfave/cli/v3` as `cli`. This is legal Go - a package never refers
 to itself by name, so the identifier `cli` is free inside `internal/cli`.
 Do **not** alias the urfave import, because later tickets copy signatures such
 as `func openStore(cmd *cli.Command) (*item.Store, error)` from guide §4.11
@@ -99,15 +99,15 @@ with no alias either; it does not import urfave at all.
 
 ## Files
 
-- Create: `cmd/awit/main.go` — three-line entry point.
-- Create: `internal/cli/app.go` — `Version`, `Main`, `newRoot`, `rootAction`,
+- Create: `cmd/awit/main.go` - three-line entry point.
+- Create: `internal/cli/app.go` - `Version`, `Main`, `newRoot`, `rootAction`,
   `report`, `setUsageHandler`, `SplitLabels`.
-- Test: `internal/cli/app_test.go` — `TestReport`, `TestMainVersion`,
+- Test: `internal/cli/app_test.go` - `TestReport`, `TestMainVersion`,
   `TestMainHelp`, `TestMainUnknownCommand`, `TestMainUsageError`,
   `TestMainNoArgsPrintsHelp`, `TestSplitLabels`.
-- Test: `internal/cli/helpers_test.go` — `runMain` helper only. Later tickets
+- Test: `internal/cli/helpers_test.go` - `runMain` helper only. Later tickets
   add `copyFixture` to this same file; they must not redeclare `runMain`.
-- Modify: `go.mod` / `go.sum` — add the two dependencies.
+- Modify: `go.mod` / `go.sum` - add the two dependencies.
 
 No fixtures and no golden files in this ticket.
 
@@ -175,7 +175,7 @@ do not exist yet. Do **not** write placeholder versions of them.
   unchanged and a `require` block now names `github.com/urfave/cli/v3` and
   `gopkg.in/yaml.v3` with concrete versions. `gopkg.in/yaml.v3` is not imported
   by any file until `pkg/config` (AWIT-0ND56A3G) lands, so **do not run
-  `go mod tidy` in this ticket** — it would drop the requirement again.
+  `go mod tidy` in this ticket** - it would drop the requirement again.
 
   ```bash
   git add go.mod go.sum
@@ -324,7 +324,7 @@ do not exist yet. Do **not** write placeholder versions of them.
 
 - [ ] **Step 6: Failing tests for the root command and `Main`.**
 
-  Create `internal/cli/helpers_test.go` — this file is shared with later
+  Create `internal/cli/helpers_test.go` - this file is shared with later
   tickets, so it contains only the helper:
 
   ```go
@@ -527,7 +527,7 @@ do not exist yet. Do **not** write placeholder versions of them.
   `TestMainGlobalFlagsAreAccepted`, then `ok`.
 
   If `TestMainVersion` reports `stdout = "awit version dev\n"`, the `init()`
-  hook is missing — `cli.VersionPrinter` must be assigned.
+  hook is missing - `cli.VersionPrinter` must be assigned.
 
   ```bash
   gofmt -w internal/cli/app.go internal/cli/app_test.go internal/cli/helpers_test.go
@@ -658,7 +658,7 @@ do not exist yet. Do **not** write placeholder versions of them.
   }
   ```
 
-  Nothing else belongs in this file — no flag parsing, no error handling.
+  Nothing else belongs in this file - no flag parsing, no error handling.
 
 - [ ] **Step 15: Smoke-test the real binary.**
 
@@ -709,12 +709,11 @@ do not exist yet. Do **not** write placeholder versions of them.
   Expected: no output from `build` and `vet`; every test above passes.
 
 - [ ] **Step 17: Close ticket.**
-
   1. Create the comment directory and file
      `.awit/comments/AWIT-0ND5683G/<YYYYMMDDTHHMMSSZ>-<author>.md` (UTC stamp,
      e.g. `20260918T090000Z-claude.md`) with this shape:
 
-     ```markdown
+     ````markdown
      ---
      author: <author>
      created: <YYYY-MM-DDTHH:MM:SSZ>
@@ -731,9 +730,13 @@ do not exist yet. Do **not** write placeholder versions of them.
      $ go test ./internal/cli/...
      ok  	github.com/eisenwinter/awit/internal/cli
      ```
+     ````
+
      ```
 
      Paste the real output you observed, not this sample.
+     ```
+
   2. In `.awit/items/AWIT-0ND5683G.md` set `status: closed` and append
      `- ../comments/AWIT-0ND5683G/<file>.md` to `refs`.
   3. Commit:
@@ -747,24 +750,24 @@ do not exist yet. Do **not** write placeholder versions of them.
 
 With `go build -o awit ./cmd/awit` in the repository root:
 
-- `go build ./...` — no output, exit 0.
-- `go vet ./...` — no output, exit 0.
-- `./awit --version` — prints exactly `awit dev`, exit 0.
-- `./awit -v` — same output as `--version`, exit 0.
-- `./awit --help` — exit 0; output contains `USAGE`, `--format`, `--repo`,
+- `go build ./...` - no output, exit 0.
+- `go vet ./...` - no output, exit 0.
+- `./awit --version` - prints exactly `awit dev`, exit 0.
+- `./awit -v` - same output as `--version`, exit 0.
+- `./awit --help` - exit 0; output contains `USAGE`, `--format`, `--repo`,
   `--no-color`.
-- `./awit` with no arguments — exit 0, prints the same help text.
-- `./awit nope` — stderr is exactly
+- `./awit` with no arguments - exit 0, prints the same help text.
+- `./awit nope` - stderr is exactly
   `unknown command "nope" (run "awit --help")`, exit 2.
-- `./awit --bogus` — stderr starts with `Incorrect usage:` and names `bogus`,
+- `./awit --bogus` - stderr starts with `Incorrect usage:` and names `bogus`,
   exit 2.
 - `go build -ldflags "-X github.com/eisenwinter/awit/internal/cli.Version=v9.9.9" -o awit ./cmd/awit && ./awit --version`
-  — prints `awit v9.9.9`.
-- `go test ./internal/cli/... -v` — `TestReport`, `TestMainVersion`,
+  - prints `awit v9.9.9`.
+- `go test ./internal/cli/... -v` - `TestReport`, `TestMainVersion`,
   `TestMainHelp`, `TestMainNoArgsPrintsHelp`, `TestMainUnknownCommand`,
   `TestMainUsageError`, `TestMainGlobalFlagsAreAccepted` and `TestSplitLabels`
   all PASS.
-- `git status --short` — clean; no stray `awit` or `awit-smoke` binary.
+- `git status --short` - clean; no stray `awit` or `awit-smoke` binary.
 
 ## Out of scope
 
@@ -772,10 +775,10 @@ With `go build -o awit ./cmd/awit` in the repository root:
   AWIT-0ND56J3G, and so on. Leave `Commands: []*cli.Command{}` empty.
 - `openStore`, `loadGraph` and `toEntry` (guide §4.11). They need `pkg/item`
   and `pkg/graph`; adding stubs now would have to be deleted later.
-- Resolving `--repo` or walking up to find `.awit/` — AWIT-0ND56G3G.
-- Interpreting `--format` or TTY detection — `pkg/format` in AWIT-0ND56F3G.
+- Resolving `--repo` or walking up to find `.awit/` - AWIT-0ND56G3G.
+- Interpreting `--format` or TTY detection - `pkg/format` in AWIT-0ND56F3G.
 - Any colour output at all; `--no-color` stays a no-op (guide §1).
-- `pkg/id` (AWIT-0ND5693G) and `pkg/config` (AWIT-0ND56A3G) — this ticket only
+- `pkg/id` (AWIT-0ND5693G) and `pkg/config` (AWIT-0ND56A3G) - this ticket only
   adds their shared dependencies to `go.mod`.
-- The CI workflow — AWIT-0ND56B3G.
+- The CI workflow - AWIT-0ND56B3G.
 - `go mod tidy`: it would drop the still-unused `gopkg.in/yaml.v3` requirement.
