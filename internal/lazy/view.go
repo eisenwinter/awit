@@ -140,13 +140,6 @@ func (m Model) bodyHeight() int {
 	return body
 }
 
-func padLines(lines []string, n int) []string {
-	for len(lines) < n {
-		lines = append(lines, "")
-	}
-	return lines[:n]
-}
-
 // panesView draws the list beside the detail viewport inside rounded-light
 // borders, joined with no gap. The list gets the focused flag so its cursor
 // goes plain when the detail has focus. Narrow terminals show only the
