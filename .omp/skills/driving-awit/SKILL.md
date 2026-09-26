@@ -2,7 +2,6 @@
 name: driving-awit
 description: Use when working in a repository that has a `.awit/` directory, when asked to pick up / implement / close work items, run the agent loop, add work items, or when an `awit` command output is unclear (No ready items, QUARANTINED, GRAPH WARNINGS, FAIL, "no author", "no agent identity"). Covers both a single agent working the queue and an orchestrator handing work items to workers.
 ---
-
 # Driving awit
 
 `awit` is a zero-daemon CLI: each command rebuilds the dependency graph from `.awit/items/*.md` and writes at most one file. Files and Git are the state; there is no server or hidden state. Other agents share these files: keep the graph truthful.
