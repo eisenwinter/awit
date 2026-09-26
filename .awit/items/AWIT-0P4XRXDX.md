@@ -3,13 +3,12 @@ id: AWIT-0P4XRXDX
 title: Extend dogfood coverage for stale .omp skill synchronization
 brief: >-
   Prove the real sync command restores a stale .omp skill copy byte-exactly and reports current on re-run.
-status: in_progress
+status: closed
 deps: [AWIT-0P4XRXDJ]
 labels: []
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P4XRXDX/20260926T210105Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-26T20:56:41Z"
 ---
 ## Summary
 
