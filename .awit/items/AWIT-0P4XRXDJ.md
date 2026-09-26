@@ -3,13 +3,12 @@ id: AWIT-0P4XRXDJ
 title: Add deterministic skill sync command using existing skill primitives
 brief: >-
   `awit skill sync` refreshes every detected skill target with deterministic current/updated/created output, reusing Detect/Render and init's atomic writer.
-status: in_progress
+status: closed
 deps: []
-labels: [tui]
+labels: []
 refs_base: repo
-refs: []
+refs: [.awit/comments/AWIT-0P4XRXDJ/20260926T205636Z-jan.md]
 assignee: agent/orchestrator
-claimed_at: "2026-09-26T20:50:43Z"
 ---
 ## Summary
 
