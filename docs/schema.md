@@ -59,7 +59,10 @@ template: .awit/templates/workitem.md
 
 Unknown keys in `config.yaml` are not part of v1; `Load` decodes into a
 struct and extra keys are dropped on the next `Write`. Do not put
-`external:` here.
+`external:` here. `lazyawit`'s Config tab edits these keys through the same
+`Load`/`Write` pair: a value is checked with the rules above plus the
+`prefix` grammar before the file is rewritten, so every save is a full
+rewrite (comments and unknown keys are dropped, as after any `Write`).
 
 ## Item files
 

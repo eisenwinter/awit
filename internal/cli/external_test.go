@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/eisenwinter/awit/internal/glabx/glabxtest"
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/internal/teax/teaxtest"
 	"github.com/eisenwinter/awit/pkg/item"
 )
@@ -124,7 +125,7 @@ func TestExternalCheckJSONPurity(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
-	var rows []ExternalCheckRow
+	var rows []ops.ExternalCheckRow
 	if err := json.Unmarshal([]byte(stdout), &rows); err != nil {
 		t.Fatalf("stdout must be a pure JSON array: %v\n%s", err, stdout)
 	}
@@ -500,7 +501,7 @@ func TestExternalCheckMixedTrackers(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("json exit %d stderr %q", code, stderr)
 	}
-	var rows []ExternalCheckRow
+	var rows []ops.ExternalCheckRow
 	if err := json.Unmarshal([]byte(stdout), &rows); err != nil {
 		t.Fatalf("stdout must be a pure JSON array: %v\n%s", err, stdout)
 	}

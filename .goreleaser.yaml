@@ -19,14 +19,38 @@ builds:
       - -trimpath
     ldflags:
       - -s -w -X github.com/eisenwinter/awit/internal/cli.Version={{.Version}}
+  - id: lazyawit
+    main: ./cmd/lazyawit
+    binary: lazyawit
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X github.com/eisenwinter/awit/internal/ops.Version={{.Version}}
 
 archives:
-  - id: default
+  - id: awit
+    ids: [awit]
     formats: [tar.gz]
     format_overrides:
       - goos: windows
         formats: [zip]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: lazyawit
+    ids: [lazyawit]
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "lazyawit_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
   name_template: checksums.txt

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +8,7 @@ import (
 	"time"
 
 	"github.com/eisenwinter/awit/internal/glabx"
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/internal/teax"
 	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
@@ -21,16 +21,6 @@ var externalCmd = &cli.Command{
 		externalCheckCmd,
 		externalPushBodyCmd,
 	},
-}
-
-// ExternalCheckRow is one row of `awit external check` output. Result is
-// match, drift, or error; an authentication or read failure is an error
-// row, never drift.
-type ExternalCheckRow struct {
-	ID     string `json:"id"`
-	URL    string `json:"url,omitempty"`
-	Result string `json:"result"` // match | drift | error
-	Detail string `json:"detail,omitempty"`
 }
 
 var externalCheckCmd = &cli.Command{
@@ -65,7 +55,7 @@ func externalCheckAction(ctx context.Context, cmd *cli.Command) error {
 	login := cmd.String("tea-login")
 	var targets []*item.Item
 	if key := cmd.Args().First(); key != "" {
-		id, err := resolveItemID(items, key)
+		id, err := ops.ResolveItemID(items, key)
 		if err != nil {
 			return err
 		}
@@ -91,9 +81,9 @@ func externalCheckAction(ctx context.Context, cmd *cli.Command) error {
 		}
 		sort.Slice(targets, func(i, j int) bool { return targets[i].ID < targets[j].ID })
 	}
-	rows := make([]ExternalCheckRow, 0, len(targets))
+	rows := make([]ops.ExternalCheckRow, 0, len(targets))
 	for _, it := range targets {
-		rows = append(rows, checkOne(ctx, it, login))
+		rows = append(rows, ops.CheckOne(ctx, it, login))
 	}
 	if cmd.Root().String("format") == "json" {
 		enc := json.NewEncoder(cmd.Root().Writer)
@@ -135,37 +125,7 @@ func externalCheckAction(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-// checkOne compares one linked item's raw body bytes against the remote
-// issue body. It never writes locally or remotely. Only body bytes are
-// compared: whitespace, line endings, final newlines, and leading blank
-// lines all constitute drift; frontmatter, title, labels, comments, and
-// remote state are ignored. Reads dispatch by tracker through
-// getExternalIssue; schema, auth, and identity failures are ERROR, never
-// DRIFT.
-func checkOne(ctx context.Context, it *item.Item, login string) ExternalCheckRow {
-	if it.ExternalProblem != "" {
-		return ExternalCheckRow{ID: it.ID, Result: "error", Detail: it.ExternalProblem}
-	}
-	ext := it.External
-	if ext == nil {
-		return ExternalCheckRow{ID: it.ID, Result: "error", Detail: "invalid external: no external link"}
-	}
-	iss, err := getExternalIssue(ctx, *ext, login)
-	if err != nil {
-		return ExternalCheckRow{ID: it.ID, URL: ext.URL, Result: "error", Detail: err.Error()}
-	}
-	if iss.Number != ext.ID {
-		return ExternalCheckRow{ID: it.ID, URL: ext.URL, Result: "error",
-			Detail: fmt.Sprintf("issue number mismatch: expected #%d but the server returned #%d", ext.ID, iss.Number)}
-	}
-	if bytes.Equal(it.Body(), iss.Body) {
-		return ExternalCheckRow{ID: it.ID, URL: ext.URL, Result: "match"}
-	}
-	return ExternalCheckRow{ID: it.ID, URL: ext.URL, Result: "drift",
-		Detail: fmt.Sprintf("remote body (%d bytes) does not equal the local bytes (%d bytes)", len(iss.Body), len(it.Body()))}
-}
-
-func failedRows(rows []ExternalCheckRow) bool {
+func failedRows(rows []ops.ExternalCheckRow) bool {
 	for _, r := range rows {
 		if r.Result != "match" {
 			return true
@@ -192,7 +152,7 @@ func externalPushBodyAction(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	id, err := resolveItemID(items, cmd.Args().First())
+	id, err := ops.ResolveItemID(items, cmd.Args().First())
 	if err != nil {
 		return err
 	}
@@ -248,7 +208,7 @@ func setExternalBody(ctx context.Context, ext item.External, teaLogin string, bo
 // duplicateExternalLinks returns the canonical IDs of every parseable item
 // carrying the same tracker, installation base, repo, and issue number, sorted.
 func duplicateExternalLinks(items []*item.Item, want item.External) []string {
-	base, err := externalBase(want)
+	base, err := ops.ExternalBase(want)
 	if err != nil {
 		return []string{}
 	}
@@ -271,60 +231,4 @@ func joinIDs(ids []string) string {
 		out += id
 	}
 	return out
-}
-
-// externalIssue is the CLI-owned snapshot of a remote issue. It is not a
-// public provider or transport abstraction.
-type externalIssue struct {
-	Number int64
-	Title  string
-	Body   []byte
-	Labels []string
-	State  string
-	URL    string
-}
-
-// externalBase dispatches to teax.IssueBase for Gitea and glabx.IssueBase
-// for GitLab. Gitea base semantics are preserved exactly.
-func externalBase(ext item.External) (string, error) {
-	switch ext.Tracker {
-	case "gitea":
-		return teax.IssueBase(ext.URL)
-	case "gitlab":
-		return glabx.IssueBase(ext)
-	default:
-		return "", fmt.Errorf("invalid external: tracker must be gitea or gitlab")
-	}
-}
-
-// getExternalIssue opens the matching concrete client, fetches once, and
-// converts the same-shaped Issue into externalIssue. Conversion copies
-// slice headers, not body buffers. --tea-login is Gitea-only and is never
-// passed to glab. There is no transport abstraction or persistent client
-// cache.
-func getExternalIssue(ctx context.Context, ext item.External, teaLogin string) (externalIssue, error) {
-	switch ext.Tracker {
-	case "gitea":
-		client, err := teax.Open(ctx, ext, teaLogin)
-		if err != nil {
-			return externalIssue{}, err
-		}
-		iss, err := client.GetIssue(ctx, ext.ID)
-		if err != nil {
-			return externalIssue{}, err
-		}
-		return externalIssue{Number: iss.Number, Title: iss.Title, Body: iss.Body, Labels: iss.Labels, State: iss.State, URL: iss.URL}, nil
-	case "gitlab":
-		client, err := glabx.Open(ctx, ext)
-		if err != nil {
-			return externalIssue{}, err
-		}
-		iss, err := client.GetIssue(ctx, ext.ID)
-		if err != nil {
-			return externalIssue{}, err
-		}
-		return externalIssue{Number: iss.Number, Title: iss.Title, Body: iss.Body, Labels: iss.Labels, State: iss.State, URL: iss.URL}, nil
-	default:
-		return externalIssue{}, fmt.Errorf("unsupported tracker %q", ext.Tracker)
-	}
 }

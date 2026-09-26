@@ -1,0 +1,30 @@
+lazyawit  >[1] Work items  [2] Graph  [3] Queue  [4] Config  focus: list                            
+open: 8  archive: (not loaded)   filters: [--ready]   source: open
+╭───────────────────────────────────────────╮╭─────────────────────────────────────────────────────╮
+│> [AWIT-LAZY0001] open Token extraction    ││detail of AWIT-LAZY0001                              │
+│  [AWIT-LAZY0002] open Migration scripts   ││                                                     │
+│  [AWIT-LAZY0006] in_progress Rotate keys  ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+╰───────────────────────────────────────────╯╰─────────────────────────────────────────────────────╯
+warning: 1 item(s) quarantined, run awit validate
+
+j/k move  enter detail  / filter  o archive  c/b/u/m mutate  P check  ? help

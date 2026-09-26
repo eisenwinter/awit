@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/eisenwinter/awit/internal/glabx"
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
@@ -103,7 +104,7 @@ func importAction(ctx context.Context, cmd *cli.Command) error {
 	noteWalkedUp(cmd, s)
 	// Preflight and fetch happen before the mutation lock: no local state
 	// is touched while the network is involved. --tea-login is Gitea-only.
-	issue, err := getExternalIssue(ctx, ext, cmd.String("tea-login"))
+	issue, err := ops.GetExternalIssue(ctx, ext, cmd.String("tea-login"))
 	if err != nil {
 		return err
 	}
@@ -202,7 +203,7 @@ const maxDerivedBriefRunes = 240
 // --brief. A title holding any non-whitespace rune wins and is used whole;
 // otherwise the body's first sentence is used, stopping at the first '.',
 // '!' or '?' immediately followed by whitespace or end-of-source (the same
-// boundary convention as sentenceCount). The chosen source is trimmed of
+// boundary rule as internal/ops' sentence counter). The chosen source is trimmed of
 // leading/trailing Unicode whitespace with each internal run collapsed to
 // one ASCII space; Markdown, case and punctuation are untouched. Derived
 // values are capped at maxDerivedBriefRunes code points. Both sources
@@ -340,7 +341,7 @@ func validateImportCandidate(it *item.Item) error {
 // not a match. Archived items remain excluded from the graph; this scan is
 // an import-identity guard only.
 func refuseDuplicateImport(s *item.Store, ext item.External) error {
-	base, err := externalBase(ext)
+	base, err := ops.ExternalBase(ext)
 	if err != nil {
 		return err
 	}
@@ -396,6 +397,6 @@ func sameImportIdentity(base string, want item.External, have *item.External) bo
 	if have == nil || have.Tracker != want.Tracker || have.Repo != want.Repo || have.ID != want.ID {
 		return false
 	}
-	hb, err := externalBase(*have)
+	hb, err := ops.ExternalBase(*have)
 	return err == nil && hb == base
 }

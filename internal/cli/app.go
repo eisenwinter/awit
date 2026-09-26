@@ -1,5 +1,6 @@
 // Package cli implements the awit command line interface. Every command lives
 // in its own file in this package; cmd/awit/main.go only calls Main.
+// Command actions delegate store-level work to internal/ops.
 package cli
 
 import (
@@ -7,14 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
-	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/eisenwinter/awit/pkg/format"
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
@@ -154,27 +151,7 @@ func newRoot(stdin io.Reader, stdout, stderr io.Writer) *cli.Command {
 // openStore honours --repo (Open of the absolute path), else AWIT_REPO, else
 // Find(cwd). Precedence: --repo flag → AWIT_REPO → walk up from cwd.
 // Used by every command except init.
-func openStore(cmd *cli.Command) (*item.Store, error) {
-	if repo := cmd.Root().String("repo"); repo != "" {
-		abs, err := filepath.Abs(repo)
-		if err != nil {
-			return nil, err
-		}
-		return item.Open(abs)
-	}
-	if repo := os.Getenv("AWIT_REPO"); repo != "" {
-		abs, err := filepath.Abs(repo)
-		if err != nil {
-			return nil, err
-		}
-		return item.Open(abs)
-	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-	return item.Find(cwd)
-}
+func openStore(cmd *cli.Command) (*item.Store, error) { return ops.Open(cmd.Root().String("repo")) }
 
 // noteWalkedUp emits the safety-brake note on stderr when a mutating command
 // resolved its root by walking up: no --repo was passed, AWIT_REPO was not
@@ -182,20 +159,9 @@ func openStore(cmd *cli.Command) (*item.Store, error) {
 // mutating path only, after openStore succeeds; read-only commands stay
 // silent so their stdout keeps its golden-file contract.
 func noteWalkedUp(cmd *cli.Command, s *item.Store) {
-	if cmd.Root().String("repo") != "" {
-		return
+	if n := ops.WalkedUpNote(cmd.Root().String("repo"), s); n != "" {
+		fmt.Fprintln(cmd.Root().ErrWriter, n)
 	}
-	if os.Getenv("AWIT_REPO") != "" {
-		return
-	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return
-	}
-	if fi, err := os.Stat(filepath.Join(cwd, item.DirName)); err == nil && fi.IsDir() {
-		return
-	}
-	fmt.Fprintf(cmd.Root().ErrWriter, "Note: no .awit in the current directory; using %s. Run awit init here, or pass --repo / set AWIT_REPO.\n", s.Root)
 }
 
 // rootAction runs when the first argument did not name a command.
@@ -242,10 +208,6 @@ func SplitLabels(flags []string) [][]string {
 	return groups
 }
 
-// errUnknownItem marks the "no such key" outcome of resolveItemID so
-// callers can distinguish it from an ambiguity error.
-var errUnknownItem = errors.New("unknown item")
-
 // graphItems flattens graph order into the item slice resolveItemID scans.
 func graphItems(g *graph.Graph) []*item.Item {
 	items := make([]*item.Item, 0, len(g.Order))
@@ -253,108 +215,4 @@ func graphItems(g *graph.Graph) []*item.Item {
 		items = append(items, n.Item)
 	}
 	return items
-}
-
-// resolveItemID maps a user-supplied key to a canonical item ID. Canonical
-// IDs match exactly (case-sensitive) and take precedence; then aliases
-// match case-insensitively; then external keys owner/repo#<n> or bare
-// #<n> match valid external metadata. GitLab subgroup paths such as
-// group/sub/project#127 are already accepted (the key parser splits on the
-// last '#'); there is no new lookup syntax. Ambiguity across trackers or
-// hosts lists the matching canonical IDs, sorted. There is no prefix,
-// fuzzy, or title matching and no bare integer shorthand. A key never
-// becomes a filesystem path.
-func resolveItemID(items []*item.Item, key string) (string, error) {
-	for _, it := range items {
-		if it.ID == key {
-			return it.ID, nil
-		}
-	}
-	var aliasHits []string
-	for _, it := range items {
-		if it.Alias != "" && strings.EqualFold(it.Alias, key) {
-			aliasHits = append(aliasHits, it.ID)
-		}
-	}
-	switch {
-	case len(aliasHits) == 1:
-		return aliasHits[0], nil
-	case len(aliasHits) > 1:
-		sort.Strings(aliasHits)
-		return "", fmt.Errorf("ambiguous alias %q matches %s", key, strings.Join(aliasHits, ", "))
-	}
-	if repo, num, ok := parseExternalKey(key); ok {
-		var hits []string
-		for _, it := range items {
-			if it.External == nil || it.External.ID != num {
-				continue
-			}
-			if repo != "" && it.External.Repo != repo {
-				continue
-			}
-			hits = append(hits, it.ID)
-		}
-		switch {
-		case len(hits) == 1:
-			return hits[0], nil
-		case len(hits) > 1:
-			sort.Strings(hits)
-			return "", fmt.Errorf("ambiguous external key %q matches %s", key, strings.Join(hits, ", "))
-		}
-	}
-	return "", fmt.Errorf("%w %s", errUnknownItem, key)
-}
-
-// parseExternalKey splits owner/repo#<n> or #<n> lookup keys. Repo may
-// contain extra slashes (GitLab subgroups); only the last '#' is the
-// number separator.
-func parseExternalKey(key string) (repo string, num int64, ok bool) {
-	rest, found := strings.CutPrefix(key, "#")
-	if !found {
-		i := strings.LastIndex(key, "#")
-		if i <= 0 || !strings.Contains(key[:i], "/") {
-			return "", 0, false
-		}
-		repo, rest = key[:i], key[i+1:]
-	}
-	n, err := strconv.ParseInt(rest, 10, 64)
-	if err != nil || n <= 0 {
-		return "", 0, false
-	}
-	return repo, n, true
-}
-func toEntry(n *graph.Node) format.Entry {
-	e := format.Entry{
-		ID:            n.Item.ID,
-		Title:         n.Item.Title,
-		Brief:         n.Item.Brief,
-		Status:        string(n.Item.Status),
-		BlockedReason: n.Item.BlockedReason,
-		Labels:        n.Item.Labels,
-		Deps:          n.Item.Deps,
-		Assignee:      n.Item.Assignee,
-		Alias:         n.Item.Alias,
-		Unblocks:      n.UnblockCount,
-		External:      n.Item.External,
-	}
-	if e.Labels == nil {
-		e.Labels = []string{}
-	}
-	if e.Deps == nil {
-		e.Deps = []string{}
-	}
-	switch {
-	case n.Quarantined():
-		e.State = "quarantined"
-		for _, f := range n.Faults {
-			e.Faults = append(e.Faults, "["+string(f.Reason)+"] "+f.Detail)
-		}
-	case n.Item.Status == item.StatusClosed:
-		e.State = "closed"
-	case n.Ready:
-		e.State = "ready"
-	default:
-		e.State = "blocked"
-	}
-	return e
 }

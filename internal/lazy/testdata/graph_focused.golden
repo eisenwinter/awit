@@ -1,0 +1,30 @@
+lazyawit  [1] Work items  >[2] Graph  [3] Queue  [4] Config  focus: list                            
+Focused on AWIT-LAZY0003
+╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│  depends on (upstream, depth <= 5)                                                               │
+│  [AWIT-LAZY0003] open E2E auth tests                                                             │
+│> └─ [AWIT-LAZY0001] open Token extraction                                                        │
+│                                                                                                  │
+│  unblocks (downstream, depth <= 5)                                                               │
+│  [AWIT-LAZY0003] open E2E auth tests                                                             │
+│  └─ [AWIT-LAZY0004] open Rotate API tokens                                                       │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+warning: 1 item(s) quarantined, run awit validate
+
+j/k move  tab mode  enter work items  c/b/u/m mutate  ? help

@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/eisenwinter/awit/internal/gitx"
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/config"
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/graph"
-	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
 )
 
@@ -131,7 +131,7 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 		}
 		defer release()
 	}
-	g, err := loadGraph(s)
+	g, err := ops.LoadGraph(s)
 	if err != nil {
 		return err
 	}
@@ -150,7 +150,7 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 		// Without --claim the exact item prints as-is, whatever its
 		// state; with --claim it must be ready and unclaimed.
 		if cmd.Bool("claim") {
-			if err := refuseClaim(n); err != nil {
+			if err := ops.RefuseClaim(n); err != nil {
 				return err
 			}
 		}
@@ -187,11 +187,7 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 		if err != nil {
 			return err
 		}
-		now := time.Now().UTC().Truncate(time.Second)
-		it.SetStatus(item.StatusInProgress)
-		it.SetAssignee(withAgentPrefix(agent))
-		it.SetClaimedAt(&now)
-		if err := s.Save(it); err != nil {
+		if err := ops.ClaimItem(s, it, agent, time.Now()); err != nil {
 			return err
 		}
 		n.Item = it
@@ -205,7 +201,7 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	if err := format.WriteOne(cmd.Root().Writer, f, toEntry(n)); err != nil {
+	if err := format.WriteOne(cmd.Root().Writer, f, ops.ToEntry(n)); err != nil {
 		return err
 	}
 	// The explanation goes to stderr only after the selection or claim
@@ -235,11 +231,11 @@ func nextAction(_ context.Context, cmd *cli.Command) error {
 // item refuses like a quarantined node; anything else unknown keeps the
 // existing "unknown item" string.
 func nextNode(g *graph.Graph, key string) (*graph.Node, error) {
-	id, err := resolveItemID(graphItems(g), key)
+	id, err := ops.ResolveItemID(graphItems(g), key)
 	if err == nil {
 		return g.Nodes[id], nil
 	}
-	if errors.Is(err, errUnknownItem) {
+	if errors.Is(err, ops.ErrUnknownItem) {
 		var reasons []string
 		seen := map[string]bool{}
 		for _, br := range g.Broken {
@@ -253,35 +249,4 @@ func nextNode(g *graph.Graph, key string) (*graph.Node, error) {
 		}
 	}
 	return nil, err
-}
-
-// refuseClaim errors when the exact item cannot be claimed: quarantined,
-// closed, blocked, or already claimed by someone. Messages carry no
-// "Error: " prefix; Main prints the cli.Exit body as-is with exit 1.
-func refuseClaim(n *graph.Node) error {
-	id := n.Item.ID
-	if n.Quarantined() {
-		var reasons []string
-		seen := map[string]bool{}
-		for _, f := range n.Faults {
-			if !seen[string(f.Reason)] {
-				seen[string(f.Reason)] = true
-				reasons = append(reasons, "["+string(f.Reason)+"]")
-			}
-		}
-		return cli.Exit(fmt.Sprintf("%s is quarantined %s; run awit validate", id, strings.Join(reasons, ", ")), 1)
-	}
-	if n.Item.Status == item.StatusClosed {
-		return cli.Exit(fmt.Sprintf("%s is closed; awit release %s to reopen it", id, id), 1)
-	}
-	if n.Item.BlockedReason != "" {
-		return cli.Exit(fmt.Sprintf("%s is manually blocked (%s); awit unblock %s once resolved", id, n.Item.BlockedReason, id), 1)
-	}
-	if n.Blocked {
-		return cli.Exit(fmt.Sprintf("%s is blocked by %s", id, strings.Join(n.OpenDepIDs(), ", ")), 1)
-	}
-	if n.Item.Status == item.StatusInProgress && n.Item.Assignee != "" {
-		return cli.Exit(fmt.Sprintf("%s is claimed by %s; awit release %s", id, n.Item.Assignee, id), 1)
-	}
-	return nil
 }

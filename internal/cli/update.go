@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
 )
@@ -90,7 +91,7 @@ func updateAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	defer release()
-	it, err := loadItem(s, id)
+	it, err := ops.LoadItem(s, id)
 	if err != nil {
 		return err
 	}

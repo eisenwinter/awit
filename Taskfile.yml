@@ -1,35 +1,41 @@
-# Taskfile.dev — local dev builds for awit (dogfood binary).
+# Taskfile.dev — local dev builds for awit + lazyawit.
 # Run with: task --taskfile Taskfile.dev <task>
 version: '3'
 
 vars:
   BINARY: bin/awit
   PKG: ./cmd/awit
+  LAZY_BINARY: bin/lazyawit
+  LAZY_PKG: ./cmd/lazyawit
   VERSION:
     sh: git describe --tags --always --dirty 2>/dev/null || echo dev
   LDFLAGS: -s -w -X github.com/eisenwinter/awit/internal/cli.Version={{.VERSION}}
+  LAZY_LDFLAGS: -s -w -X github.com/eisenwinter/awit/internal/ops.Version={{.VERSION}}
 
 tasks:
   build:
-    desc: Build {{.BINARY}} stamped with {{.VERSION}}
+    desc: Build {{.BINARY}} and {{.LAZY_BINARY}} stamped with {{.VERSION}}
     cmds:
       - mkdir -p bin
       - go build -trimpath -ldflags "{{.LDFLAGS}}" -o {{.BINARY}} {{.PKG}}
+      - go build -trimpath -ldflags "{{.LAZY_LDFLAGS}}" -o {{.LAZY_BINARY}} {{.LAZY_PKG}}
     sources:
       - "**/*.go"
       - go.mod
       - go.sum
     generates:
       - "{{.BINARY}}"
+      - "{{.LAZY_BINARY}}"
     status:
       - test -x {{.BINARY}}
-
+      - test -x {{.LAZY_BINARY}}
   install:
-    desc: Build {{.BINARY}} and copy it to ~/.local/bin/awit
+    desc: Build both binaries and copy them to ~/.local/bin
     cmds:
       - task: build
       - mkdir -p "$HOME/.local/bin"
       - cp {{.BINARY}} "$HOME/.local/bin/awit"
+      - cp {{.LAZY_BINARY}} "$HOME/.local/bin/lazyawit"
 
   test:
     desc: Full test suite
@@ -58,6 +64,8 @@ tasks:
         ./{{.BINARY}} --repo "$repo" list
         ./{{.BINARY}} --repo "$repo" next
         ./{{.BINARY}} --version
+        ./{{.LAZY_BINARY}} --help
+        ./{{.LAZY_BINARY}} --version
 
   clean:
     desc: Remove local build output

@@ -19,6 +19,7 @@ curl -sL "https://github.com/eisenwinter/awit/releases/download/$V/awit_${V#v}_$
 ```
 
 Assets are named `awit_<version>_<os>_<arch>.tar.gz` (`.zip` on Windows, e.g. `awit_0.5.0_linux_amd64.tar.gz`).
+The human TUI ships separately as `lazyawit_<version>_<os>_<arch>.tar.gz` (`.zip` on Windows); agents only need `awit`.
 `awit init --skills` creates `.awit/` and seeds the driving-awit skill into
 every detected agent directory without asking.
 
@@ -26,6 +27,7 @@ From source (Go 1.27+):
 
 ```bash
 go install github.com/eisenwinter/awit/cmd/awit@latest
+go install github.com/eisenwinter/awit/cmd/lazyawit@latest
 ```
 
 Or download a tagged binary from GitHub Releases. Each tag `v*` publishes
@@ -82,6 +84,17 @@ from a subdirectory prints a one-line note on stderr naming the root it
 walked up to. Exit codes: `0` success, `1` expected non-success (`next`
 with no candidates, `validate` with FAIL, `external check` with any drift
 or error), `2` usage error.
+
+## lazyawit (human TUI)
+
+`lazyawit` is a separate binary with only `--repo` and `--agent`. It opens a
+keyboard-driven TUI: Work items (list + detail), Graph (prime overview / focused
+DAG), Queue (ready order), Config (view and edit `.awit/config.yaml` with
+the same validation `awit` applies on load); `c/b/u/m`
+close/block/unblock/comment, `space`/`r` claim/release, `e` edit a config
+value, `V` validate, `P` external check; no mouse. It writes through the
+same code the CLI uses and never pushes external state or git-commits.
+`awit` itself has no TUI, so an agent holding only `awit` cannot open one.
 
 When a graph-reading command (`list`, `next`, `prime`, `show`, `validate`,
 `dep`, `archive`) loads quarantined items or broken files, it prints one

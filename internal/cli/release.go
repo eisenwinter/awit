@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
 )
@@ -38,14 +39,11 @@ func releaseAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	defer release()
-	it, err := loadItem(s, id)
+	it, err := ops.LoadItem(s, id)
 	if err != nil {
 		return err
 	}
-	it.SetStatus(item.StatusOpen)
-	it.SetAssignee("")
-	it.SetClaimedAt(nil)
-	if err := s.Save(it); err != nil {
+	if err := ops.ReleaseItem(s, it); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Root().Writer, "reopened %s\n", it.ID)

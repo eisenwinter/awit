@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/eisenwinter/awit/pkg/item"
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/urfave/cli/v3"
 )
 
@@ -54,20 +54,11 @@ func blockAction(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	defer release()
-	it, err := loadItem(s, cmd.Args().First())
+	it, err := ops.LoadItem(s, cmd.Args().First())
 	if err != nil {
 		return err
 	}
-	if it.Status == item.StatusClosed {
-		return cli.Exit(fmt.Sprintf("%s is closed; awit release %s to reopen it before blocking", it.ID, it.ID), 1)
-	}
-	if err := it.SetBlockedReason(cmd.String("reason")); err != nil {
-		return cli.Exit("block requires --reason with a non-empty, single-line explanation", 2)
-	}
-	it.SetStatus(item.StatusOpen)
-	it.SetAssignee("")
-	it.SetClaimedAt(nil)
-	if err := s.Save(it); err != nil {
+	if err := ops.BlockItem(s, it, cmd.String("reason")); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Root().Writer, "blocked %s: %s\n", it.ID, it.BlockedReason)
@@ -88,14 +79,11 @@ func unblockAction(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	defer release()
-	it, err := loadItem(s, cmd.Args().First())
+	it, err := ops.LoadItem(s, cmd.Args().First())
 	if err != nil {
 		return err
 	}
-	if err := it.SetBlockedReason(""); err != nil {
-		return err
-	}
-	if err := s.Save(it); err != nil {
+	if err := ops.UnblockItem(s, it); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Root().Writer, "unblocked %s\n", it.ID)

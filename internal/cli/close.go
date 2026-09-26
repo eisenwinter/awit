@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
 )
@@ -40,24 +41,18 @@ func closeAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	defer release()
-	it, err := loadItem(s, id)
+	it, err := ops.LoadItem(s, id)
 	if err != nil {
 		return err
 	}
-	it.SetStatus(item.StatusClosed)
-	it.SetClaimedAt(nil)
-	if err := it.SetBlockedReason(""); err != nil {
-		return err
+	reason := cmd.String("reason")
+	author := ""
+	if reason != "" {
+		if author, err = ops.ResolveAuthor(cmd.String("author"), s.Root, s.Config); err != nil {
+			return err
+		}
 	}
-	if reason := cmd.String("reason"); reason != "" {
-		author, err := resolveAuthor(cmd.String("author"), s.Root, s.Config)
-		if err != nil {
-			return err
-		}
-		if _, err = s.AddComment(it, author, time.Now().UTC(), reason); err != nil {
-			return err
-		}
-	} else if err := s.Save(it); err != nil {
+	if err := ops.CloseItem(s, it, reason, author, time.Now().UTC()); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Root().Writer, "closed %s\n", it.ID)

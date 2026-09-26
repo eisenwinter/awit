@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -39,19 +40,31 @@ type Config struct {
 
 type Duration time.Duration
 
-func (d Duration) MarshalYAML() (any, error) {
+// String renders d the way Write emits it: "0s", whole hours as "2h",
+// whole minutes as "90m", otherwise time.Duration's form ("1m30s").
+func (d Duration) String() string {
 	td := time.Duration(d)
 	switch {
 	case td == 0:
-		return "0s", nil
+		return "0s"
 	case td%time.Hour == 0:
-		return fmt.Sprintf("%dh", td/time.Hour), nil
+		return fmt.Sprintf("%dh", td/time.Hour)
 	case td%time.Minute == 0:
-		return fmt.Sprintf("%dm", td/time.Minute), nil
+		return fmt.Sprintf("%dm", td/time.Minute)
 	default:
-		return td.String(), nil
+		return td.String()
 	}
 }
+
+func (d Duration) MarshalYAML() (any, error) { return d.String(), nil }
+
+var prefixRE = regexp.MustCompile(`^[A-Z][A-Z0-9]{1,7}$`)
+
+// ValidPrefix reports whether p matches the id prefix grammar
+// ^[A-Z][A-Z0-9]{1,7}$ that awit init enforces (2-8 uppercase
+// alphanumerics starting with a letter). Load does not call it: existing
+// repositories keep loading whatever prefix they were initialised with.
+func ValidPrefix(p string) bool { return prefixRE.MatchString(p) }
 
 func (d *Duration) UnmarshalYAML(n *yaml.Node) error {
 	var s string
@@ -73,15 +86,10 @@ func Default(prefix string) Config {
 	}
 }
 
-func Load(awitDir string) (Config, error) {
-	data, err := os.ReadFile(filepath.Join(awitDir, FileName))
-	if err != nil {
-		return Config{}, err
-	}
-	var c Config
-	if err := yaml.Unmarshal(data, &c); err != nil {
-		return Config{}, err
-	}
+// Normalize applies Load's post-decode rules to a copy of c and returns
+// it: prefix required, zero stale_claim → 2h, template path checks, labels
+// entry rules with in-memory dedupe. default_labels are not checked.
+func (c Config) Normalize() (Config, error) {
 	if c.Prefix == "" {
 		return Config{}, errors.New("config: prefix is required")
 	}
@@ -97,6 +105,19 @@ func Load(awitDir string) (Config, error) {
 	}
 	c.Labels = labels
 	return c, nil
+}
+
+// Load reads awitDir/config.yaml: yaml.Unmarshal followed by Normalize.
+func Load(awitDir string) (Config, error) {
+	data, err := os.ReadFile(filepath.Join(awitDir, FileName))
+	if err != nil {
+		return Config{}, err
+	}
+	var c Config
+	if err := yaml.Unmarshal(data, &c); err != nil {
+		return Config{}, err
+	}
+	return c.Normalize()
 }
 
 func (c Config) Write(awitDir string) error {

@@ -167,21 +167,10 @@ func FilterLabels(nodes []*Node, groups [][]string) []*Node {
 		return nodes
 	}
 	var out []*Node
-next:
 	for _, n := range nodes {
-		for _, group := range groups {
-			matched := false
-			for _, label := range group {
-				if n.Item.HasLabel(label) {
-					matched = true
-					break
-				}
-			}
-			if !matched {
-				continue next
-			}
+		if MatchLabels(n.Item.Labels, groups) {
+			out = append(out, n)
 		}
-		out = append(out, n)
 	}
 	return out
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -498,4 +499,71 @@ func slicesEqual(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func TestNormalize(t *testing.T) {
+	cases := []struct {
+		name string
+		in   Config
+		want Config
+		err  string
+	}{
+		{"stale default", Config{Prefix: "AWIT"}, Config{Prefix: "AWIT", StaleClaim: Duration(2 * time.Hour)}, ""},
+		{"stale kept", Config{Prefix: "AWIT", StaleClaim: Duration(90 * time.Minute)}, Config{Prefix: "AWIT", StaleClaim: Duration(90 * time.Minute)}, ""},
+		{"missing prefix", Config{}, Config{}, "config: prefix is required"},
+		{"template escape", Config{Prefix: "AWIT", Template: "../x.md"}, Config{}, "config: template escapes repository root"},
+		{"template absolute", Config{Prefix: "AWIT", Template: "/etc/x.md"}, Config{}, "config: template must be a repo-root-relative path"},
+		{"template backslash", Config{Prefix: "AWIT", Template: `a\b.md`}, Config{}, "config: template must be a repo-root-relative path"},
+		{"labels dedupe", Config{Prefix: "AWIT", Labels: []string{"a", "b", "a"}}, Config{Prefix: "AWIT", StaleClaim: Duration(2 * time.Hour), Labels: []string{"a", "b"}}, ""},
+		{"labels empty entry", Config{Prefix: "AWIT", Labels: []string{"a", ""}}, Config{}, "config: labels entry must be nonempty"},
+		{"labels whitespace", Config{Prefix: "AWIT", Labels: []string{" a"}}, Config{}, "config: labels entry must not have leading or trailing whitespace"},
+		{"labels control", Config{Prefix: "AWIT", Labels: []string{"a\tb"}}, Config{}, "config: labels entry must not contain control characters"},
+		{"default_labels unchecked", Config{Prefix: "AWIT", DefaultLabels: []string{" x ", ""}}, Config{Prefix: "AWIT", StaleClaim: Duration(2 * time.Hour), DefaultLabels: []string{" x ", ""}}, ""},
+		{"lowercase prefix passes", Config{Prefix: "awit"}, Config{Prefix: "awit", StaleClaim: Duration(2 * time.Hour)}, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := c.in.Normalize()
+			if c.err != "" {
+				if err == nil || err.Error() != c.err {
+					t.Fatalf("err = %v, want %q", err, c.err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got, c.want) {
+				t.Fatalf("got %+v, want %+v", got, c.want)
+			}
+		})
+	}
+}
+
+func TestValidPrefix(t *testing.T) {
+	for _, p := range []string{"AWIT", "AB", "A1234567", "Z9"} {
+		if !ValidPrefix(p) {
+			t.Errorf("ValidPrefix(%q) = false", p)
+		}
+	}
+	for _, p := range []string{"", "A", "A12345678", "awit", "1AB", "AB-C", "Ab", "AWIT "} {
+		if ValidPrefix(p) {
+			t.Errorf("ValidPrefix(%q) = true", p)
+		}
+	}
+}
+
+func TestDurationString(t *testing.T) {
+	cases := map[Duration]string{
+		0:                                      "0s",
+		Duration(2 * time.Hour):                "2h",
+		Duration(90 * time.Minute):             "90m",
+		Duration(2*time.Hour + 30*time.Minute): "150m",
+		Duration(90 * time.Second):             "1m30s",
+	}
+	for d, want := range cases {
+		if got := d.String(); got != want {
+			t.Errorf("%d.String() = %q, want %q", int64(d), got, want)
+		}
+	}
 }

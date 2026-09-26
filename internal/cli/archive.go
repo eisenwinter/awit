@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/graph"
 	"github.com/urfave/cli/v3"
 )
@@ -29,7 +30,7 @@ func archiveAction(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	defer release()
-	g, err := loadGraph(s)
+	g, err := ops.LoadGraph(s)
 	if err != nil {
 		return err
 	}

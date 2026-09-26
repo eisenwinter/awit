@@ -1,0 +1,30 @@
+lazyawit  [1] Work items  [2] Graph  >[3] Queue  [4] Config  focus: list                            
+ready: 3
+╭───────────────────────────────────────────╮╭─────────────────────────────────────────────────────╮
+│> [AWIT-LAZY0001] open Token extraction    ││detail of AWIT-LAZY0001                              │
+│  [AWIT-LAZY0002] open Migration scripts   ││                                                     │
+│  [AWIT-LAZY0006] in_progress Rotate keys  ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+│                                           ││                                                     │
+╰───────────────────────────────────────────╯╰─────────────────────────────────────────────────────╯
+warning: 1 item(s) quarantined, run awit validate
+why: AWIT-LAZY0001; unblocks=2; critical-path=yes; selection=max-unblocks; tie-break=none
+
+close reason (optional): [AWIT-LAZY0001] >  

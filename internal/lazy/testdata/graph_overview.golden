@@ -1,0 +1,30 @@
+lazyawit  [1] Work items  >[2] Graph  [3] Queue  [4] Config  focus: list                            
+Overview
+╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│  === GRAPH WARNINGS ===                                                                          │
+│  [DANGLING DEP] AWIT-LAZY0008 depends on unknown AWIT-LAZY0999 (excluded from next)              │
+│                                                                                                  │
+│  === READY (3) ===                                                                               │
+│> [AWIT-LAZY0001] open Token extraction | auth,p1 | Unblocks: 2                                   │
+│  [AWIT-LAZY0002] open Migration scripts | db | Unblocks: 0                                       │
+│  [AWIT-LAZY0006] in_progress Rotate keys | - | Unblocks: 0                                       │
+│                                                                                                  │
+│  === BLOCKED (3) ===                                                                             │
+│  [AWIT-LAZY0003] E2E auth tests <- AWIT-LAZY0001                                                 │
+│  [AWIT-LAZY0004] Rotate API tokens <- AWIT-LAZY0003                                              │
+│  [AWIT-LAZY0007] Vendor contract | Blocked reason: waiting on vendor (awit unblock AWIT-LAZY0007)│
+│                                                                                                  │
+│  === CRITICAL PATH (3) ===                                                                       │
+│  AWIT-LAZY0001 -> AWIT-LAZY0003 -> AWIT-LAZY0004                                                 │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+│                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+warning: 1 item(s) quarantined, run awit validate
+
+j/k move  tab mode  enter work items  c/b/u/m mutate  ? help

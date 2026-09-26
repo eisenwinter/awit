@@ -12,6 +12,7 @@ curl -sL "https://github.com/eisenwinter/awit/releases/download/$V/awit_${V#v}_$
 ```
 
 Assets are named `awit_<version>_<os>_<arch>.tar.gz` (`.zip` on Windows, e.g. `awit_0.5.0_linux_amd64.tar.gz`).
+The human TUI ships separately as `lazyawit_<version>_<os>_<arch>.tar.gz` (`.zip` on Windows); agents only need `awit`.
 
 Or paste this to your agent and skip the shell entirely:
 
@@ -27,6 +28,7 @@ From source (Go 1.27+):
 
 ```bash
 go install github.com/eisenwinter/awit/cmd/awit@latest
+go install github.com/eisenwinter/awit/cmd/lazyawit@latest
 ```
 
 Or download a tagged binary from GitHub Releases. Each tag `v*` publishes
@@ -157,6 +159,43 @@ Only closed items with no dependant outside the set move; the rest stay
 closed and archivable later. Comments collapse into the archived file.
 There is no `unarchive`; `git revert` is the way back.
 
+## Browsing interactively
+
+`lazyawit` (a separate binary; flags `--repo` and `--agent`) is a
+keyboard-driven triage TUI over the same data the CLI prints. The Work items
+tab shows the `awit list` rows with the `show --full`
+detail beside them, the Graph tab shows the `awit prime` overview (or the
+focused dependency DAG for one item), and the Queue tab shows the ready
+items in `prime` order. In-TUI close, block, unblock, comment, claim and
+release reuse the CLI write paths and never push external state or
+git-commit; `P` runs a read-only `external check`. `awit` itself has no
+TUI; agents that only have `awit` cannot open it. The Config tab lists every
+`config.yaml` key with its rule, default and current value; `e`/`enter` edits
+one value, which is checked with the rules `awit` applies when loading the
+file (plus the `prefix` grammar) and then written atomically; `R` re-reads
+the file.
+
+| Key | Action |
+| --- | --- |
+| `1/2/3/4` | Switch tabs (Work items / Graph / Queue / Config) |
+| `j/k` | Move the cursor |
+| `h/l`/`tab` | Move focus between list and detail (Graph: `tab` toggles overview/focused) |
+| `enter` | Pin / open the selection in Work items |
+| `e` | Edit the selected config value (Config; `enter` also edits) |
+| `/` | Filter using `awit list` flags (`-s`, `-l`, `--ready`, `--blocked`, `--quarantined`) plus free words as search |
+| `o` | Toggle open/archive source |
+| `c` | Close the selected item (prompts for a reason) |
+| `b` | Block the selected item (prompts for a reason) |
+| `u` | Unblock the selected item |
+| `m` | Comment on the selected item |
+| `space` | Claim the selected queue item |
+| `r` | Release the selected queue item |
+| `R` | Reload items and config from disk |
+| `P` | Run `external check` on the selection |
+| `V` | Show the `validate` report |
+| `?` | Help |
+| `q` | Quit |
+
 ## Command reference
 
 | Command | Purpose |
@@ -182,6 +221,8 @@ There is no `unarchive`; `git revert` is the way back.
 | `awit archive` | Move finished work out of the hot path |
 | `awit prime` | Deterministic state graph for prompt injection |
 | `awit next` | Top unblocked item; optional `--claim` |
+
+`lazyawit` — the TUI, see [Browsing interactively](#browsing-interactively).
 
 Global flags: `--format compact|table|json`, `--repo <path>`, `--no-color`
 (accepted, no-op). Exit codes: `0` success, `1` expected non-success, `2`

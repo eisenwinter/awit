@@ -157,7 +157,20 @@ func (s *Store) Load(id string) (*Item, error) {
 }
 
 func (s *Store) LoadAll() ([]*Item, []Broken, error) {
-	ents, err := os.ReadDir(s.ItemsDir())
+	return loadDir(s.ItemsDir())
+}
+
+// LoadArchive reads .awit/archive/<id>.md files with the same parsing and
+// duplicate rules as LoadAll. A missing archive directory yields nil, nil, nil.
+func (s *Store) LoadArchive() ([]*Item, []Broken, error) {
+	if _, err := os.Stat(s.ArchiveDir()); errors.Is(err, os.ErrNotExist) {
+		return nil, nil, nil
+	}
+	return loadDir(s.ArchiveDir())
+}
+
+func loadDir(dir string) ([]*Item, []Broken, error) {
+	ents, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -174,7 +187,7 @@ func (s *Store) LoadAll() ([]*Item, []Broken, error) {
 		if e.IsDir() || filepath.Ext(e.Name()) != ".md" {
 			continue
 		}
-		path := filepath.Join(s.ItemsDir(), e.Name())
+		path := filepath.Join(dir, e.Name())
 		stem := strings.TrimSuffix(e.Name(), ".md")
 		data, err := os.ReadFile(path)
 		if err != nil {

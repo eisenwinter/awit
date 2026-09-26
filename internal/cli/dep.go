@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/eisenwinter/awit/internal/ops"
 	"github.com/eisenwinter/awit/pkg/format"
 	"github.com/eisenwinter/awit/pkg/item"
 	"github.com/urfave/cli/v3"
@@ -52,18 +53,18 @@ func depAdd(cmd *cli.Command, id, dep string) error {
 		return err
 	}
 	defer release()
-	g, err := loadGraph(s)
+	g, err := ops.LoadGraph(s)
 	if err != nil {
 		return err
 	}
 	warnQuarantined(cmd, g)
 	// Dependency CLI inputs accept ids, aliases and external keys; the
 	// serialized edge is always the canonical AWIT ID.
-	id, err = resolveItemID(graphItems(g), id)
+	id, err = ops.ResolveItemID(graphItems(g), id)
 	if err != nil {
 		return err
 	}
-	dep, err = resolveItemID(graphItems(g), dep)
+	dep, err = ops.ResolveItemID(graphItems(g), dep)
 	if err != nil {
 		return err
 	}
@@ -96,18 +97,18 @@ func depRm(cmd *cli.Command, id, dep string) error {
 		return err
 	}
 	defer release()
-	g, err := loadGraph(s)
+	g, err := ops.LoadGraph(s)
 	if err != nil {
 		return err
 	}
 	warnQuarantined(cmd, g)
 	// Dependency CLI inputs accept ids, aliases and external keys; the
 	// serialized edge is always the canonical AWIT ID.
-	id, err = resolveItemID(graphItems(g), id)
+	id, err = ops.ResolveItemID(graphItems(g), id)
 	if err != nil {
 		return err
 	}
-	dep, err = resolveItemID(graphItems(g), dep)
+	dep, err = ops.ResolveItemID(graphItems(g), dep)
 	if err != nil {
 		return err
 	}
@@ -131,7 +132,7 @@ func depRm(cmd *cli.Command, id, dep string) error {
 // printCompact reloads the graph so the printed unblock count reflects the
 // edit, then prints one compact line for id.
 func printCompact(cmd *cli.Command, s *item.Store, id string) error {
-	g, err := loadGraph(s)
+	g, err := ops.LoadGraph(s)
 	if err != nil {
 		return err
 	}
@@ -139,6 +140,6 @@ func printCompact(cmd *cli.Command, s *item.Store, id string) error {
 	if !ok {
 		return fmt.Errorf("unknown item %s", id)
 	}
-	fmt.Fprintln(cmd.Root().Writer, format.Line(toEntry(n)))
+	fmt.Fprintln(cmd.Root().Writer, format.Line(ops.ToEntry(n)))
 	return nil
 }
